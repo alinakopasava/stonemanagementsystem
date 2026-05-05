@@ -14,8 +14,8 @@ interface DesignerPageProps {
 const FINISH_OPTIONS: FinishType[] = ['Polished', 'Honed', 'Matte'];
 const DEFAULT_DIMENSIONS = { heightCm: 180, widthCm: 90, thicknessCm: 15 };
 
-const serializeDimensions = (d: { heightCm: number; widthCm: number; thicknessCm: number }) =>
-  `${d.heightCm}x${d.widthCm}x${d.thicknessCm}`;
+const serializeDimensions = (d: { heightCm: number; widthCm: number }) =>
+  `${d.heightCm}x${d.widthCm}`;
 
 const priceOf = (m: Material | undefined, d: { heightCm: number; widthCm: number }) => {
   if (!m) return 0;
@@ -48,7 +48,7 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
 
   const estimatedPrice = priceOf(selectedMaterial, dimensions);
 
-  const textureUrl = selectedMaterial?.imageUrl ?? '/images/black%20granite.png';
+  const textureUrl = selectedMaterial?.imageUrl ?? '/images/black_granite_texture.jpg';
 
   const updateDimension = (key: keyof typeof DEFAULT_DIMENSIONS) => (value: number) =>
     setDimensions((prev) => ({ ...prev, [key]: value }));

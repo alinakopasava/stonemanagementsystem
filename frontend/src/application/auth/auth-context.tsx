@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import type { AuthUser, UserProfile, UserRole } from '@domain/entities/user-profile';
@@ -73,20 +73,43 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
 
+  // Track the currently-hydrated user id so we can skip redundant profile
+  // fetches when supabase fires events for the same user (TOKEN_REFRESHED,
+  // INITIAL_SESSION, USER_UPDATED). Using a ref avoids stale-closure issues
+  // inside async callbacks and prevents extra renders.
+  const currentUserIdRef = useRef<string | null>(null);
+
   const hydrateFromSession = useCallback(async (nextSession: Session | null) => {
     setSession(nextSession);
-    if (!nextSession?.user) {
+
+    const nextUserId = nextSession?.user?.id ?? null;
+    if (!nextUserId) {
+      currentUserIdRef.current = null;
       setUser(null);
       return;
     }
-    const profile = await loadProfile(nextSession.user.id);
+
+    // Same user as before -> just refresh session metadata, keep the
+    // already-loaded profile. Avoids a DB round-trip on every token refresh.
+    if (nextUserId === currentUserIdRef.current) {
+      setUser((prev) =>
+        prev
+          ? { ...prev, email: nextSession?.user?.email ?? prev.email }
+          : prev
+      );
+      return;
+    }
+
+    const profile = await loadProfile(nextUserId);
     if (!profile) {
+      currentUserIdRef.current = null;
       setUser(null);
       return;
     }
+    currentUserIdRef.current = nextUserId;
     setUser({
-      id: nextSession.user.id,
-      email: nextSession.user.email ?? null,
+      id: nextUserId,
+      email: nextSession?.user?.email ?? null,
       profile
     });
   }, []);
@@ -111,10 +134,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     };
   }, [hydrateFromSession]);
 
-  const signIn = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-  }, []);
+  const signIn = useCallback(
+    async (email: string, password: string) => {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      // Hydrate eagerly so the caller (sign-in page) can navigate to a
+      // protected route with the user already populated. Without this,
+      // the auth-state-change listener races with navigation and the page
+      // briefly renders as signed-out.
+      await hydrateFromSession(data.session);
+    },
+    [hydrateFromSession]
+  );
 
   const signUp = useCallback(async (input: SignUpInput) => {
     const { data, error } = await supabase.auth.signUp({
@@ -151,9 +182,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     if (!session?.user) return;
     const profile = await loadProfile(session.user.id);
     if (!profile) {
+      currentUserIdRef.current = null;
       setUser(null);
       return;
     }
+    currentUserIdRef.current = session.user.id;
     setUser({
       id: session.user.id,
       email: session.user.email ?? null,
