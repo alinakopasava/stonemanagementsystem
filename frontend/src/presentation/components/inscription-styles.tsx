@@ -1,6 +1,4 @@
 import type { CSSProperties } from 'react';
-import { useTranslation } from '@application/i18n/i18n-context';
-import type { TranslationKey } from '@application/i18n/translations';
 
 export type InscriptionStyleId =
   | 'roman'
@@ -11,8 +9,8 @@ export type InscriptionStyleId =
 
 export interface InscriptionStyle {
   id: InscriptionStyleId;
-  labelKey: TranslationKey;
-  descriptionKey: TranslationKey;
+  label: string;
+  description: string;
   /** CSS for HTML previews (textarea preview + thumbnail). */
   css: CSSProperties;
   /** Hints applied to the 3D engraving. */
@@ -29,8 +27,8 @@ const GFONTS = 'https://cdn.jsdelivr.net/gh/google/fonts';
 export const INSCRIPTION_STYLES: InscriptionStyle[] = [
   {
     id: 'roman',
-    labelKey: 'inscription.style.roman',
-    descriptionKey: 'inscription.style.roman.desc',
+    label: 'Roman',
+    description: 'Classical capitals — timeless, dignified.',
     css: {
       fontFamily: '"Cinzel", "Playfair Display", serif',
       fontWeight: 700,
@@ -45,8 +43,8 @@ export const INSCRIPTION_STYLES: InscriptionStyle[] = [
   },
   {
     id: 'classic',
-    labelKey: 'inscription.style.classic',
-    descriptionKey: 'inscription.style.classic.desc',
+    label: 'Classic',
+    description: 'Elegant serif — formal and balanced.',
     css: {
       fontFamily: '"Playfair Display", serif',
       fontWeight: 600,
@@ -60,8 +58,8 @@ export const INSCRIPTION_STYLES: InscriptionStyle[] = [
   },
   {
     id: 'elegant',
-    labelKey: 'inscription.style.elegant',
-    descriptionKey: 'inscription.style.elegant.desc',
+    label: 'Elegant',
+    description: 'Refined italic serif — soft and warm.',
     css: {
       fontFamily: '"Cormorant Garamond", serif',
       fontStyle: 'italic',
@@ -76,8 +74,8 @@ export const INSCRIPTION_STYLES: InscriptionStyle[] = [
   },
   {
     id: 'script',
-    labelKey: 'inscription.style.script',
-    descriptionKey: 'inscription.style.script.desc',
+    label: 'Script',
+    description: 'Flowing handwritten cursive.',
     css: {
       fontFamily: '"Great Vibes", cursive',
       fontWeight: 400,
@@ -91,8 +89,8 @@ export const INSCRIPTION_STYLES: InscriptionStyle[] = [
   },
   {
     id: 'gothic',
-    labelKey: 'inscription.style.gothic',
-    descriptionKey: 'inscription.style.gothic.desc',
+    label: 'Gothic',
+    description: 'Traditional blackletter — solemn.',
     css: {
       fontFamily: '"UnifrakturMaguntia", serif',
       fontWeight: 400,
@@ -122,8 +120,7 @@ export const InscriptionStylePicker = ({
   selectedId,
   onSelect
 }: InscriptionStylePickerProps) => {
-  const { t } = useTranslation();
-  const previewText = inscription.trim() || t('designer.inscriptionPlaceholder');
+  const previewText = inscription.trim() || 'In loving memory';
   const selectedStyle = getInscriptionStyle(selectedId);
 
   return (
@@ -152,7 +149,7 @@ export const InscriptionStylePicker = ({
                 {previewText}
               </span>
               <span className="text-[10px] uppercase tracking-wider text-slate-400">
-                {t(style.labelKey)}
+                {style.label}
               </span>
             </button>
           );
@@ -161,7 +158,7 @@ export const InscriptionStylePicker = ({
 
       <div className="rounded-lg border border-slate-700 bg-slate-950/60 p-4">
         <p className="text-[10px] uppercase tracking-wider text-slate-500">
-          {t('designer.inscriptionStyle.preview')} · {t(selectedStyle.labelKey)}
+          Preview · {selectedStyle.label}
         </p>
         <p
           className="mt-2 break-words text-2xl leading-snug text-amber-100"
@@ -169,7 +166,7 @@ export const InscriptionStylePicker = ({
         >
           {previewText}
         </p>
-        <p className="mt-2 text-[11px] text-slate-500">{t(selectedStyle.descriptionKey)}</p>
+        <p className="mt-2 text-[11px] text-slate-500">{selectedStyle.description}</p>
       </div>
     </div>
   );

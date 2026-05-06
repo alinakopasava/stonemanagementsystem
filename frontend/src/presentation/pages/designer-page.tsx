@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@application/auth/auth-context';
-import { useTranslation } from '@application/i18n/i18n-context';
-import type { TranslationKey } from '@application/i18n/translations';
 import type { FinishType } from '@domain/entities/order-card';
 import type { Material } from '@domain/entities/material';
 import { submitOrderRequest } from '@infrastructure/api/order-api';
@@ -21,12 +19,6 @@ interface DesignerPageProps {
 
 const FINISH_OPTIONS: FinishType[] = ['Polished', 'Honed', 'Matte'];
 
-const FINISH_LABEL_KEYS: Record<FinishType, TranslationKey> = {
-  Polished: 'designer.finish.polished',
-  Honed: 'designer.finish.honed',
-  Matte: 'designer.finish.matte'
-};
-
 const DEFAULT_DIMENSIONS = { heightCm: 180, widthCm: 90, thicknessCm: 15 };
 
 const serializeDimensions = (d: { heightCm: number; widthCm: number }) =>
@@ -40,7 +32,6 @@ const priceOf = (m: Material | undefined, d: { heightCm: number; widthCm: number
 
 export const DesignerPage = ({ materials }: DesignerPageProps) => {
   const { user } = useAuth();
-  const { t } = useTranslation();
   const navigate = useNavigate();
 
   const [materialId, setMaterialId] = useState<string>('');
@@ -92,9 +83,9 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
         inscriptionText: inscription,
         finishType: finish
       });
-      setSubmitMessage(t('designer.success'));
+      setSubmitMessage('Order submitted successfully. Our team will contact you shortly.');
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : t('designer.error'));
+      setSubmitError(err instanceof Error ? err.message : 'Failed to submit order.');
     } finally {
       setIsSubmitting(false);
     }
@@ -105,11 +96,14 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
       <Header />
       <main className="mx-auto w-full max-w-7xl px-6 py-8">
         <div className="mb-6">
-          <p className="text-sm uppercase tracking-[0.2em] text-slate-400">
-            {t('designer.section.tag')}
+          <p className="text-sm uppercase tracking-[0.2em] text-slate-400">3D Designer</p>
+          <h1 className="mt-1 font-serif text-4xl text-gray-100">
+            Design your monument in real time
+          </h1>
+          <p className="mt-2 max-w-3xl text-slate-300">
+            Choose the stone, finish, size, and engraving. Drag to rotate, scroll to zoom.
+            What you see is what we craft.
           </p>
-          <h1 className="mt-1 font-serif text-4xl text-gray-100">{t('designer.title')}</h1>
-          <p className="mt-2 max-w-3xl text-slate-300">{t('designer.subtitle')}</p>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
@@ -126,9 +120,7 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
 
           <aside className="space-y-5 rounded-2xl border border-slate-700/60 bg-slate-900/70 p-6">
             <section>
-              <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
-                {t('designer.material')}
-              </h2>
+              <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">Material</h2>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 {materials.map((m) => {
                   const active = m.id === materialId;
@@ -162,9 +154,7 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
             </section>
 
             <section>
-              <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
-                {t('designer.finish')}
-              </h2>
+              <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">Finish</h2>
               <div className="mt-3 flex gap-2">
                 {FINISH_OPTIONS.map((f) => {
                   const active = f === finish;
@@ -180,7 +170,7 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
                           : 'border-slate-700 text-slate-300 hover:border-slate-500'
                       ].join(' ')}
                     >
-                      {t(FINISH_LABEL_KEYS[f])}
+                      {f}
                     </button>
                   );
                 })}
@@ -188,12 +178,10 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
             </section>
 
             <section>
-              <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
-                {t('designer.dimensions')}
-              </h2>
+              <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">Dimensions</h2>
               <div className="mt-3 space-y-3">
                 <SliderRow
-                  label={t('designer.dimensions.height')}
+                  label="Height"
                   value={dimensions.heightCm}
                   min={90}
                   max={240}
@@ -202,7 +190,7 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
                   onChange={updateDimension('heightCm')}
                 />
                 <SliderRow
-                  label={t('designer.dimensions.width')}
+                  label="Width"
                   value={dimensions.widthCm}
                   min={40}
                   max={140}
@@ -211,7 +199,7 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
                   onChange={updateDimension('widthCm')}
                 />
                 <SliderRow
-                  label={t('designer.dimensions.thickness')}
+                  label="Thickness"
                   value={dimensions.thicknessCm}
                   min={8}
                   max={30}
@@ -223,14 +211,12 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
             </section>
 
             <section>
-              <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
-                {t('designer.inscription')}
-              </h2>
+              <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">Inscription</h2>
               <textarea
                 className="mt-3 h-16 w-full resize-none rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-gray-100 focus:border-amber-300 focus:outline-none"
                 value={inscription}
                 onChange={(e) => setInscription(e.target.value)}
-                placeholder={t('designer.inscriptionPlaceholder')}
+                placeholder="In loving memory..."
                 maxLength={140}
               />
               <p className="mt-1 text-right text-[10px] text-slate-500">
@@ -240,7 +226,7 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
               <div className="mt-3 grid gap-3 sm:grid-cols-[1.4fr_1fr]">
                 <label className="block">
                   <span className="text-[11px] uppercase tracking-wider text-slate-400">
-                    {t('designer.name')}
+                    Name
                   </span>
                   <input
                     type="text"
@@ -253,7 +239,7 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
                 </label>
                 <label className="block">
                   <span className="text-[11px] uppercase tracking-wider text-slate-400">
-                    {t('designer.dates')}
+                    Dates
                   </span>
                   <input
                     type="text"
@@ -269,7 +255,7 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
 
             <section>
               <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
-                {t('designer.inscriptionStyle')}
+                Inscription style
               </h2>
               <div className="mt-3">
                 <InscriptionStylePicker
@@ -282,13 +268,13 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
 
             <section className="rounded-lg border border-slate-700 bg-slate-950/60 p-4">
               <div className="flex items-baseline justify-between">
-                <span className="text-xs text-slate-400">{t('designer.estimatedCost')}</span>
+                <span className="text-xs text-slate-400">Estimated material cost</span>
                 <span className="font-serif text-2xl text-amber-200">
                   {estimatedPrice.toFixed(2)} PLN
                 </span>
               </div>
               <p className="mt-1 text-[11px] text-slate-500">
-                {t('designer.estimatedCostHint')}
+                Final price may include engraving and installation. Confirmed by our team.
               </p>
             </section>
 
@@ -299,10 +285,10 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
               className="w-full rounded-md bg-gray-100 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-white disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
             >
               {isSubmitting
-                ? t('designer.submitting')
+                ? 'Submitting...'
                 : user
-                  ? t('designer.placeOrder')
-                  : t('designer.signInToOrder')}
+                  ? 'Place order'
+                  : 'Sign in to place order'}
             </button>
 
             {submitMessage ? (
