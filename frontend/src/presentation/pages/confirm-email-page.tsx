@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
+import { useTranslation } from '@application/i18n/i18n-context';
 import { AuthShell } from '@presentation/components/auth-shell';
 
 interface LocationState {
@@ -6,26 +7,25 @@ interface LocationState {
 }
 
 export const ConfirmEmailPage = () => {
+  const { t } = useTranslation();
   const location = useLocation();
   const email = (location.state as LocationState | null)?.email;
 
   return (
     <AuthShell
-      title="Confirm your email"
+      title={t('confirmEmail.title')}
       subtitle={
         email
-          ? `We just sent a confirmation link to ${email}. Click it to activate your account.`
-          : 'We just sent a confirmation link to your inbox. Click it to activate your account.'
+          ? t('confirmEmail.subtitleWithEmail', { email })
+          : t('confirmEmail.subtitleNoEmail')
       }
       footer={
         <Link to="/sign-in" className="text-amber-300 hover:underline">
-          Back to sign in
+          {t('confirmEmail.backToSignIn')}
         </Link>
       }
     >
-      <p className="text-sm text-slate-300">
-        Didn&apos;t get the email? Check your spam folder, or wait a minute and try again.
-      </p>
+      <p className="text-sm text-slate-300">{t('confirmEmail.tip')}</p>
     </AuthShell>
   );
 };

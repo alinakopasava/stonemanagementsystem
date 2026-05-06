@@ -2,14 +2,18 @@ import { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { ContactShadows, Environment, OrbitControls } from '@react-three/drei';
 import { MonumentModel } from './monument-model';
-import type { MonumentDimensionsCm } from './monument-model';
+import type { InscriptionStyleHints, MonumentDimensionsCm } from './monument-model';
 import type { FinishType } from '@domain/entities/order-card';
 
 interface MonumentViewerProps {
   textureUrl: string;
+  materialName?: string;
   finish: FinishType;
   dimensions: MonumentDimensionsCm;
   inscription: string;
+  name?: string;
+  dates?: string;
+  inscriptionStyle?: InscriptionStyleHints;
 }
 
 const ViewerFallback = () => (

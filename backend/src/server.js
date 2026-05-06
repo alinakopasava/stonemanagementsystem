@@ -5,6 +5,7 @@ import { materialRouter } from './routes/material.routes.js';
 import { orderRouter } from './routes/order.routes.js';
 import { meRouter } from './routes/me.routes.js';
 import { adminRouter } from './routes/admin.routes.js';
+import { contactRouter } from './routes/contact.routes.js';
 
 const app = express();
 
@@ -24,6 +25,7 @@ app.use('/api/materials', materialRouter);
 app.use('/api/orders', orderRouter);
 app.use('/api/me', meRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/contact', contactRouter);
 
 // Final error guard
 app.use((err, _req, res, _next) => {

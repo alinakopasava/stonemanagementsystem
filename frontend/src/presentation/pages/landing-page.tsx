@@ -1,6 +1,6 @@
 import type { Material } from '@domain/entities/material';
-import { products } from '@infrastructure/data/catalog-data';
-import { ConfiguratorWidget } from '@presentation/components/configurator-widget';
+import { useTranslation } from '@application/i18n/i18n-context';
+import { ContactForm } from '@presentation/components/contact-form';
 import { Header } from '@presentation/components/header';
 import { HeroSection } from '@presentation/components/hero-section';
 
@@ -8,16 +8,18 @@ interface LandingPageProps {
   materials: Material[];
 }
 
-export const LandingPage = ({ materials }: LandingPageProps) => {
+export const LandingPage = ({ materials: _materials }: LandingPageProps) => {
+  const { t } = useTranslation();
+
   return (
     <div className="min-h-screen bg-transparent text-gray-100">
       <Header />
       <main>
         <HeroSection />
-        <ConfiguratorWidget materials={materials} product={products[0]} />
+        <ContactForm />
       </main>
       <footer className="mx-auto mt-12 w-full max-w-6xl px-6 pb-10 text-xs text-slate-500">
-        Signature Stone - dignified memorial craftsmanship in a modern digital process.
+        {t('landing.footer')}
       </footer>
     </div>
   );

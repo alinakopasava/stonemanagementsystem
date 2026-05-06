@@ -2,10 +2,12 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@application/auth/auth-context';
+import { useTranslation } from '@application/i18n/i18n-context';
 import { AuthShell } from '@presentation/components/auth-shell';
 
 export const ForgotPasswordPage = () => {
   const { sendPasswordReset } = useAuth();
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
@@ -19,7 +21,7 @@ export const ForgotPasswordPage = () => {
       await sendPasswordReset(email);
       setSent(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send reset email.');
+      setError(err instanceof Error ? err.message : t('forgotPassword.error'));
     } finally {
       setIsSubmitting(false);
     }
@@ -27,22 +29,22 @@ export const ForgotPasswordPage = () => {
 
   return (
     <AuthShell
-      title="Reset password"
-      subtitle="We'll email you a secure link to set a new password."
+      title={t('forgotPassword.title')}
+      subtitle={t('forgotPassword.subtitle')}
       footer={
         <Link to="/sign-in" className="text-amber-300 hover:underline">
-          Back to sign in
+          {t('forgotPassword.backToSignIn')}
         </Link>
       }
     >
       {sent ? (
         <p className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">
-          If an account exists for {email}, a reset link is on its way.
+          {t('forgotPassword.success', { email })}
         </p>
       ) : (
         <form className="space-y-4" onSubmit={handleSubmit} noValidate>
           <label className="block space-y-2">
-            <span className="text-sm text-slate-200">Email</span>
+            <span className="text-sm text-slate-200">{t('auth.email')}</span>
             <input
               type="email"
               autoComplete="email"
@@ -64,7 +66,7 @@ export const ForgotPasswordPage = () => {
             disabled={isSubmitting}
             className="w-full rounded-md bg-gray-100 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-white disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
           >
-            {isSubmitting ? 'Sending...' : 'Send reset link'}
+            {isSubmitting ? t('forgotPassword.submitting') : t('forgotPassword.submit')}
           </button>
         </form>
       )}

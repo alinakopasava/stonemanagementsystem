@@ -2,9 +2,12 @@ import { useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import type { Material } from '@domain/entities/material';
 import { AuthProvider } from '@application/auth/auth-context';
+import { I18nProvider } from '@application/i18n/i18n-context';
 import { fetchMaterials } from '@infrastructure/api/material-api';
 import { ProtectedRoute } from '@presentation/components/protected-route';
 import { AdminLayout } from '@presentation/pages/admin-layout';
+import { AdminMessagesPage } from '@presentation/pages/admin-messages-page';
+import { AdminOrderCardsPage } from '@presentation/pages/admin-order-cards-page';
 import { AdminOrdersPage } from '@presentation/pages/admin-orders-page';
 import { AdminUsersPage } from '@presentation/pages/admin-users-page';
 import { AuthCallbackPage } from '@presentation/pages/auth-callback-page';
@@ -39,7 +42,8 @@ export const App = () => {
 
   return (
     <BrowserRouter>
-      <AuthProvider>
+      <I18nProvider>
+        <AuthProvider>
         {isLoadingMaterials ? (
           <div className="flex min-h-screen items-center justify-center bg-slate-900 text-slate-200">
             Loading...
@@ -71,13 +75,16 @@ export const App = () => {
             >
               <Route index element={<Navigate to="users" replace />} />
               <Route path="users" element={<AdminUsersPage />} />
+              <Route path="order-cards" element={<AdminOrderCardsPage />} />
               <Route path="orders" element={<AdminOrdersPage />} />
+              <Route path="messages" element={<AdminMessagesPage />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         )}
-      </AuthProvider>
+        </AuthProvider>
+      </I18nProvider>
     </BrowserRouter>
   );
 };

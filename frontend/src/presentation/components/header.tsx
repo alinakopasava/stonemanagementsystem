@@ -2,18 +2,17 @@ import { useEffect, useRef, useState } from 'react';
 import { Landmark, LogIn, LogOut, Shield, UserPlus, UserRound } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@application/auth/auth-context';
-
-const roleLabel: Record<string, string> = {
-  klient: 'Client',
-  monter: 'Installer',
-  admin: 'Admin'
-};
+import { useTranslation } from '@application/i18n/i18n-context';
+import { LanguageSwitcher } from '@presentation/components/language-switcher';
 
 export const Header = () => {
   const { user, signOut } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
+
+  const isAdmin = user?.profile.role === 'admin';
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -35,10 +34,10 @@ export const Header = () => {
     }
   };
 
-  const displayName =
+  const adminDisplayName =
     [user?.profile.firstName, user?.profile.lastName].filter(Boolean).join(' ') ||
     user?.email ||
-    'Account';
+    t('header.account');
 
   return (
     <header className="sticky top-0 z-20 border-b border-slate-700/60 bg-slate-950/70 backdrop-blur">
@@ -47,22 +46,15 @@ export const Header = () => {
           <Landmark className="h-5 w-5 text-amber-300" />
           <span className="font-serif text-xl text-gray-100">Signature Stone</span>
         </Link>
-        <nav className="hidden items-center gap-6 text-sm text-gray-300 md:flex">
+        <nav className="hidden items-center gap-4 text-sm text-gray-300 md:flex">
           <Link to="/catalog" className="transition hover:text-white">
-            Catalog
+            {t('header.catalog')}
           </Link>
           <Link to="/design" className="transition hover:text-white">
-            3D Designer
+            {t('header.designer')}
           </Link>
-          {user?.profile.role === 'admin' ? (
-            <Link
-              to="/admin"
-              className="inline-flex items-center gap-1.5 text-amber-300 transition hover:text-amber-200"
-            >
-              <Shield className="h-4 w-4" />
-              Admin
-            </Link>
-          ) : null}
+
+          <LanguageSwitcher />
 
           {!user ? (
             <>
@@ -71,47 +63,65 @@ export const Header = () => {
                 className="inline-flex items-center gap-2 rounded-md border border-slate-600 px-3 py-2 transition hover:border-slate-400 hover:text-white"
               >
                 <LogIn className="h-4 w-4" />
-                Sign In
+                {t('header.signIn')}
               </Link>
               <Link
                 to="/sign-up"
                 className="inline-flex items-center gap-2 rounded-md bg-gray-100 px-3 py-2 font-medium text-slate-900 transition hover:bg-white"
               >
                 <UserPlus className="h-4 w-4" />
-                Sign Up
+                {t('header.signUp')}
               </Link>
             </>
-          ) : (
-            <div className="relative" ref={menuRef}>
-              <button
-                type="button"
-                onClick={() => setMenuOpen((open) => !open)}
-                className="inline-flex items-center gap-2 rounded-md border border-slate-600 px-3 py-2 transition hover:border-slate-400 hover:text-white"
+          ) : isAdmin ? (
+            <>
+              <Link
+                to="/admin"
+                className="inline-flex items-center gap-1.5 text-amber-300 transition hover:text-amber-200"
               >
-                <UserRound className="h-4 w-4" />
-                <span className="max-w-[160px] truncate">{displayName}</span>
-                <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] uppercase tracking-wider text-slate-300">
-                  {roleLabel[user.profile.role] ?? user.profile.role}
-                </span>
-              </button>
+                <Shield className="h-4 w-4" />
+                {t('header.admin')}
+              </Link>
+              <div className="relative" ref={menuRef}>
+                <button
+                  type="button"
+                  onClick={() => setMenuOpen((open) => !open)}
+                  className="inline-flex items-center gap-2 rounded-md border border-slate-600 px-3 py-2 transition hover:border-slate-400 hover:text-white"
+                >
+                  <UserRound className="h-4 w-4" />
+                  <span className="max-w-[160px] truncate">{adminDisplayName}</span>
+                  <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] uppercase tracking-wider text-slate-300">
+                    {t('header.admin')}
+                  </span>
+                </button>
 
-              {menuOpen ? (
-                <div className="absolute right-0 mt-2 w-56 rounded-md border border-slate-700 bg-slate-900 p-1 shadow-xl">
-                  <div className="px-3 py-2 text-xs text-slate-400">
-                    Signed in as
-                    <div className="truncate text-slate-200">{user.email}</div>
+                {menuOpen ? (
+                  <div className="absolute right-0 mt-2 w-56 rounded-md border border-slate-700 bg-slate-900 p-1 shadow-xl">
+                    <div className="px-3 py-2 text-xs text-slate-400">
+                      {t('header.signedInAs')}
+                      <div className="truncate text-slate-200">{user.email}</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleSignOut}
+                      className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      {t('header.signOut')}
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleSignOut}
-                    className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Sign out
-                  </button>
-                </div>
-              ) : null}
-            </div>
+                ) : null}
+              </div>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="inline-flex items-center gap-2 rounded-md border border-slate-600 px-3 py-2 transition hover:border-slate-400 hover:text-white"
+            >
+              <LogOut className="h-4 w-4" />
+              {t('header.signOut')}
+            </button>
           )}
         </nav>
       </div>

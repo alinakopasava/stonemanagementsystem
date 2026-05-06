@@ -2,17 +2,24 @@ import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@application/auth/auth-context';
+import { useTranslation } from '@application/i18n/i18n-context';
+import type { TranslationKey } from '@application/i18n/translations';
 import { AuthShell } from '@presentation/components/auth-shell';
 
-const passwordRequirements = [
-  { id: 'length', label: 'At least 8 characters', test: (v: string) => v.length >= 8 },
-  { id: 'upper', label: 'One uppercase letter', test: (v: string) => /[A-Z]/.test(v) },
-  { id: 'lower', label: 'One lowercase letter', test: (v: string) => /[a-z]/.test(v) },
-  { id: 'digit', label: 'One digit', test: (v: string) => /\d/.test(v) }
+const passwordRequirements: Array<{
+  id: string;
+  labelKey: TranslationKey;
+  test: (v: string) => boolean;
+}> = [
+  { id: 'length', labelKey: 'auth.req.length', test: (v) => v.length >= 8 },
+  { id: 'upper', labelKey: 'auth.req.upper', test: (v) => /[A-Z]/.test(v) },
+  { id: 'lower', labelKey: 'auth.req.lower', test: (v) => /[a-z]/.test(v) },
+  { id: 'digit', labelKey: 'auth.req.digit', test: (v) => /\d/.test(v) }
 ];
 
 export const SignUpPage = () => {
   const { signUp } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   const [firstName, setFirstName] = useState('');
@@ -58,7 +65,7 @@ export const SignUpPage = () => {
         navigate('/', { replace: true });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create account.');
+      setError(err instanceof Error ? err.message : t('signUp.error'));
     } finally {
       setIsSubmitting(false);
     }
@@ -66,13 +73,13 @@ export const SignUpPage = () => {
 
   return (
     <AuthShell
-      title="Create account"
-      subtitle="Join Signature Stone to place and track memorial orders."
+      title={t('signUp.title')}
+      subtitle={t('signUp.subtitle')}
       footer={
         <>
-          Already have an account?{' '}
+          {t('signUp.haveAccount')}{' '}
           <Link to="/sign-in" className="text-amber-300 hover:underline">
-            Sign in
+            {t('signIn.submit')}
           </Link>
         </>
       }
@@ -80,7 +87,7 @@ export const SignUpPage = () => {
       <form className="space-y-4" onSubmit={handleSubmit} noValidate>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block space-y-2">
-            <span className="text-sm text-slate-200">First name</span>
+            <span className="text-sm text-slate-200">{t('auth.firstName')}</span>
             <input
               type="text"
               autoComplete="given-name"
@@ -91,7 +98,7 @@ export const SignUpPage = () => {
             />
           </label>
           <label className="block space-y-2">
-            <span className="text-sm text-slate-200">Last name</span>
+            <span className="text-sm text-slate-200">{t('auth.lastName')}</span>
             <input
               type="text"
               autoComplete="family-name"
@@ -104,7 +111,7 @@ export const SignUpPage = () => {
         </div>
 
         <label className="block space-y-2">
-          <span className="text-sm text-slate-200">Phone (optional)</span>
+          <span className="text-sm text-slate-200">{t('auth.phoneOptional')}</span>
           <input
             type="tel"
             autoComplete="tel"
@@ -115,7 +122,7 @@ export const SignUpPage = () => {
         </label>
 
         <label className="block space-y-2">
-          <span className="text-sm text-slate-200">Email</span>
+          <span className="text-sm text-slate-200">{t('auth.email')}</span>
           <input
             type="email"
             autoComplete="email"
@@ -127,7 +134,7 @@ export const SignUpPage = () => {
         </label>
 
         <label className="block space-y-2">
-          <span className="text-sm text-slate-200">Password</span>
+          <span className="text-sm text-slate-200">{t('auth.password')}</span>
           <input
             type="password"
             autoComplete="new-password"
@@ -141,13 +148,13 @@ export const SignUpPage = () => {
         <ul className="space-y-1 text-xs">
           {checks.map((c) => (
             <li key={c.id} className={c.passed ? 'text-emerald-300' : 'text-slate-400'}>
-              {c.passed ? '\u2713' : '\u2022'} {c.label}
+              {c.passed ? '\u2713' : '\u2022'} {t(c.labelKey)}
             </li>
           ))}
         </ul>
 
         <label className="block space-y-2">
-          <span className="text-sm text-slate-200">Confirm password</span>
+          <span className="text-sm text-slate-200">{t('auth.confirmPassword')}</span>
           <input
             type="password"
             autoComplete="new-password"
@@ -157,7 +164,7 @@ export const SignUpPage = () => {
             onChange={(e) => setPasswordConfirm(e.target.value)}
           />
           {passwordConfirm && !passwordsMatch ? (
-            <span className="text-xs text-red-300">Passwords do not match.</span>
+            <span className="text-xs text-red-300">{t('auth.passwordsMismatch')}</span>
           ) : null}
         </label>
 
@@ -172,7 +179,7 @@ export const SignUpPage = () => {
           disabled={!canSubmit}
           className="w-full rounded-md bg-gray-100 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-white disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
         >
-          {isSubmitting ? 'Creating account...' : 'Create account'}
+          {isSubmitting ? t('signUp.submitting') : t('signUp.submit')}
         </button>
       </form>
     </AuthShell>

@@ -9,17 +9,39 @@ export interface MonumentDimensionsCm {
   thicknessCm: number;
 }
 
+export interface InscriptionStyleHints {
+  /** Optional URL to a TTF/OTF file for troika-three-text. */
+  fontUrl?: string;
+  letterSpacing: number;
+  transform: 'none' | 'uppercase';
+}
+
+const DEFAULT_INSCRIPTION_STYLE: InscriptionStyleHints = {
+  letterSpacing: 0,
+  transform: 'none'
+};
+
+/**
+ * Materials whose texture is a single-slab photograph (large unique veining
+ * pattern). Tiling these produces visible seams, so we map the image once
+ * across the whole monument with ClampToEdge wrapping.
+ */
+const UNIQUE_SLAB_MATERIALS = new Set(['Marble', 'Labradorite Blue']);
+
 interface MonumentModelProps {
   textureUrl: string;
+  materialName?: string;
   finish: FinishType;
   dimensions: MonumentDimensionsCm;
   inscription: string;
+  name?: string;
+  dates?: string;
+  inscriptionStyle?: InscriptionStyleHints;
   fallbackColor?: string;
 }
 
 const CM_TO_M = 0.01;
 
-/** Polished stone = nearly specular. Honed = soft sheen. Matte = diffuse. */
 const finishToSurface = (finish: FinishType) => {
   switch (finish) {
     case 'Polished':
@@ -32,37 +54,51 @@ const finishToSurface = (finish: FinishType) => {
   }
 };
 
-/** Arched-top headstone, built from an extruded 2D shape. */
 const buildHeadstoneShape = (widthM: number, heightM: number) => {
   const shape = new THREE.Shape();
   const bodyHeight = Math.max(0.05, heightM - widthM / 2);
   shape.moveTo(-widthM / 2, 0);
   shape.lineTo(widthM / 2, 0);
   shape.lineTo(widthM / 2, bodyHeight);
-  // semicircular top
   shape.absarc(0, bodyHeight, widthM / 2, 0, Math.PI, false);
   shape.lineTo(-widthM / 2, 0);
   return shape;
 };
 
-export const MonumentModel = ({
-  textureUrl,
-  finish,
-  dimensions,
-  inscription,
-  fallbackColor = '#5a5a5a'
-}: MonumentModelProps) => {
-  const texture = useTexture(textureUrl);
-
-  useMemo(() => {
-    if (!texture) return;
+const applyTextureSettings = (texture: THREE.Texture | undefined, isUniqueSlab: boolean) => {
+  if (!texture) return;
+  if (isUniqueSlab) {
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.repeat.set(1, 1);
+    texture.offset.set(0, 0);
+  } else {
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
     texture.repeat.set(1, 1.5);
-    texture.anisotropy = 8;
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.needsUpdate = true;
-  }, [texture]);
+  }
+  texture.anisotropy = 8;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+};
+
+export const MonumentModel = ({
+  textureUrl,
+  materialName,
+  finish,
+  dimensions,
+  inscription,
+  name,
+  dates,
+  inscriptionStyle = DEFAULT_INSCRIPTION_STYLE,
+  fallbackColor = '#5a5a5a'
+}: MonumentModelProps) => {
+  const texture = useTexture(textureUrl);
+  const isUniqueSlab = UNIQUE_SLAB_MATERIALS.has(materialName ?? '');
+
+  useMemo(() => {
+    applyTextureSettings(texture, isUniqueSlab);
+  }, [texture, isUniqueSlab]);
 
   const widthM = dimensions.widthCm * CM_TO_M;
   const heightM = dimensions.heightCm * CM_TO_M;
@@ -88,12 +124,39 @@ export const MonumentModel = ({
 
   const surface = finishToSurface(finish);
 
-  // Inscription: positioned slightly in front of the slab, centered horizontally,
-  // lower third so it reads like a real headstone.
+  // Layout for the engraved lines, top-down on the headstone body:
+  //   header inscription → name (largest) → dates
   const bodyHeight = Math.max(0.05, heightM - widthM / 2);
-  const textY = baseHeight + bodyHeight * 0.45;
-  const textZ = thicknessM + 0.002;
-  const inscriptionSize = Math.min(widthM * 0.11, bodyHeight * 0.15);
+  const textZ = thicknessM + 0.01;
+  const baseSize = Math.max(0.04, Math.min(widthM * 0.11, bodyHeight * 0.15));
+
+  const headerSize = baseSize * 0.7;
+  const nameSize = baseSize * 1.15;
+  const datesSize = baseSize * 0.75;
+
+  const headerY = bodyHeight * 0.62;
+  const nameY = bodyHeight * 0.45;
+  const datesY = bodyHeight * 0.3;
+
+  const transformText = (value: string) =>
+    inscriptionStyle.transform === 'uppercase' ? value.toUpperCase() : value;
+
+  const inscriptionTrimmed = inscription?.trim() ?? '';
+  const nameTrimmed = name?.trim() ?? '';
+  const datesTrimmed = dates?.trim() ?? '';
+
+  const commonTextProps = {
+    color: '#f3eccd' as const,
+    outlineColor: '#1a1208' as const,
+    outlineOpacity: 0.9,
+    anchorX: 'center' as const,
+    anchorY: 'middle' as const,
+    textAlign: 'center' as const,
+    maxWidth: widthM * 0.85,
+    letterSpacing: inscriptionStyle.letterSpacing,
+    font: inscriptionStyle.fontUrl,
+    renderOrder: 2
+  };
 
   return (
     <group>
@@ -124,21 +187,36 @@ export const MonumentModel = ({
           />
         </mesh>
 
-        {/* Engraved inscription */}
-        {inscription?.trim() ? (
+        {inscriptionTrimmed ? (
           <Text
-            position={[0, textY - baseHeight, textZ]}
-            fontSize={inscriptionSize}
-            maxWidth={widthM * 0.8}
-            textAlign="center"
-            anchorX="center"
-            anchorY="middle"
-            color="#1a1a1a"
-            outlineWidth={0.0015}
-            outlineColor="#000000"
-            outlineOpacity={0.6}
+            {...commonTextProps}
+            position={[0, headerY, textZ]}
+            fontSize={headerSize}
+            outlineWidth={headerSize * 0.05}
           >
-            {inscription}
+            {transformText(inscriptionTrimmed)}
+          </Text>
+        ) : null}
+
+        {nameTrimmed ? (
+          <Text
+            {...commonTextProps}
+            position={[0, nameY, textZ]}
+            fontSize={nameSize}
+            outlineWidth={nameSize * 0.06}
+          >
+            {transformText(nameTrimmed)}
+          </Text>
+        ) : null}
+
+        {datesTrimmed ? (
+          <Text
+            {...commonTextProps}
+            position={[0, datesY, textZ]}
+            fontSize={datesSize}
+            outlineWidth={datesSize * 0.05}
+          >
+            {datesTrimmed}
           </Text>
         ) : null}
       </group>

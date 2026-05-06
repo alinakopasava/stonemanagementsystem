@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@application/auth/auth-context';
+import { useTranslation } from '@application/i18n/i18n-context';
 
 /**
  * Lands here after the user clicks the confirmation / magic link in email.
@@ -9,6 +10,7 @@ import { useAuth } from '@application/auth/auth-context';
  */
 export const AuthCallbackPage = () => {
   const { isLoading, user } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -18,7 +20,7 @@ export const AuthCallbackPage = () => {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-900 text-slate-200">
-      Finalizing sign-in...
+      {t('authCallback.finalizing')}
     </div>
   );
 };

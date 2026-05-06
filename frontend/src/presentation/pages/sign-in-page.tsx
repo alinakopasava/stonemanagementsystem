@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@application/auth/auth-context';
+import { useTranslation } from '@application/i18n/i18n-context';
 import { AuthShell } from '@presentation/components/auth-shell';
 
 interface LocationState {
@@ -10,6 +11,7 @@ interface LocationState {
 
 export const SignInPage = () => {
   const { signIn } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const redirectTo = (location.state as LocationState | null)?.from ?? '/';
@@ -27,7 +29,7 @@ export const SignInPage = () => {
       await signIn(email, password);
       navigate(redirectTo, { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to sign in.');
+      setError(err instanceof Error ? err.message : t('signIn.error'));
     } finally {
       setIsSubmitting(false);
     }
@@ -35,20 +37,20 @@ export const SignInPage = () => {
 
   return (
     <AuthShell
-      title="Sign in"
-      subtitle="Welcome back. Access your orders and configurator."
+      title={t('signIn.title')}
+      subtitle={t('signIn.subtitle')}
       footer={
         <>
-          New here?{' '}
+          {t('signIn.newHere')}{' '}
           <Link to="/sign-up" className="text-amber-300 hover:underline">
-            Create an account
+            {t('signIn.createAccount')}
           </Link>
         </>
       }
     >
       <form className="space-y-4" onSubmit={handleSubmit} noValidate>
         <label className="block space-y-2">
-          <span className="text-sm text-slate-200">Email</span>
+          <span className="text-sm text-slate-200">{t('auth.email')}</span>
           <input
             type="email"
             autoComplete="email"
@@ -61,9 +63,9 @@ export const SignInPage = () => {
 
         <label className="block space-y-2">
           <span className="flex items-center justify-between text-sm text-slate-200">
-            Password
+            {t('auth.password')}
             <Link to="/forgot-password" className="text-xs text-slate-400 hover:text-amber-300">
-              Forgot?
+              {t('signIn.forgot')}
             </Link>
           </span>
           <input
@@ -88,7 +90,7 @@ export const SignInPage = () => {
           disabled={isSubmitting}
           className="w-full rounded-md bg-gray-100 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-white disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
         >
-          {isSubmitting ? 'Signing in...' : 'Sign in'}
+          {isSubmitting ? t('signIn.submitting') : t('signIn.submit')}
         </button>
       </form>
     </AuthShell>

@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, Package, Users } from 'lucide-react';
+import { ClipboardList, LayoutDashboard, Mail, Package, Users } from 'lucide-react';
 import { Header } from '@presentation/components/header';
 
 const navItemClass = ({ isActive }: { isActive: boolean }) =>
@@ -26,9 +26,17 @@ export const AdminLayout = () => {
                 <Users className="h-4 w-4" />
                 Users
               </NavLink>
+              <NavLink to="/admin/order-cards" className={navItemClass}>
+                <ClipboardList className="h-4 w-4" />
+                Order cards
+              </NavLink>
               <NavLink to="/admin/orders" className={navItemClass}>
                 <Package className="h-4 w-4" />
                 Orders
+              </NavLink>
+              <NavLink to="/admin/messages" className={navItemClass}>
+                <Mail className="h-4 w-4" />
+                Messages
               </NavLink>
             </nav>
           </div>
