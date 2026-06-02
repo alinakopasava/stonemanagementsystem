@@ -1,11 +1,21 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from '@application/i18n/i18n-context';
+import type { TranslationKey } from '@application/i18n/translations';
 import {
   fetchAdminOrders,
   updateOrderStatus,
   type AdminOrder
 } from '@infrastructure/api/admin-api';
 
-const ORDER_STATUSES = ['oczekujące', 'w_realizacji', 'zrealizowane', 'anulowane'];
+/** Status zostaje w bazie jako enum w PL — tłumaczymy tylko etykietę pod nim. */
+const ORDER_STATUS_LABEL_KEYS: Record<string, TranslationKey> = {
+  oczekujące: 'admin.orders.status.pending',
+  w_realizacji: 'admin.orders.status.inProgress',
+  zrealizowane: 'admin.orders.status.completed',
+  anulowane: 'admin.orders.status.cancelled'
+};
+
+const ORDER_STATUSES = Object.keys(ORDER_STATUS_LABEL_KEYS);
 
 const statusBadge: Record<string, string> = {
   oczekujące: 'bg-amber-300/10 text-amber-200 border-amber-300/30',
@@ -15,10 +25,19 @@ const statusBadge: Record<string, string> = {
 };
 
 export const AdminOrdersPage = () => {
+  const { t } = useTranslation();
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
+
+  const statusLabel = useMemo(
+    () => (status: string) => {
+      const key = ORDER_STATUS_LABEL_KEYS[status];
+      return key ? t(key) : status;
+    },
+    [t]
+  );
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -27,11 +46,11 @@ export const AdminOrdersPage = () => {
       const list = await fetchAdminOrders();
       setOrders(list);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load orders.');
+      setError(err instanceof Error ? err.message : t('admin.orders.loadError'));
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();
@@ -47,7 +66,7 @@ export const AdminOrdersPage = () => {
         )
       );
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to update status.');
+      alert(err instanceof Error ? err.message : t('admin.orders.updateError'));
     } finally {
       setSavingId(null);
     }
@@ -57,17 +76,15 @@ export const AdminOrdersPage = () => {
     <div>
       <div className="mb-6 flex items-end justify-between">
         <div>
-          <h1 className="font-serif text-3xl text-gray-100">Orders</h1>
-          <p className="mt-1 text-sm text-slate-400">
-            All client orders across the shop. Change status as the work progresses.
-          </p>
+          <h1 className="font-serif text-3xl text-gray-100">{t('admin.orders.title')}</h1>
+          <p className="mt-1 text-sm text-slate-400">{t('admin.orders.subtitle')}</p>
         </div>
         <button
           type="button"
           onClick={load}
           className="rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:border-slate-500 hover:text-white"
         >
-          Refresh
+          {t('admin.common.refresh')}
         </button>
       </div>
 
@@ -80,11 +97,11 @@ export const AdminOrdersPage = () => {
       <div className="space-y-3">
         {isLoading ? (
           <div className="rounded-xl border border-slate-700/60 bg-slate-900/70 p-6 text-center text-slate-400">
-            Loading...
+            {t('admin.common.loading')}
           </div>
         ) : orders.length === 0 ? (
           <div className="rounded-xl border border-slate-700/60 bg-slate-900/70 p-6 text-center text-slate-400">
-            No orders yet.
+            {t('admin.orders.empty')}
           </div>
         ) : (
           orders.map((o) => {
@@ -99,11 +116,13 @@ export const AdminOrdersPage = () => {
                   <div>
                     <p className="font-mono text-[11px] text-slate-500">#{o.id.slice(0, 8)}</p>
                     <p className="mt-1 text-xs text-slate-400">
-                      Created:{' '}
-                      {o.created_at ? new Date(o.created_at).toLocaleString() : 'unknown'}
+                      {t('admin.orders.created')}{' '}
+                      {o.created_at
+                        ? new Date(o.created_at).toLocaleString()
+                        : t('admin.common.unknown')}
                     </p>
                     <p className="text-xs text-slate-400">
-                      Client id:{' '}
+                      {t('admin.orders.clientId')}{' '}
                       <span className="font-mono">{o.user_id?.slice(0, 8) ?? '—'}</span>
                     </p>
                   </div>
@@ -113,7 +132,7 @@ export const AdminOrdersPage = () => {
                         statusBadge[status] ?? 'bg-slate-800 text-slate-200 border-slate-700'
                       }`}
                     >
-                      {status}
+                      {statusLabel(status)}
                     </span>
                     <select
                       value={status}
@@ -123,7 +142,7 @@ export const AdminOrdersPage = () => {
                     >
                       {ORDER_STATUSES.map((s) => (
                         <option key={s} value={s}>
-                          {s}
+                          {statusLabel(s)}
                         </option>
                       ))}
                     </select>
@@ -131,7 +150,7 @@ export const AdminOrdersPage = () => {
                 </header>
 
                 {details.length === 0 ? (
-                  <p className="mt-4 text-sm text-slate-400">No details on this order.</p>
+                  <p className="mt-4 text-sm text-slate-400">{t('admin.orders.noDetails')}</p>
                 ) : (
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
                     {details.map((d) => (
@@ -140,14 +159,14 @@ export const AdminOrdersPage = () => {
                         className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 text-xs text-slate-300"
                       >
                         <p className="font-medium text-slate-100">
-                          {d.materials?.name ?? 'Unknown material'}
+                          {d.materials?.name ?? t('admin.orders.unknownMaterial')}
                         </p>
                         <dl className="mt-1 grid grid-cols-[90px_1fr] gap-y-0.5">
-                          <dt className="text-slate-500">Dimensions</dt>
+                          <dt className="text-slate-500">{t('admin.orders.dimensions')}</dt>
                           <dd>{d.dimensions ?? '—'}</dd>
-                          <dt className="text-slate-500">Finish</dt>
+                          <dt className="text-slate-500">{t('admin.orders.finish')}</dt>
                           <dd>{d.finish_type ?? '—'}</dd>
-                          <dt className="text-slate-500">Inscription</dt>
+                          <dt className="text-slate-500">{t('admin.orders.inscription')}</dt>
                           <dd className="italic text-slate-200">
                             {d.inscription_text ?? '—'}
                           </dd>

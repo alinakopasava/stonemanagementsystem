@@ -30,14 +30,42 @@ export const requireAuth = async (req, res, next) => {
 
     const userScopedClient = supabaseForUser(token);
 
-    const { data: profile, error: profileError } = await userScopedClient
-      .from('profiles')
-      .select('id, first_name, last_name, phone_number, role')
-      .eq('id', data.user.id)
-      .single();
+    const selectProfile = async () =>
+      supabaseAdmin
+        .from('profiles')
+        .select('id, first_name, last_name, phone_number, role')
+        .eq('id', data.user.id)
+        .maybeSingle();
 
-    if (profileError || !profile) {
-      return res.status(403).json({ message: 'Profile not found for this account.' });
+    let { data: profile, error: profileError } = await selectProfile();
+
+    if (profileError) {
+      return res.status(500).json({ message: 'Failed to load user profile.' });
+    }
+
+    if (!profile) {
+      const metadata = data.user.user_metadata ?? {};
+      const { error: upsertError } = await supabaseAdmin.from('profiles').upsert(
+        {
+          id: data.user.id,
+          first_name: typeof metadata.first_name === 'string' ? metadata.first_name : '',
+          last_name: typeof metadata.last_name === 'string' ? metadata.last_name : '',
+          phone_number: typeof metadata.phone_number === 'string' ? metadata.phone_number : null,
+          role: 'klient'
+        },
+        { onConflict: 'id' }
+      );
+
+      if (upsertError) {
+        return res.status(500).json({ message: 'Failed to initialize user profile.' });
+      }
+
+      const reloaded = await selectProfile();
+      profile = reloaded.data;
+      profileError = reloaded.error;
+      if (profileError || !profile) {
+        return res.status(500).json({ message: 'Profile was not initialized correctly.' });
+      }
     }
 
     req.user = {

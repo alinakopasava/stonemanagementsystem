@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from '@application/i18n/i18n-context';
+import type { TranslationKey } from '@application/i18n/translations';
 import type { UserRole } from '@domain/entities/user-profile';
 import {
   fetchAdminUsers,
@@ -6,9 +8,14 @@ import {
   type AdminUser
 } from '@infrastructure/api/admin-api';
 
-const ROLES: UserRole[] = ['klient', 'monter', 'admin'];
+const ROLES: Array<{ id: UserRole; labelKey: TranslationKey }> = [
+  { id: 'klient', labelKey: 'admin.users.role.klient' },
+  { id: 'monter', labelKey: 'admin.users.role.monter' },
+  { id: 'admin', labelKey: 'admin.users.role.admin' }
+];
 
 export const AdminUsersPage = () => {
+  const { t } = useTranslation();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,11 +28,11 @@ export const AdminUsersPage = () => {
       const list = await fetchAdminUsers();
       setUsers(list);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load users.');
+      setError(err instanceof Error ? err.message : t('admin.users.loadError'));
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();
@@ -37,7 +44,7 @@ export const AdminUsersPage = () => {
       await updateUserRole(userId, role);
       setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role } : u)));
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to update role.');
+      alert(err instanceof Error ? err.message : t('admin.users.updateError'));
     } finally {
       setSavingId(null);
     }
@@ -47,17 +54,15 @@ export const AdminUsersPage = () => {
     <div>
       <div className="mb-6 flex items-end justify-between">
         <div>
-          <h1 className="font-serif text-3xl text-gray-100">Users</h1>
-          <p className="mt-1 text-sm text-slate-400">
-            Grant monter or admin roles. New sign-ups default to klient.
-          </p>
+          <h1 className="font-serif text-3xl text-gray-100">{t('admin.users.title')}</h1>
+          <p className="mt-1 text-sm text-slate-400">{t('admin.users.subtitle')}</p>
         </div>
         <button
           type="button"
           onClick={load}
           className="rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:border-slate-500 hover:text-white"
         >
-          Refresh
+          {t('admin.common.refresh')}
         </button>
       </div>
 
@@ -71,24 +76,24 @@ export const AdminUsersPage = () => {
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-900/80 text-xs uppercase tracking-wider text-slate-400">
             <tr>
-              <th className="px-4 py-3">User</th>
-              <th className="px-4 py-3">Email</th>
-              <th className="px-4 py-3">Phone</th>
-              <th className="px-4 py-3">Created</th>
-              <th className="px-4 py-3 text-right">Role</th>
+              <th className="px-4 py-3">{t('admin.users.user')}</th>
+              <th className="px-4 py-3">{t('admin.users.email')}</th>
+              <th className="px-4 py-3">{t('admin.users.phone')}</th>
+              <th className="px-4 py-3">{t('admin.users.created')}</th>
+              <th className="px-4 py-3 text-right">{t('admin.users.role')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
             {isLoading ? (
               <tr>
                 <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
-                  Loading...
+                  {t('admin.common.loading')}
                 </td>
               </tr>
             ) : users.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
-                  No users yet.
+                  {t('admin.users.empty')}
                 </td>
               </tr>
             ) : (
@@ -111,8 +116,8 @@ export const AdminUsersPage = () => {
                         className="rounded-md border border-slate-600 bg-slate-950 px-2 py-1.5 text-xs text-gray-100 focus:border-amber-300 focus:outline-none disabled:opacity-60"
                       >
                         {ROLES.map((r) => (
-                          <option key={r} value={r}>
-                            {r}
+                          <option key={r.id} value={r.id}>
+                            {t(r.labelKey)}
                           </option>
                         ))}
                       </select>

@@ -1,12 +1,17 @@
 import { Suspense } from 'react';
+import * as THREE from 'three';
 import { Canvas } from '@react-three/fiber';
-import { ContactShadows, Environment, OrbitControls } from '@react-three/drei';
+import { Environment, OrbitControls } from '@react-three/drei';
 import { MonumentModel } from './monument-model';
-import type { InscriptionStyleHints, MonumentDimensionsCm } from './monument-model';
+import type {
+  InscriptionStyleHints,
+  MonumentDimensionsCm,
+  MonumentShape
+} from './monument-model';
 import type { FinishType } from '@domain/entities/order-card';
 
 interface MonumentViewerProps {
-  textureUrl: string;
+  textureUrl?: string;
   materialName?: string;
   finish: FinishType;
   dimensions: MonumentDimensionsCm;
@@ -14,48 +19,72 @@ interface MonumentViewerProps {
   name?: string;
   dates?: string;
   inscriptionStyle?: InscriptionStyleHints;
+  shape?: MonumentShape;
+  showCross?: boolean;
 }
-
-const ViewerFallback = () => (
-  <mesh>
-    <boxGeometry args={[0.6, 1.2, 0.15]} />
-    <meshStandardMaterial color="#3f4a5c" />
-  </mesh>
-);
 
 export const MonumentViewer = (props: MonumentViewerProps) => {
   return (
     <div className="h-[540px] w-full overflow-hidden rounded-2xl border border-slate-700/60 bg-gradient-to-b from-slate-900 to-slate-950">
       <Canvas
-        shadows
+        /* PCFShadowMap: PCFSoft jest przestarzały w Three ≥ r183 i bywa mapowany na PCF. */
+        shadows={{ enabled: true, type: THREE.PCFShadowMap }}
         dpr={[1, 2]}
         camera={{ position: [2, 1.8, 3.2], fov: 35 }}
+        gl={{
+          antialias: true,
+          toneMapping: THREE.ACESFilmicToneMapping,
+          outputColorSpace: THREE.SRGBColorSpace
+        }}
+        onCreated={(state) => {
+          if (!import.meta.env.DEV) return;
+          const gl = state.gl;
+          console.debug('[MonumentViewer] scena 3D', {
+            shadowMapEnabled: gl.shadowMap?.enabled,
+            shadowMapType: gl.shadowMap?.type,
+            toneMapping: gl.toneMapping,
+            note: 'Headstone: receiveShadow wyłączone w monument-model — cień kierunkowy nie nakłada się na czolo tablicy.'
+          });
+        }}
       >
         <color attach="background" args={['#0b1220']} />
 
-        <ambientLight intensity={0.35} />
+        {/* Światło otoczenia - lekko podbite dla lepszej widoczności detali kamienia */}
+        <ambientLight intensity={0.5} />
+        
+        {/* Główne światło rzucające cień */}
         <directionalLight
           castShadow
-          position={[4, 6, 4]}
-          intensity={1.2}
-          shadow-mapSize-width={2048}
-          shadow-mapSize-height={2048}
+          position={[5, 8, 5]}
+          intensity={1.8}
+          shadow-mapSize={[2048, 2048]}
+          shadow-bias={-0.0001}
+          shadow-normalBias={0.12}
+          
+          // Zawężenie obszaru cienia do granic pomnika poprawia jego jakość
+          shadow-camera-left={-2}
+          shadow-camera-right={2}
+          shadow-camera-top={2}
+          shadow-camera-bottom={-2}
+          shadow-camera-near={0.1}
+          shadow-camera-far={20}
         />
-        <directionalLight position={[-3, 4, -2]} intensity={0.25} />
+        
+        {/* Światło doświetlające tył i boki, aby model nie był płaski */}
+        <directionalLight position={[-4, 3, -2]} intensity={0.4} />
 
-        <Suspense fallback={<ViewerFallback />}>
+        <Suspense fallback={null}>
           <Environment preset="city" />
           <MonumentModel {...props} />
-          <ContactShadows position={[0, 0, 0]} opacity={0.45} scale={6} blur={2.2} far={4} />
         </Suspense>
 
         <OrbitControls
           enablePan={false}
-          minDistance={1.6}
+          minDistance={1.4}
           maxDistance={6}
           minPolarAngle={Math.PI / 6}
-          maxPolarAngle={Math.PI / 2.15}
-          target={[0, 0.6, 0]}
+          maxPolarAngle={Math.PI / 2.1}
+          target={[0, 0.5, 0]} // Celowanie w środek pomnika
           makeDefault
         />
       </Canvas>

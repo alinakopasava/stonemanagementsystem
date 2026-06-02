@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Archive, Mail, MailOpen, Trash2 } from 'lucide-react';
+import { useTranslation } from '@application/i18n/i18n-context';
+import type { TranslationKey } from '@application/i18n/translations';
 import {
   deleteContactMessage,
   fetchAdminContactMessages,
@@ -8,12 +10,18 @@ import {
   type ContactMessageStatus
 } from '@infrastructure/api/admin-api';
 
-const STATUS_FILTERS: Array<{ id: ContactMessageStatus | 'all'; label: string }> = [
-  { id: 'all', label: 'All' },
-  { id: 'new', label: 'New' },
-  { id: 'read', label: 'Read' },
-  { id: 'archived', label: 'Archived' }
+const STATUS_FILTERS: Array<{ id: ContactMessageStatus | 'all'; labelKey: TranslationKey }> = [
+  { id: 'all', labelKey: 'admin.messages.filter.all' },
+  { id: 'new', labelKey: 'admin.messages.filter.new' },
+  { id: 'read', labelKey: 'admin.messages.filter.read' },
+  { id: 'archived', labelKey: 'admin.messages.filter.archived' }
 ];
+
+const STATUS_LABEL_KEYS: Record<ContactMessageStatus, TranslationKey> = {
+  new: 'admin.messages.filter.new',
+  read: 'admin.messages.filter.read',
+  archived: 'admin.messages.filter.archived'
+};
 
 const statusBadge: Record<ContactMessageStatus, string> = {
   new: 'bg-amber-300/10 text-amber-200 border-amber-300/30',
@@ -22,6 +30,7 @@ const statusBadge: Record<ContactMessageStatus, string> = {
 };
 
 export const AdminMessagesPage = () => {
+  const { t } = useTranslation();
   const [messages, setMessages] = useState<AdminContactMessage[]>([]);
   const [filter, setFilter] = useState<ContactMessageStatus | 'all'>('all');
   const [isLoading, setIsLoading] = useState(true);
@@ -35,11 +44,11 @@ export const AdminMessagesPage = () => {
       const list = await fetchAdminContactMessages(filter === 'all' ? undefined : filter);
       setMessages(list);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load messages.');
+      setError(err instanceof Error ? err.message : t('admin.messages.loadError'));
     } finally {
       setIsLoading(false);
     }
-  }, [filter]);
+  }, [filter, t]);
 
   useEffect(() => {
     load();
@@ -57,20 +66,20 @@ export const AdminMessagesPage = () => {
         )
       );
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to update message.');
+      alert(err instanceof Error ? err.message : t('admin.messages.updateError'));
     } finally {
       setBusyId(null);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this message? This cannot be undone.')) return;
+    if (!confirm(t('admin.messages.deleteConfirm'))) return;
     setBusyId(id);
     try {
       await deleteContactMessage(id);
       setMessages((prev) => prev.filter((m) => m.id !== id));
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to delete message.');
+      alert(err instanceof Error ? err.message : t('admin.messages.deleteError'));
     } finally {
       setBusyId(null);
     }
@@ -85,12 +94,12 @@ export const AdminMessagesPage = () => {
     <div>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-serif text-3xl text-gray-100">Messages</h1>
+          <h1 className="font-serif text-3xl text-gray-100">{t('admin.messages.title')}</h1>
           <p className="mt-1 text-sm text-slate-400">
-            Inbox from the public contact form on the landing page.
+            {t('admin.messages.subtitle')}
             {filter === 'all' && newCount > 0 ? (
               <span className="ml-2 rounded-full bg-amber-300/10 px-2 py-0.5 text-xs text-amber-200">
-                {newCount} new
+                {t('admin.messages.newBadge', { count: newCount })}
               </span>
             ) : null}
           </p>
@@ -109,7 +118,7 @@ export const AdminMessagesPage = () => {
                     : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
                 }`}
               >
-                {option.label}
+                {t(option.labelKey)}
               </button>
             ))}
           </div>
@@ -118,7 +127,7 @@ export const AdminMessagesPage = () => {
             onClick={load}
             className="rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:border-slate-500 hover:text-white"
           >
-            Refresh
+            {t('admin.common.refresh')}
           </button>
         </div>
       </div>
@@ -132,11 +141,11 @@ export const AdminMessagesPage = () => {
       <div className="space-y-3">
         {isLoading ? (
           <div className="rounded-xl border border-slate-700/60 bg-slate-900/70 p-6 text-center text-slate-400">
-            Loading...
+            {t('admin.common.loading')}
           </div>
         ) : messages.length === 0 ? (
           <div className="rounded-xl border border-slate-700/60 bg-slate-900/70 p-6 text-center text-slate-400">
-            No messages.
+            {t('admin.messages.empty')}
           </div>
         ) : (
           messages.map((m) => (
@@ -175,7 +184,7 @@ export const AdminMessagesPage = () => {
                     statusBadge[m.status]
                   }`}
                 >
-                  {m.status}
+                  {t(STATUS_LABEL_KEYS[m.status])}
                 </span>
               </header>
 
@@ -192,7 +201,7 @@ export const AdminMessagesPage = () => {
                     className="inline-flex items-center gap-1.5 rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:border-slate-500 hover:text-white disabled:opacity-60"
                   >
                     <MailOpen className="h-3.5 w-3.5" />
-                    Mark as read
+                    {t('admin.messages.markRead')}
                   </button>
                 ) : (
                   <button
@@ -202,7 +211,7 @@ export const AdminMessagesPage = () => {
                     className="inline-flex items-center gap-1.5 rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:border-slate-500 hover:text-white disabled:opacity-60"
                   >
                     <Mail className="h-3.5 w-3.5" />
-                    Mark as new
+                    {t('admin.messages.markNew')}
                   </button>
                 )}
 
@@ -214,7 +223,7 @@ export const AdminMessagesPage = () => {
                     className="inline-flex items-center gap-1.5 rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:border-slate-500 hover:text-white disabled:opacity-60"
                   >
                     <Archive className="h-3.5 w-3.5" />
-                    Archive
+                    {t('admin.messages.archive')}
                   </button>
                 ) : null}
 
@@ -225,7 +234,7 @@ export const AdminMessagesPage = () => {
                   className="inline-flex items-center gap-1.5 rounded-md border border-rose-500/40 px-3 py-1.5 text-xs text-rose-200 hover:border-rose-400 hover:bg-rose-500/10 disabled:opacity-60"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
-                  Delete
+                  {t('admin.messages.delete')}
                 </button>
               </div>
             </article>

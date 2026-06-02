@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowRight, FileText, Trash2, X } from 'lucide-react';
+import { useTranslation } from '@application/i18n/i18n-context';
+import type { TranslationKey } from '@application/i18n/translations';
 import {
   convertOrderCardToOrder,
   deleteAdminOrderCard,
@@ -9,10 +11,10 @@ import {
 
 type Filter = 'pending' | 'converted' | 'all';
 
-const FILTERS: Array<{ id: Filter; label: string }> = [
-  { id: 'pending', label: 'To process' },
-  { id: 'converted', label: 'Converted' },
-  { id: 'all', label: 'All' }
+const FILTERS: Array<{ id: Filter; labelKey: TranslationKey }> = [
+  { id: 'pending', labelKey: 'admin.orderCards.filter.toProcess' },
+  { id: 'converted', labelKey: 'admin.orderCards.filter.converted' },
+  { id: 'all', labelKey: 'admin.orderCards.filter.all' }
 ];
 
 const filterToConverted = (filter: Filter): boolean | undefined => {
@@ -53,6 +55,7 @@ const suggestPrice = (card: AdminOrderCard): string => {
 };
 
 export const AdminOrderCardsPage = () => {
+  const { t } = useTranslation();
   const [cards, setCards] = useState<AdminOrderCard[]>([]);
   const [filter, setFilter] = useState<Filter>('pending');
   const [isLoading, setIsLoading] = useState(true);
@@ -69,11 +72,11 @@ export const AdminOrderCardsPage = () => {
       const list = await fetchAdminOrderCards(filterToConverted(filter));
       setCards(list);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load order cards.');
+      setError(err instanceof Error ? err.message : t('admin.orderCards.loadError'));
     } finally {
       setIsLoading(false);
     }
-  }, [filter]);
+  }, [filter, t]);
 
   useEffect(() => {
     load();
@@ -115,7 +118,7 @@ export const AdminOrderCardsPage = () => {
       closeConvertModal();
       await load();
     } catch (err) {
-      setConvertError(err instanceof Error ? err.message : 'Failed to convert.');
+      setConvertError(err instanceof Error ? err.message : t('admin.orderCards.convertError'));
     } finally {
       setBusyId(null);
     }
@@ -123,17 +126,17 @@ export const AdminOrderCardsPage = () => {
 
   const handleDelete = async (card: AdminOrderCard) => {
     if (card.converted_order) {
-      alert('This card already has an order. Delete the order first.');
+      alert(t('admin.orderCards.alreadyOrdered'));
       return;
     }
-    if (!confirm('Delete this order card and its details? This cannot be undone.')) return;
+    if (!confirm(t('admin.orderCards.deleteConfirm'))) return;
 
     setBusyId(card.id);
     try {
       await deleteAdminOrderCard(card.id);
       setCards((prev) => prev.filter((c) => c.id !== card.id));
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to delete order card.');
+      alert(err instanceof Error ? err.message : t('admin.orderCards.deleteError'));
     } finally {
       setBusyId(null);
     }
@@ -143,13 +146,12 @@ export const AdminOrderCardsPage = () => {
     <div>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-serif text-3xl text-gray-100">Order cards</h1>
+          <h1 className="font-serif text-3xl text-gray-100">{t('admin.orderCards.title')}</h1>
           <p className="mt-1 text-sm text-slate-400">
-            Drafts submitted from the configurator. Review the design, then convert
-            into a real order with price, address and deadline.
+            {t('admin.orderCards.subtitle')}
             {filter !== 'converted' && pendingCount > 0 ? (
               <span className="ml-2 rounded-full bg-amber-300/10 px-2 py-0.5 text-xs text-amber-200">
-                {pendingCount} pending
+                {t('admin.orderCards.pendingBadge', { count: pendingCount })}
               </span>
             ) : null}
           </p>
@@ -168,7 +170,7 @@ export const AdminOrderCardsPage = () => {
                     : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
                 }`}
               >
-                {option.label}
+                {t(option.labelKey)}
               </button>
             ))}
           </div>
@@ -177,7 +179,7 @@ export const AdminOrderCardsPage = () => {
             onClick={load}
             className="rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:border-slate-500 hover:text-white"
           >
-            Refresh
+            {t('admin.common.refresh')}
           </button>
         </div>
       </div>
@@ -191,11 +193,11 @@ export const AdminOrderCardsPage = () => {
       <div className="space-y-3">
         {isLoading ? (
           <div className="rounded-xl border border-slate-700/60 bg-slate-900/70 p-6 text-center text-slate-400">
-            Loading...
+            {t('admin.common.loading')}
           </div>
         ) : cards.length === 0 ? (
           <div className="rounded-xl border border-slate-700/60 bg-slate-900/70 p-6 text-center text-slate-400">
-            No order cards.
+            {t('admin.orderCards.empty')}
           </div>
         ) : (
           cards.map((card) => (
@@ -207,13 +209,18 @@ export const AdminOrderCardsPage = () => {
                 <div>
                   <p className="flex items-center gap-2 font-mono text-[11px] text-slate-500">
                     <FileText className="h-3.5 w-3.5" />
-                    Card #{card.id.slice(0, 8)}
+                    {t('admin.orderCards.cardNumber')}
+                    {card.id.slice(0, 8)}
                   </p>
                   <p className="mt-1 text-sm text-slate-300">
-                    {card.user_email ?? <span className="text-slate-500">unknown user</span>}
+                    {card.user_email ?? (
+                      <span className="text-slate-500">
+                        {t('admin.orderCards.unknownUser')}
+                      </span>
+                    )}
                   </p>
                   <p className="text-xs text-slate-500">
-                    Client id:{' '}
+                    {t('admin.orderCards.clientId')}{' '}
                     <span className="font-mono">{card.user_id?.slice(0, 8) ?? '—'}</span>
                   </p>
                 </div>
@@ -221,19 +228,21 @@ export const AdminOrderCardsPage = () => {
                 <div className="flex flex-wrap items-center gap-2">
                   {card.converted_order ? (
                     <span className="rounded-full border border-emerald-300/30 bg-emerald-300/10 px-3 py-1 text-[10px] uppercase tracking-wider text-emerald-200">
-                      Converted · #{card.converted_order.id.slice(0, 8)} ·{' '}
-                      {card.converted_order.status ?? '—'}
+                      {t('admin.orderCards.convertedBadge', {
+                        id: card.converted_order.id.slice(0, 8)
+                      })}{' '}
+                      · {card.converted_order.status ?? '—'}
                     </span>
                   ) : (
                     <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-[10px] uppercase tracking-wider text-amber-200">
-                      Pending
+                      {t('admin.orderCards.pendingStateBadge')}
                     </span>
                   )}
                 </div>
               </header>
 
               {card.order_details.length === 0 ? (
-                <p className="mt-4 text-sm text-slate-400">No details on this card.</p>
+                <p className="mt-4 text-sm text-slate-400">{t('admin.orderCards.noDetails')}</p>
               ) : (
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   {card.order_details.map((d) => (
@@ -242,20 +251,20 @@ export const AdminOrderCardsPage = () => {
                       className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 text-xs text-slate-300"
                     >
                       <p className="font-medium text-slate-100">
-                        {d.materials?.name ?? 'Unknown material'}
+                        {d.materials?.name ?? t('admin.orderCards.unknownMaterial')}
                       </p>
                       <dl className="mt-1 grid grid-cols-[100px_1fr] gap-y-0.5">
-                        <dt className="text-slate-500">Dimensions</dt>
+                        <dt className="text-slate-500">{t('admin.orderCards.dimensions')}</dt>
                         <dd>{d.dimensions ?? '—'}</dd>
-                        <dt className="text-slate-500">Finish</dt>
+                        <dt className="text-slate-500">{t('admin.orderCards.finish')}</dt>
                         <dd>{d.finish_type ?? '—'}</dd>
-                        <dt className="text-slate-500">Price/m²</dt>
+                        <dt className="text-slate-500">{t('admin.orderCards.pricePerM2')}</dt>
                         <dd>
                           {d.materials?.price_per_m2 != null
-                            ? `${Number(d.materials.price_per_m2).toFixed(2)} PLN`
+                            ? `${Number(d.materials.price_per_m2).toFixed(2)} ${t('designer.priceUnit')}`
                             : '—'}
                         </dd>
-                        <dt className="text-slate-500">Inscription</dt>
+                        <dt className="text-slate-500">{t('admin.orderCards.inscription')}</dt>
                         <dd className="italic text-slate-200">
                           {d.inscription_text ?? '—'}
                         </dd>
@@ -269,10 +278,12 @@ export const AdminOrderCardsPage = () => {
                 {card.converted_order ? (
                   <span className="text-xs text-slate-400">
                     {card.converted_order.price != null
-                      ? `${formatPrice(card.converted_order.price)} PLN`
-                      : 'No price set'}
+                      ? `${formatPrice(card.converted_order.price)} ${t('designer.priceUnit')}`
+                      : t('admin.orderCards.noPrice')}
                     {card.converted_order.deadline
-                      ? ` · due ${new Date(card.converted_order.deadline).toLocaleDateString()}`
+                      ? ` · ${t('admin.orderCards.dueLabel', {
+                          date: new Date(card.converted_order.deadline).toLocaleDateString()
+                        })}`
                       : ''}
                   </span>
                 ) : (
@@ -282,7 +293,7 @@ export const AdminOrderCardsPage = () => {
                     disabled={busyId === card.id}
                     className="inline-flex items-center gap-1.5 rounded-md bg-amber-300 px-3 py-1.5 text-xs font-semibold text-slate-900 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
                   >
-                    Convert to order
+                    {t('admin.orderCards.convertButton')}
                     <ArrowRight className="h-3.5 w-3.5" />
                   </button>
                 )}
@@ -295,7 +306,7 @@ export const AdminOrderCardsPage = () => {
                     className="inline-flex items-center gap-1.5 rounded-md border border-rose-500/40 px-3 py-1.5 text-xs text-rose-200 hover:border-rose-400 hover:bg-rose-500/10 disabled:opacity-60"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
-                    Delete
+                    {t('admin.common.delete')}
                   </button>
                 ) : null}
               </div>
@@ -313,17 +324,20 @@ export const AdminOrderCardsPage = () => {
           <div className="w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
             <div className="flex items-start justify-between">
               <div>
-                <h2 className="font-serif text-2xl text-gray-100">Convert to order</h2>
+                <h2 className="font-serif text-2xl text-gray-100">
+                  {t('admin.orderCards.modalTitle')}
+                </h2>
                 <p className="mt-1 text-xs text-slate-400">
-                  Card #{convertingCard.id.slice(0, 8)} ·{' '}
-                  {convertingCard.user_email ?? 'unknown'}
+                  {t('admin.orderCards.cardNumber')}
+                  {convertingCard.id.slice(0, 8)} ·{' '}
+                  {convertingCard.user_email ?? t('admin.common.unknown')}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={closeConvertModal}
                 className="rounded-md p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
-                aria-label="Close"
+                aria-label={t('admin.common.close')}
               >
                 <X className="h-5 w-5" />
               </button>
@@ -332,7 +346,7 @@ export const AdminOrderCardsPage = () => {
             <form onSubmit={handleConvertSubmit} className="mt-5 space-y-4">
               <label className="block">
                 <span className="text-xs uppercase tracking-wider text-slate-400">
-                  Price (PLN)
+                  {t('admin.orderCards.price')}
                 </span>
                 <input
                   type="number"
@@ -342,16 +356,16 @@ export const AdminOrderCardsPage = () => {
                   className="mt-1 w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-gray-100 focus:border-amber-300 focus:outline-none"
                   value={form.price}
                   onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))}
-                  placeholder="e.g. 4250.00"
+                  placeholder={t('admin.orderCards.pricePlaceholder')}
                 />
                 <span className="mt-1 block text-[11px] text-slate-500">
-                  Suggested from material × area. Leave blank if not yet known.
+                  {t('admin.orderCards.priceHint')}
                 </span>
               </label>
 
               <label className="block">
                 <span className="text-xs uppercase tracking-wider text-slate-400">
-                  Installation address
+                  {t('admin.orderCards.installationAddress')}
                 </span>
                 <input
                   type="text"
@@ -360,13 +374,13 @@ export const AdminOrderCardsPage = () => {
                   onChange={(e) =>
                     setForm((p) => ({ ...p, installation_address: e.target.value }))
                   }
-                  placeholder="Street, city, cemetery..."
+                  placeholder={t('admin.orderCards.installationAddressPlaceholder')}
                 />
               </label>
 
               <label className="block">
                 <span className="text-xs uppercase tracking-wider text-slate-400">
-                  Contract details
+                  {t('admin.orderCards.contractDetails')}
                 </span>
                 <textarea
                   rows={3}
@@ -375,13 +389,13 @@ export const AdminOrderCardsPage = () => {
                   onChange={(e) =>
                     setForm((p) => ({ ...p, contract_details: e.target.value }))
                   }
-                  placeholder="Special arrangements, payment schedule, notes..."
+                  placeholder={t('admin.orderCards.contractDetailsPlaceholder')}
                 />
               </label>
 
               <label className="block">
                 <span className="text-xs uppercase tracking-wider text-slate-400">
-                  Deadline
+                  {t('admin.orderCards.deadline')}
                 </span>
                 <input
                   type="date"
@@ -403,14 +417,16 @@ export const AdminOrderCardsPage = () => {
                   onClick={closeConvertModal}
                   className="rounded-md border border-slate-700 px-3 py-2 text-xs text-slate-300 hover:border-slate-500 hover:text-white"
                 >
-                  Cancel
+                  {t('admin.common.cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={busyId === convertingCard.id}
                   className="inline-flex items-center gap-2 rounded-md bg-amber-300 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
                 >
-                  {busyId === convertingCard.id ? 'Converting...' : 'Create order'}
+                  {busyId === convertingCard.id
+                    ? t('admin.orderCards.converting')
+                    : t('admin.orderCards.createOrder')}
                 </button>
               </div>
             </form>

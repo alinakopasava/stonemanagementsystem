@@ -41,6 +41,17 @@ const profileFromRow = (row: ProfileRow): UserProfile => ({
   role: row.role
 });
 
+const fallbackProfileFromSession = (nextSession: Session): UserProfile => {
+  const metadata = nextSession.user.user_metadata ?? {};
+  return {
+    id: nextSession.user.id,
+    firstName: typeof metadata.first_name === 'string' ? metadata.first_name : null,
+    lastName: typeof metadata.last_name === 'string' ? metadata.last_name : null,
+    phoneNumber: typeof metadata.phone_number === 'string' ? metadata.phone_number : null,
+    role: 'klient'
+  };
+};
+
 const loadProfile = async (userId: string): Promise<UserProfile | null> => {
   const { data, error } = await supabase
     .from('profiles')
@@ -102,8 +113,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     const profile = await loadProfile(nextUserId);
     if (!profile) {
-      currentUserIdRef.current = null;
-      setUser(null);
+      currentUserIdRef.current = nextUserId;
+      setUser({
+        id: nextUserId,
+        email: nextSession?.user?.email ?? null,
+        profile: fallbackProfileFromSession(nextSession!)
+      });
       return;
     }
     currentUserIdRef.current = nextUserId;
@@ -182,8 +197,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     if (!session?.user) return;
     const profile = await loadProfile(session.user.id);
     if (!profile) {
-      currentUserIdRef.current = null;
-      setUser(null);
+      currentUserIdRef.current = session.user.id;
+      setUser({
+        id: session.user.id,
+        email: session.user.email ?? null,
+        profile: fallbackProfileFromSession(session)
+      });
       return;
     }
     currentUserIdRef.current = session.user.id;

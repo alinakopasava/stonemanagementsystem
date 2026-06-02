@@ -4,6 +4,8 @@ import type { FinishType } from '@domain/entities/order-card';
 import type { Material } from '@domain/entities/material';
 import type { Product } from '@domain/entities/product';
 import { useAuth } from '@application/auth/auth-context';
+import { useTranslation } from '@application/i18n/i18n-context';
+import type { TranslationKey } from '@application/i18n/translations';
 import { submitOrderRequest } from '@infrastructure/api/order-api';
 
 interface ConfiguratorWidgetProps {
@@ -11,10 +13,15 @@ interface ConfiguratorWidgetProps {
   product: Product;
 }
 
-const finishOptions: FinishType[] = ['Polished', 'Matte', 'Honed'];
+const finishOptions: { id: FinishType; labelKey: TranslationKey }[] = [
+  { id: 'Polished', labelKey: 'designer.finish.polished' },
+  { id: 'Matte', labelKey: 'designer.finish.matte' },
+  { id: 'Honed', labelKey: 'designer.finish.honed' }
+];
 
 export const ConfiguratorWidget = ({ materials, product: _product }: ConfiguratorWidgetProps) => {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const isAuthenticated = Boolean(user);
 
@@ -55,9 +62,9 @@ export const ConfiguratorWidget = ({ materials, product: _product }: Configurato
       });
 
       console.log('Submitted order:', response);
-      setSubmitMessage('Order submitted successfully.');
+      setSubmitMessage(t('configurator.success'));
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to submit order.';
+      const message = error instanceof Error ? error.message : t('configurator.error');
       setSubmitMessage(message);
     } finally {
       setIsSubmitting(false);
@@ -67,14 +74,12 @@ export const ConfiguratorWidget = ({ materials, product: _product }: Configurato
   return (
     <section className="mx-auto w-full max-w-6xl px-6 py-10" id="configurator">
       <div className="rounded-2xl border border-slate-700/60 bg-slate-900/70 p-6 md:p-8">
-        <h2 className="font-serif text-3xl text-gray-100">Make Order</h2>
-        <p className="mt-2 text-slate-300">
-          Choose material and dimensions for your monument. Ordering is available only after login.
-        </p>
+        <h2 className="font-serif text-3xl text-gray-100">{t('configurator.title')}</h2>
+        <p className="mt-2 text-slate-300">{t('configurator.subtitle')}</p>
 
         <div className="mt-6 grid gap-5 md:grid-cols-2">
           <label className="space-y-2">
-            <span className="text-sm text-slate-200">Material</span>
+            <span className="text-sm text-slate-200">{t('configurator.material')}</span>
             <select
               className="w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-gray-100"
               value={materialId}
@@ -83,57 +88,55 @@ export const ConfiguratorWidget = ({ materials, product: _product }: Configurato
             >
               {materials.map((material) => (
                 <option key={material.id} value={material.id}>
-                  {material.name} ({material.pricePerM2.toFixed(2)} PLN / m2)
+                  {material.name} ({material.pricePerM2.toFixed(2)} {t('designer.pricePerM2Unit')})
                 </option>
               ))}
             </select>
           </label>
 
           <label className="space-y-2">
-            <span className="text-sm text-slate-200">Inscription Text</span>
+            <span className="text-sm text-slate-200">{t('configurator.inscription')}</span>
             <input
               type="text"
               className="w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-gray-100"
               value={inscriptionText}
               onChange={(event) => setInscriptionText(event.target.value)}
-              placeholder="Beloved forever..."
+              placeholder={t('configurator.inscriptionPlaceholder')}
             />
           </label>
 
           <label className="space-y-2">
-            <span className="text-sm text-slate-200">Finish Type</span>
+            <span className="text-sm text-slate-200">{t('configurator.finishType')}</span>
             <select
               className="w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-gray-100"
               value={finishType}
               onChange={(event) => setFinishType(event.target.value as FinishType)}
             >
-              {finishOptions.map((finish) => (
-                <option key={finish} value={finish}>
-                  {finish}
+              {finishOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {t(option.labelKey)}
                 </option>
               ))}
             </select>
           </label>
 
           <label className="space-y-2">
-            <span className="text-sm text-slate-200">Dimensions</span>
+            <span className="text-sm text-slate-200">{t('configurator.dimensions')}</span>
             <input
               type="text"
               className="w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-gray-100"
               value={dimensions}
               onChange={(event) => setDimensions(event.target.value)}
-              placeholder="e.g. 180x60 (cm)"
+              placeholder={t('configurator.dimensionsPlaceholder')}
             />
           </label>
         </div>
 
         <div className="mt-7 flex items-center justify-between gap-4">
           {isAuthenticated ? (
-            <p className="text-xs text-emerald-300">Signed in &mdash; ready to submit.</p>
+            <p className="text-xs text-emerald-300">{t('configurator.readyToSubmit')}</p>
           ) : (
-            <p className="text-xs text-amber-300">
-              Please sign in first to unlock order submission.
-            </p>
+            <p className="text-xs text-amber-300">{t('configurator.signInHint')}</p>
           )}
           <button
             type="button"
@@ -141,7 +144,11 @@ export const ConfiguratorWidget = ({ materials, product: _product }: Configurato
             className="rounded-md bg-gray-100 px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-white disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
             disabled={!selectedMaterial || isSubmitting}
           >
-            {isSubmitting ? 'Submitting...' : isAuthenticated ? 'Make Order' : 'Sign in to order'}
+            {isSubmitting
+              ? t('configurator.submitting')
+              : isAuthenticated
+                ? t('configurator.submit')
+                : t('configurator.signInButton')}
           </button>
         </div>
         {submitMessage ? <p className="mt-4 text-sm text-slate-300">{submitMessage}</p> : null}

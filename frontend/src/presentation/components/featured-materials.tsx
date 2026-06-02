@@ -25,7 +25,7 @@ export const FeaturedMaterials = ({ materials }: FeaturedMaterialsProps) => {
           >
             <img
               src={material.imageUrl}
-              alt={`${material.name} monument`}
+              alt={t('featured.imageAlt', { name: material.name })}
               className="h-36 w-full object-cover"
             />
             <div className="space-y-1 p-4">

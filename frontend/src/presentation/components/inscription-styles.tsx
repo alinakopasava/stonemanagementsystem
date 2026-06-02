@@ -1,4 +1,6 @@
 import type { CSSProperties } from 'react';
+import { useTranslation } from '@application/i18n/i18n-context';
+import type { TranslationKey } from '@application/i18n/translations';
 
 export type InscriptionStyleId =
   | 'roman'
@@ -9,8 +11,8 @@ export type InscriptionStyleId =
 
 export interface InscriptionStyle {
   id: InscriptionStyleId;
-  label: string;
-  description: string;
+  labelKey: TranslationKey;
+  descriptionKey: TranslationKey;
   /** CSS for HTML previews (textarea preview + thumbnail). */
   css: CSSProperties;
   /** Hints applied to the 3D engraving. */
@@ -22,82 +24,85 @@ export interface InscriptionStyle {
   };
 }
 
-const GFONTS = 'https://cdn.jsdelivr.net/gh/google/fonts';
+/** jsdelivr `gh/google/fonts` rzuca 404 dla większości plików `static/…` (brak takiego folderu w repo);
+ *  działają tylko URL-e bez podfolderu. Stabilniej brać te same fonty z @fontsource przez jsdelivr
+ *  — troika-three-text obsługuje .woff (a my chcemy maksymalnie bold weighty). */
+const FS = 'https://cdn.jsdelivr.net/npm/@fontsource';
 
 export const INSCRIPTION_STYLES: InscriptionStyle[] = [
   {
     id: 'roman',
-    label: 'Roman',
-    description: 'Classical capitals — timeless, dignified.',
+    labelKey: 'inscription.style.roman',
+    descriptionKey: 'inscription.style.roman.desc',
     css: {
       fontFamily: '"Cinzel", "Playfair Display", serif',
-      fontWeight: 700,
+      fontWeight: 900,
       letterSpacing: '0.18em',
       textTransform: 'uppercase'
     },
     three: {
-      fontUrl: `${GFONTS}/ofl/cinzel/static/Cinzel-Bold.ttf`,
+      fontUrl: `${FS}/cinzel/files/cinzel-latin-900-normal.woff`,
       letterSpacing: 0.16,
       transform: 'uppercase'
     }
   },
   {
     id: 'classic',
-    label: 'Classic',
-    description: 'Elegant serif — formal and balanced.',
+    labelKey: 'inscription.style.classic',
+    descriptionKey: 'inscription.style.classic.desc',
     css: {
       fontFamily: '"Playfair Display", serif',
-      fontWeight: 600,
+      fontWeight: 800,
       letterSpacing: '0.04em'
     },
     three: {
-      fontUrl: `${GFONTS}/ofl/playfairdisplay/static/PlayfairDisplay-SemiBold.ttf`,
+      fontUrl: `${FS}/playfair-display/files/playfair-display-latin-800-normal.woff`,
       letterSpacing: 0.04,
       transform: 'none'
     }
   },
   {
     id: 'elegant',
-    label: 'Elegant',
-    description: 'Refined italic serif — soft and warm.',
+    labelKey: 'inscription.style.elegant',
+    descriptionKey: 'inscription.style.elegant.desc',
     css: {
       fontFamily: '"Cormorant Garamond", serif',
       fontStyle: 'italic',
-      fontWeight: 500,
+      fontWeight: 700,
       letterSpacing: '0.02em'
     },
     three: {
-      fontUrl: `${GFONTS}/ofl/cormorantgaramond/CormorantGaramond-MediumItalic.ttf`,
+      fontUrl: `${FS}/cormorant-garamond/files/cormorant-garamond-latin-700-italic.woff`,
       letterSpacing: 0.02,
       transform: 'none'
     }
   },
   {
     id: 'script',
-    label: 'Script',
-    description: 'Flowing handwritten cursive.',
+    labelKey: 'inscription.style.script',
+    descriptionKey: 'inscription.style.script.desc',
     css: {
       fontFamily: '"Great Vibes", cursive',
       fontWeight: 400,
       letterSpacing: '0.01em'
     },
     three: {
-      fontUrl: `${GFONTS}/ofl/greatvibes/GreatVibes-Regular.ttf`,
+      fontUrl: `${FS}/great-vibes/files/great-vibes-latin-400-normal.woff`,
       letterSpacing: 0.01,
       transform: 'none'
     }
   },
   {
     id: 'gothic',
-    label: 'Gothic',
-    description: 'Traditional blackletter — solemn.',
+    labelKey: 'inscription.style.gothic',
+    descriptionKey: 'inscription.style.gothic.desc',
     css: {
       fontFamily: '"UnifrakturMaguntia", serif',
       fontWeight: 400,
       letterSpacing: '0.04em'
     },
     three: {
-      fontUrl: `${GFONTS}/ofl/unifrakturmaguntia/UnifrakturMaguntia-Book.ttf`,
+      fontUrl: `${FS}/unifrakturmaguntia/files/unifrakturmaguntia-latin-400-normal.woff`,
       letterSpacing: 0.04,
       transform: 'none'
     }
@@ -120,7 +125,8 @@ export const InscriptionStylePicker = ({
   selectedId,
   onSelect
 }: InscriptionStylePickerProps) => {
-  const previewText = inscription.trim() || 'In loving memory';
+  const { t } = useTranslation();
+  const previewText = inscription.trim() || t('designer.inscriptionPlaceholder').replace('...', '');
   const selectedStyle = getInscriptionStyle(selectedId);
 
   return (
@@ -149,7 +155,7 @@ export const InscriptionStylePicker = ({
                 {previewText}
               </span>
               <span className="text-[10px] uppercase tracking-wider text-slate-400">
-                {style.label}
+                {t(style.labelKey)}
               </span>
             </button>
           );
@@ -158,7 +164,7 @@ export const InscriptionStylePicker = ({
 
       <div className="rounded-lg border border-slate-700 bg-slate-950/60 p-4">
         <p className="text-[10px] uppercase tracking-wider text-slate-500">
-          Preview · {selectedStyle.label}
+          {t('designer.inscriptionStyle.preview')} · {t(selectedStyle.labelKey)}
         </p>
         <p
           className="mt-2 break-words text-2xl leading-snug text-amber-100"
@@ -166,7 +172,7 @@ export const InscriptionStylePicker = ({
         >
           {previewText}
         </p>
-        <p className="mt-2 text-[11px] text-slate-500">{selectedStyle.description}</p>
+        <p className="mt-2 text-[11px] text-slate-500">{t(selectedStyle.descriptionKey)}</p>
       </div>
     </div>
   );

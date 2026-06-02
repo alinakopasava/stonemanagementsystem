@@ -38,7 +38,7 @@ export const HeroSection = () => {
       <div className="w-full rounded-2xl border border-slate-700/60 bg-slate-900/70 p-2 shadow-glow lg:ml-8 lg:w-[560px] lg:justify-self-end lg:p-3">
         <img
           src="/images/main.png"
-          alt="Monument craftsmanship preview"
+          alt={t('hero.imageAlt')}
           className="h-[380px] w-full rounded-xl object-contain object-center"
         />
       </div>
