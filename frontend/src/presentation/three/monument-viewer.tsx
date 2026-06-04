@@ -4,9 +4,14 @@ import { Canvas } from '@react-three/fiber';
 import { Environment, OrbitControls } from '@react-three/drei';
 import { MonumentModel } from './monument-model';
 import type {
+  BaseDimensionsCm,
   InscriptionStyleHints,
+  MonumentDecoration,
   MonumentDimensionsCm,
-  MonumentShape
+  MonumentLayout,
+  MonumentShape,
+  NicheStyle,
+  TombstoneSlabVariant
 } from './monument-model';
 import type { FinishType } from '@domain/entities/order-card';
 
@@ -15,12 +20,23 @@ interface MonumentViewerProps {
   materialName?: string;
   finish: FinishType;
   dimensions: MonumentDimensionsCm;
+  baseDimensions?: BaseDimensionsCm;
   inscription: string;
   name?: string;
   dates?: string;
   inscriptionStyle?: InscriptionStyleHints;
   shape?: MonumentShape;
   showCross?: boolean;
+  showFlowerbed?: boolean;
+  tombstoneSlab?: TombstoneSlabVariant;
+  slabThicknessCm?: number;
+  decoration?: MonumentDecoration;
+  nicheStyle?: NicheStyle;
+  layout?: MonumentLayout;
+  secondaryInscription?: string;
+  secondaryName?: string;
+  secondaryDates?: string;
+  doubleGapCm?: number;
 }
 
 export const MonumentViewer = (props: MonumentViewerProps) => {

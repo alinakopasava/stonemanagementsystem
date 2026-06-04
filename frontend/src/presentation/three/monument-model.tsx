@@ -11,6 +11,12 @@ export interface MonumentDimensionsCm {
   thicknessCm: number;
 }
 
+export interface BaseDimensionsCm {
+  heightCm: number;
+  widthCm: number;
+  depthCm: number;
+}
+
 export interface InscriptionStyleHints {
   fontUrl?: string;
   letterSpacing: number;
@@ -18,6 +24,16 @@ export interface InscriptionStyleHints {
 }
 
 export type MonumentShape = 'classic' | 'rounded' | 'cross' | 'gothic' | 'heart';
+
+export type MonumentDecoration = 'none' | 'portrait' | 'medallion' | 'cross';
+
+export type NicheStyle = 'recessed' | 'framed';
+
+/** Tombstone slab variant: none, half (front cover only) or full (covers the whole grave). */
+export type TombstoneSlabVariant = 'none' | 'half' | 'full';
+
+/** Single stela or a double monument (two stelas side by side on a shared base). */
+export type MonumentLayout = 'single' | 'double';
 
 const DEFAULT_INSCRIPTION_STYLE: InscriptionStyleHints = {
   letterSpacing: 0,
@@ -29,12 +45,32 @@ interface MonumentModelProps {
   materialName?: string;
   finish: FinishType;
   dimensions: MonumentDimensionsCm;
+  /** Custom base (pedestal) dimensions. When missing, derived from the headstone. */
+  baseDimensions?: BaseDimensionsCm;
   inscription: string;
   name?: string;
   dates?: string;
   inscriptionStyle?: InscriptionStyleHints;
   shape?: MonumentShape;
   showCross?: boolean;
+  /** Цветник — small flower planter sitting in front of the base. */
+  showFlowerbed?: boolean;
+  /** Плита надгробная — none, half (front cover) or full (whole grave). */
+  tombstoneSlab?: TombstoneSlabVariant;
+  /** Slab thickness preset, typically 5 or 8 cm. */
+  slabThicknessCm?: number;
+  /** Decoration on the headstone face: portrait/medallion plate or engraved cross. */
+  decoration?: MonumentDecoration;
+  /** Visual treatment for portrait/medallion: recessed niche or raised frame. */
+  nicheStyle?: NicheStyle;
+  /** Single stela (default) or a double monument with two stelas side by side. */
+  layout?: MonumentLayout;
+  /** Text on the right-hand stela when layout='double'. Ignored otherwise. */
+  secondaryInscription?: string;
+  secondaryName?: string;
+  secondaryDates?: string;
+  /** Spacing between the two stelas in cm. Used only when layout='double'. */
+  doubleGapCm?: number;
 }
 
 const CM_TO_M = 0.01;
@@ -219,27 +255,96 @@ export const MonumentModel = ({
   materialName,
   finish,
   dimensions,
+  baseDimensions,
   inscription,
   name,
   dates,
   inscriptionStyle = DEFAULT_INSCRIPTION_STYLE,
   shape: shapeKind = 'classic',
-  showCross = false
+  showCross = false,
+  showFlowerbed = false,
+  tombstoneSlab = 'full',
+  slabThicknessCm = 5,
+  decoration = 'none',
+  nicheStyle = 'recessed',
+  layout = 'single',
+  secondaryInscription = '',
+  secondaryName = '',
+  secondaryDates = '',
+  doubleGapCm = 10
 }: MonumentModelProps) => {
   const widthM = dimensions.widthCm * CM_TO_M;
   const heightM = dimensions.heightCm * CM_TO_M;
   const thicknessM = Math.max(0.04, dimensions.thicknessCm * CM_TO_M);
 
-  const baseWidth = widthM * 1.4;
-  const baseDepth = thicknessM * 2.6;
-  const baseHeight = Math.max(0.08, Math.min(0.16, heightM * 0.1));
+  /** Double-monument geometry: two stelas of the same shape/material/size sit side-by-side on a
+   *  single shared base — visually "glued together" with a hairline seam down the middle.
+   *
+   *  Each extruded headstone has an 8 mm bevel on every edge (see `createHeadstoneExtrudeGeometry`).
+   *  If we positioned the two centers exactly `widthM` apart, those bevels would create a visible
+   *  ~16 mm V-groove between the stelas. We compensate by pulling each stela inward by one bevel
+   *  width — so when the user dials the gap to 0, the bevels merge into a clean seam instead of a
+   *  furrow, and a positive gap value still produces the expected visible spacing. */
+  const STELA_BEVEL_M = 0.008;
+  const isDouble = layout === 'double';
+  const doubleGapM = doubleGapCm * CM_TO_M;
+  /** Distance between the two stela centers, clamped so the user can't accidentally overlap
+   *  them by more than 40 % of the stela width. */
+  const stelaCenterDistanceM = isDouble
+    ? Math.max(widthM * 0.6, widthM + doubleGapM - STELA_BEVEL_M * 2)
+    : 0;
+  const stelaOffsetsX = isDouble
+    ? [-stelaCenterDistanceM / 2, stelaCenterDistanceM / 2]
+    : [0];
+  /** Total horizontal extent of the headstone footprint (used by base/slab width derivations). */
+  const stelaSpanM = isDouble ? stelaCenterDistanceM + widthM : widthM;
+
+  /** Base (pedestal) can be set explicitly by the user — otherwise derived from the full stela span.
+   *  When the user-supplied width is too narrow to physically hold both stelas, we silently widen
+   *  the base to a sane floor; the slider keeps responding for further fine-tuning above that floor. */
+  const minDoubleBaseWidth = isDouble ? stelaSpanM + widthM * 0.2 : 0;
+  const derivedBaseWidth = isDouble ? stelaSpanM * 1.15 : widthM * 1.4;
+  const baseWidth = Math.max(
+    minDoubleBaseWidth,
+    baseDimensions
+      ? Math.max(0.4, baseDimensions.widthCm * CM_TO_M)
+      : derivedBaseWidth
+  );
+  const baseDepth = baseDimensions
+    ? Math.max(0.15, baseDimensions.depthCm * CM_TO_M)
+    : thicknessM * 2.6;
+  const baseHeight = baseDimensions
+    ? Math.max(0.04, baseDimensions.heightCm * CM_TO_M)
+    : Math.max(0.08, Math.min(0.16, heightM * 0.1));
   const plinthWidth = baseWidth * 0.86;
   const plinthDepth = baseDepth * 0.82;
   const plinthHeight = Math.max(0.04, baseHeight * 0.55);
 
-  const ledgerWidth = baseWidth * 1.05;
-  const ledgerDepth = baseDepth * 1.6;
-  const ledgerHeight = 0.025;
+  /** Плита надгробная — wide flat slab covering the grave.
+   *  Half = covers only the area in front of the base (≈half a typical grave length).
+   *  Full = covers the whole grave from the base forward. */
+  const slabHeight = Math.max(0.03, slabThicknessCm * CM_TO_M);
+  const slabWidth = Math.max(baseWidth * 1.25, stelaSpanM * 1.5);
+  const slabFullDepth = Math.max(baseDepth * 2.0, thicknessM * 5.5);
+  const slabHalfDepth = Math.max(baseDepth * 1.15, thicknessM * 2.8);
+  const slabDepth = tombstoneSlab === 'half' ? slabHalfDepth : slabFullDepth;
+  /** Push slab forward more for "half" — visually it stops short of fully covering the grave. */
+  const slabForwardOffset = tombstoneSlab === 'half'
+    ? slabDepth * 0.32
+    : slabDepth * 0.18;
+  const hasSlab = tombstoneSlab !== 'none';
+
+  /** Цветник — rectangular planter sitting just in front of the base. */
+  const flowerbedWidth = baseWidth * 0.95;
+  const flowerbedDepth = Math.max(baseDepth * 0.45, thicknessM * 1.4);
+  const flowerbedHeight = Math.max(0.08, baseHeight * 0.7);
+  const flowerbedWall = Math.max(0.02, flowerbedDepth * 0.12);
+
+  /** Stack everything bottom-up. When the slab is hidden the base sits on the ground. */
+  const slabTopY = hasSlab ? slabHeight : 0;
+  const baseY = slabTopY + baseHeight / 2;
+  const plinthY = slabTopY + baseHeight + plinthHeight / 2;
+  const headstoneBaseY = slabTopY + baseHeight + plinthHeight - 0.005;
 
   const albedoMap = useStoneAlbedoTexture(textureUrl, materialName);
   const spanM = Math.max(dimensions.heightCm, dimensions.widthCm, dimensions.thicknessCm * 2) * CM_TO_M;
@@ -332,10 +437,6 @@ export const MonumentModel = ({
   const transformText = (value: string) =>
     inscriptionStyle.transform === 'uppercase' ? value.toUpperCase() : value;
 
-  const inscriptionTrimmed = transformText(inscription?.trim() ?? '');
-  const nameTrimmed = transformText(name?.trim() ?? '');
-  const datesTrimmed = (dates?.trim() ?? '');
-
   /** Dopasowujemy fontSize tak, żeby:
    *  – najdłuższe słowo zmieściło się w jednej linii (nie wyłamie się w pojedynczy znak),
    *  – cały tekst nie zajął więcej niż `maxLines` linii (zwykle 1–2). */
@@ -349,11 +450,6 @@ export const MonumentModel = ({
   };
 
   const baseSize = Math.max(0.04, Math.min(widthM * 0.13, bodyHeight * 0.14));
-
-  /** Pożądane (max) rozmiary; każdy realny rozmiar może zostać obcięty w `autoFitFontSize`. */
-  const headerSize = autoFitFontSize(inscriptionTrimmed, baseSize * 0.85, 2);
-  const nameSize = autoFitFontSize(nameTrimmed, baseSize * 1.3, 2);
-  const datesSize = autoFitFontSize(datesTrimmed, baseSize * 0.9, 1);
 
   /** Bez panelu pod tekstem trzeba dobrać kolor liter pod kamień: ciemne litery na jasnym kamieniu,
    *  jasne litery na ciemnym — inaczej kremowy domyślny napis ginął na marmurze/piaskowcu. */
@@ -383,126 +479,313 @@ export const MonumentModel = ({
     return wordAwareLineCount(text, charsPerLine);
   };
 
-  const headerLines = linesFor(inscriptionTrimmed, headerSize);
-  const nameLines = linesFor(nameTrimmed, nameSize);
-  const datesLines = linesFor(datesTrimmed, datesSize);
+  /** Decoration (portrait/medallion/cross) goes onto the upper portion of the headstone face.
+   *  We compute its size and Y center first, then narrow the text layout so the two don't overlap.
+   *  When `layout='double'`, the same decoration kind is mirrored on each stela. */
+  const decorationSize = (() => {
+    if (decoration === 'none') return { w: 0, h: 0 };
+    const w = widthM * (decoration === 'cross' ? 0.32 : 0.42);
+    const h = decoration === 'portrait' ? w * 1.25 : w;
+    return { w, h };
+  })();
+  const decorationCenterY = bodyHeight * 0.74;
+  const decorationBottomY = decorationCenterY - decorationSize.h / 2;
+  const hasDecoration = decoration !== 'none';
 
-  const headerHeight = headerLines * headerSize * TEXT_LINE_HEIGHT;
-  const nameHeight = nameLines * nameSize * TEXT_LINE_HEIGHT;
-  const datesHeight = datesLines * datesSize * TEXT_LINE_HEIGHT;
+  /** Shape-dependent text bounds are the same on both stelas (same shape, same widthM, same heightM).
+   *  Computed once so we don't repeat the switch for each stela in a double monument. */
+  const textBounds = (() => {
+    const decorationGap = baseSize * 0.45;
+    const decorationTopLimit = hasDecoration
+      ? Math.max(bodyHeight * 0.1, decorationBottomY - decorationGap)
+      : Infinity;
 
-  const blockGap = baseSize * 0.55;
-  const visibleBlocks =
-    (inscriptionTrimmed ? 1 : 0) + (nameTrimmed ? 1 : 0) + (datesTrimmed ? 1 : 0);
-  const totalGaps = Math.max(0, visibleBlocks - 1) * blockGap;
-  const totalTextHeight = headerHeight + nameHeight + datesHeight + totalGaps;
+    const shaped = (() => {
+      switch (shapeKind) {
+        case 'classic':
+          return {
+            desiredCenterY: bodyHeight * 0.45,
+            topLimit: bodyHeight * 0.72,
+            bottomLimit: bodyHeight * 0.08
+          };
+        case 'cross':
+          return {
+            desiredCenterY: bodyHeight * 0.5,
+            topLimit: bodyHeight * 0.85,
+            bottomLimit: bodyHeight * 0.1
+          };
+        case 'rounded':
+          return {
+            desiredCenterY: heightM * 0.5,
+            topLimit: bodyHeight + widthM * 0.18,
+            bottomLimit: bodyHeight * 0.1
+          };
+        case 'gothic':
+          return {
+            desiredCenterY: heightM * 0.46,
+            topLimit: bodyHeight + (heightM - bodyHeight) * 0.3,
+            bottomLimit: bodyHeight * 0.1
+          };
+        case 'heart':
+          return {
+            desiredCenterY: heightM * 0.42,
+            topLimit: bodyHeight * 0.96,
+            bottomLimit: bodyHeight * 0.1
+          };
+        default:
+          return {
+            desiredCenterY: bodyHeight * 0.5,
+            topLimit: bodyHeight * 0.85,
+            bottomLimit: bodyHeight * 0.08
+          };
+      }
+    })();
 
-  /** Layout top→bottom: inskrypcja („In loving memory”) na górze, niżej imię, na dole daty.
-   *  Centrum i pas pionowy są zależne od kształtu — rounded/gothic/heart mają dekoracyjną górę,
-   *  więc tekst powinien iść do środka pełnej wysokości stelli, a nie tylko prostokątnego korpusu. */
-  const layout = (() => {
-    switch (shapeKind) {
-      case 'classic':
-        return {
-          desiredCenterY: bodyHeight * 0.45,
-          topLimit: bodyHeight * 0.72,
-          bottomLimit: bodyHeight * 0.08
-        };
-      case 'cross':
-        return {
-          desiredCenterY: bodyHeight * 0.5,
-          topLimit: bodyHeight * 0.85,
-          bottomLimit: bodyHeight * 0.1
-        };
-      case 'rounded':
-        return {
-          desiredCenterY: heightM * 0.5,
-          topLimit: bodyHeight + widthM * 0.18,
-          bottomLimit: bodyHeight * 0.1
-        };
-      case 'gothic':
-        return {
-          desiredCenterY: heightM * 0.46,
-          topLimit: bodyHeight + (heightM - bodyHeight) * 0.3,
-          bottomLimit: bodyHeight * 0.1
-        };
-      case 'heart':
-        return {
-          desiredCenterY: heightM * 0.42,
-          topLimit: bodyHeight * 0.96,
-          bottomLimit: bodyHeight * 0.1
-        };
-      default:
-        return {
-          desiredCenterY: bodyHeight * 0.5,
-          topLimit: bodyHeight * 0.85,
-          bottomLimit: bodyHeight * 0.08
-        };
-    }
+    const topLimit = Math.min(shaped.topLimit, decorationTopLimit);
+    const desiredCenterY = hasDecoration
+      ? Math.min(shaped.desiredCenterY, (topLimit + shaped.bottomLimit) / 2)
+      : shaped.desiredCenterY;
+    return { ...shaped, topLimit, desiredCenterY };
   })();
 
-  const usableSpan = layout.topLimit - layout.bottomLimit;
-  let textCenterY = layout.desiredCenterY;
-  if (totalTextHeight <= usableSpan) {
-    if (textCenterY + totalTextHeight / 2 > layout.topLimit) {
-      textCenterY = layout.topLimit - totalTextHeight / 2;
-    } else if (textCenterY - totalTextHeight / 2 < layout.bottomLimit) {
-      textCenterY = layout.bottomLimit + totalTextHeight / 2;
-    }
-  } else {
-    textCenterY = (layout.topLimit + layout.bottomLimit) / 2;
-  }
-  const textTopY = textCenterY + totalTextHeight / 2;
+  /** Pure helper — computes per-stela trimmed text + sizes + Y positions for a given inscription bundle.
+   *  Called once per stela in the JSX below so each side can carry its own inscription/name/dates. */
+  const computeStelaText = (
+    inscriptionRaw: string,
+    nameRaw: string,
+    datesRaw: string
+  ) => {
+    const inscriptionTrimmed = transformText(inscriptionRaw?.trim() ?? '');
+    const nameTrimmed = transformText(nameRaw?.trim() ?? '');
+    const datesTrimmed = datesRaw?.trim() ?? '';
 
-  let cursor = textTopY;
-  const headerY = inscriptionTrimmed ? cursor - headerHeight / 2 : 0;
-  if (inscriptionTrimmed) cursor -= headerHeight;
-  if (inscriptionTrimmed && (nameTrimmed || datesTrimmed)) cursor -= blockGap;
-  const nameY = nameTrimmed ? cursor - nameHeight / 2 : 0;
-  if (nameTrimmed) cursor -= nameHeight;
-  if (nameTrimmed && datesTrimmed) cursor -= blockGap;
-  const datesY = datesTrimmed ? cursor - datesHeight / 2 : 0;
+    const headerSize = autoFitFontSize(inscriptionTrimmed, baseSize * 0.85, 2);
+    const nameSize = autoFitFontSize(nameTrimmed, baseSize * 1.3, 2);
+    const datesSize = autoFitFontSize(datesTrimmed, baseSize * 0.9, 1);
+
+    const headerLines = linesFor(inscriptionTrimmed, headerSize);
+    const nameLines = linesFor(nameTrimmed, nameSize);
+    const datesLines = linesFor(datesTrimmed, datesSize);
+
+    const headerHeight = headerLines * headerSize * TEXT_LINE_HEIGHT;
+    const nameHeight = nameLines * nameSize * TEXT_LINE_HEIGHT;
+    const datesHeight = datesLines * datesSize * TEXT_LINE_HEIGHT;
+
+    const blockGap = baseSize * 0.55;
+    const visibleBlocks =
+      (inscriptionTrimmed ? 1 : 0) + (nameTrimmed ? 1 : 0) + (datesTrimmed ? 1 : 0);
+    const totalGaps = Math.max(0, visibleBlocks - 1) * blockGap;
+    const totalTextHeight = headerHeight + nameHeight + datesHeight + totalGaps;
+
+    const usableSpan = textBounds.topLimit - textBounds.bottomLimit;
+    let textCenterY = textBounds.desiredCenterY;
+    if (totalTextHeight <= usableSpan) {
+      if (textCenterY + totalTextHeight / 2 > textBounds.topLimit) {
+        textCenterY = textBounds.topLimit - totalTextHeight / 2;
+      } else if (textCenterY - totalTextHeight / 2 < textBounds.bottomLimit) {
+        textCenterY = textBounds.bottomLimit + totalTextHeight / 2;
+      }
+    } else {
+      textCenterY = (textBounds.topLimit + textBounds.bottomLimit) / 2;
+    }
+    const textTopY = textCenterY + totalTextHeight / 2;
+
+    let cursor = textTopY;
+    const headerY = inscriptionTrimmed ? cursor - headerHeight / 2 : 0;
+    if (inscriptionTrimmed) cursor -= headerHeight;
+    if (inscriptionTrimmed && (nameTrimmed || datesTrimmed)) cursor -= blockGap;
+    const nameY = nameTrimmed ? cursor - nameHeight / 2 : 0;
+    if (nameTrimmed) cursor -= nameHeight;
+    if (nameTrimmed && datesTrimmed) cursor -= blockGap;
+    const datesY = datesTrimmed ? cursor - datesHeight / 2 : 0;
+
+    return {
+      inscriptionTrimmed, nameTrimmed, datesTrimmed,
+      headerSize, nameSize, datesSize,
+      headerY, nameY, datesY
+    };
+  };
+
+  /** One bundle per stela. For a single monument only the first entry is used. */
+  const stelaTexts = [
+    computeStelaText(inscription, name ?? '', dates ?? ''),
+    ...(isDouble ? [computeStelaText(secondaryInscription, secondaryName, secondaryDates)] : [])
+  ];
+
+  /** Niche colour: ciemne tło pod portret/medalion, w odcieniu kontrastującym z kamieniem. */
+  const nichePlateColor = isDarkStone ? '#0b0805' : '#1c130b';
 
   return (
     <group>
-      <mesh position={[0, ledgerHeight / 2, ledgerDepth * 0.18]} receiveShadow material={stoneMaterial}>
-        <boxGeometry args={[ledgerWidth, ledgerHeight, ledgerDepth]} />
-      </mesh>
+      {hasSlab && (
+        <mesh
+          position={[0, slabHeight / 2, slabForwardOffset]}
+          receiveShadow
+          material={stoneMaterial}
+        >
+          <boxGeometry args={[slabWidth, slabHeight, slabDepth]} />
+        </mesh>
+      )}
 
-      <mesh position={[0, ledgerHeight + baseHeight / 2, 0]} receiveShadow material={stoneMaterial}>
+      {showFlowerbed && (() => {
+        /** Цветник siedzi z przodu podstawy: prostokątna obwódka z 4 ścianek + dno.
+         *  Środek pozostaje pusty (wizualnie sugeruje miejsce na kwiaty). */
+        const flowerbedFrontZ = baseDepth / 2 + flowerbedDepth / 2 + 0.01;
+        const flowerbedBaseY = slabTopY + 0.005;
+        const innerWidth = Math.max(0.02, flowerbedWidth - flowerbedWall * 2);
+        const innerDepth = Math.max(0.02, flowerbedDepth - flowerbedWall * 2);
+        return (
+          <group position={[0, flowerbedBaseY, flowerbedFrontZ]}>
+            <mesh receiveShadow material={stoneMaterial}>
+              <boxGeometry args={[flowerbedWidth, 0.02, flowerbedDepth]} />
+            </mesh>
+            <mesh
+              position={[0, flowerbedHeight / 2, -flowerbedDepth / 2 + flowerbedWall / 2]}
+              receiveShadow
+              material={stoneMaterial}
+            >
+              <boxGeometry args={[flowerbedWidth, flowerbedHeight, flowerbedWall]} />
+            </mesh>
+            <mesh
+              position={[0, flowerbedHeight / 2, flowerbedDepth / 2 - flowerbedWall / 2]}
+              receiveShadow
+              material={stoneMaterial}
+            >
+              <boxGeometry args={[flowerbedWidth, flowerbedHeight, flowerbedWall]} />
+            </mesh>
+            <mesh
+              position={[-flowerbedWidth / 2 + flowerbedWall / 2, flowerbedHeight / 2, 0]}
+              receiveShadow
+              material={stoneMaterial}
+            >
+              <boxGeometry args={[flowerbedWall, flowerbedHeight, innerDepth]} />
+            </mesh>
+            <mesh
+              position={[flowerbedWidth / 2 - flowerbedWall / 2, flowerbedHeight / 2, 0]}
+              receiveShadow
+              material={stoneMaterial}
+            >
+              <boxGeometry args={[flowerbedWall, flowerbedHeight, innerDepth]} />
+            </mesh>
+            <mesh position={[0, flowerbedHeight * 0.35, 0]}>
+              <boxGeometry args={[innerWidth, 0.01, innerDepth]} />
+              <meshStandardMaterial color="#2a1d10" roughness={0.95} />
+            </mesh>
+          </group>
+        );
+      })()}
+
+      <mesh position={[0, baseY, 0]} receiveShadow material={stoneMaterial}>
         <boxGeometry args={[baseWidth, baseHeight, baseDepth]} />
       </mesh>
 
-      <mesh position={[0, ledgerHeight + baseHeight + plinthHeight / 2, 0]} receiveShadow material={stoneMaterial}>
+      <mesh position={[0, plinthY, 0]} receiveShadow material={stoneMaterial}>
         <boxGeometry args={[plinthWidth, plinthHeight, plinthDepth]} />
       </mesh>
 
-      <group position={[0, ledgerHeight + baseHeight + plinthHeight - 0.005, -thicknessM / 2]}>
-        <mesh
-          castShadow={shapeKind !== 'classic'}
-          receiveShadow={false}
-          material={stoneMaterial}
-          geometry={headstoneGeometry}
-        />
+      {stelaOffsetsX.map((offsetX, stelaIdx) => {
+        const txt = stelaTexts[stelaIdx];
+        return (
+          <group key={`stela-${stelaIdx}`} position={[offsetX, headstoneBaseY, -thicknessM / 2]}>
+            <mesh
+              castShadow={shapeKind !== 'classic'}
+              receiveShadow={false}
+              material={stoneMaterial}
+              geometry={headstoneGeometry}
+            />
 
-        <Suspense fallback={null}>
-          {inscriptionTrimmed && (
-            <Text {...commonTextProps} position={[0, headerY, textZ]} fontSize={headerSize} outlineWidth={headerSize * 0.05} lineHeight={TEXT_LINE_HEIGHT}>
-              {inscriptionTrimmed}
-            </Text>
-          )}
-          {nameTrimmed && (
-            <Text {...commonTextProps} position={[0, nameY, textZ]} fontSize={nameSize} outlineWidth={nameSize * 0.06} lineHeight={TEXT_LINE_HEIGHT}>
-              {nameTrimmed}
-            </Text>
-          )}
-          {datesTrimmed && (
-            <Text {...commonTextProps} position={[0, datesY, textZ]} fontSize={datesSize} outlineWidth={datesSize * 0.05} lineHeight={TEXT_LINE_HEIGHT}>
-              {datesTrimmed}
-            </Text>
-          )}
-        </Suspense>
-      </group>
+            {hasDecoration && (() => {
+              /** Decoration sits flush with the front face of the headstone.
+               *  Recessed: a single dark plate ~6mm out → reads as a niche.
+               *  Framed: same dark plate + a thin stone rim (4 strips for portrait, ring for medallion). */
+              const plateZ = thicknessM + 0.006;
+              const frameZ = thicknessM + 0.014;
+              const frameThickness = Math.min(0.018, Math.max(0.008, widthM * 0.018));
+              const { w, h } = decorationSize;
+
+              if (decoration === 'cross') {
+                const crossThickness = Math.max(0.012, widthM * 0.018);
+                const vertW = w * 0.22;
+                const horizH = h * 0.22;
+                return (
+                  <group position={[0, decorationCenterY, 0]}>
+                    <mesh position={[0, 0, plateZ]}>
+                      <boxGeometry args={[vertW, h, crossThickness]} />
+                      <meshStandardMaterial color={nichePlateColor} roughness={0.7} metalness={0.1} />
+                    </mesh>
+                    <mesh position={[0, h * 0.18, plateZ]}>
+                      <boxGeometry args={[w, horizH, crossThickness]} />
+                      <meshStandardMaterial color={nichePlateColor} roughness={0.7} metalness={0.1} />
+                    </mesh>
+                  </group>
+                );
+              }
+
+              const isMedallion = decoration === 'medallion';
+              /** Recessed: plate sits flush with the bevel, no rim. Framed: thicker plate + raised border. */
+              const plateOutZ = nicheStyle === 'framed' ? plateZ : thicknessM + 0.002;
+              return (
+                <group position={[0, decorationCenterY, 0]}>
+                  {isMedallion ? (
+                    /** cylinderGeometry is Y-aligned by default; rotate 90° around X so the disc faces +Z. */
+                    <mesh position={[0, 0, plateOutZ]} rotation={[Math.PI / 2, 0, 0]}>
+                      <cylinderGeometry args={[w / 2, w / 2, 0.012, 48]} />
+                      <meshStandardMaterial color={nichePlateColor} roughness={0.6} metalness={0.15} />
+                    </mesh>
+                  ) : (
+                    <mesh position={[0, 0, plateOutZ]}>
+                      <boxGeometry args={[w, h, 0.012]} />
+                      <meshStandardMaterial color={nichePlateColor} roughness={0.6} metalness={0.15} />
+                    </mesh>
+                  )}
+
+                  {nicheStyle === 'framed' && isMedallion && (
+                    /** ringGeometry sits in the XY plane and faces +Z by default. */
+                    <mesh position={[0, 0, frameZ]} material={stoneMaterial}>
+                      <ringGeometry args={[w / 2, w / 2 + frameThickness, 64]} />
+                    </mesh>
+                  )}
+
+                  {nicheStyle === 'framed' && !isMedallion && (
+                    <group position={[0, 0, frameZ]}>
+                      <mesh material={stoneMaterial} position={[0, h / 2 + frameThickness / 2, 0]}>
+                        <boxGeometry args={[w + frameThickness * 2, frameThickness, frameThickness]} />
+                      </mesh>
+                      <mesh material={stoneMaterial} position={[0, -h / 2 - frameThickness / 2, 0]}>
+                        <boxGeometry args={[w + frameThickness * 2, frameThickness, frameThickness]} />
+                      </mesh>
+                      <mesh material={stoneMaterial} position={[-w / 2 - frameThickness / 2, 0, 0]}>
+                        <boxGeometry args={[frameThickness, h, frameThickness]} />
+                      </mesh>
+                      <mesh material={stoneMaterial} position={[w / 2 + frameThickness / 2, 0, 0]}>
+                        <boxGeometry args={[frameThickness, h, frameThickness]} />
+                      </mesh>
+                    </group>
+                  )}
+                </group>
+              );
+            })()}
+
+            <Suspense fallback={null}>
+              {txt.inscriptionTrimmed && (
+                <Text {...commonTextProps} position={[0, txt.headerY, textZ]} fontSize={txt.headerSize} outlineWidth={txt.headerSize * 0.05} lineHeight={TEXT_LINE_HEIGHT}>
+                  {txt.inscriptionTrimmed}
+                </Text>
+              )}
+              {txt.nameTrimmed && (
+                <Text {...commonTextProps} position={[0, txt.nameY, textZ]} fontSize={txt.nameSize} outlineWidth={txt.nameSize * 0.06} lineHeight={TEXT_LINE_HEIGHT}>
+                  {txt.nameTrimmed}
+                </Text>
+              )}
+              {txt.datesTrimmed && (
+                <Text {...commonTextProps} position={[0, txt.datesY, textZ]} fontSize={txt.datesSize} outlineWidth={txt.datesSize * 0.05} lineHeight={TEXT_LINE_HEIGHT}>
+                  {txt.datesTrimmed}
+                </Text>
+              )}
+            </Suspense>
+          </group>
+        );
+      })}
 
       {showCross && (() => {
         /** Wysokość sylwetki nagrobka w x = 0 (gdzie staje stopka krzyża).
@@ -532,17 +815,20 @@ export const MonumentModel = ({
          *  więc jej dolna krawędź leży w group local Y = -widthM*0.16. Dodajemy ten offset,
          *  żeby stopka krzyża dotykała korony nagrobka (+ drobne zatopienie 5 mm dla schludności). */
         const crossBaseOffset = widthM * 0.16 - 0.005;
-        const crossY =
-          ledgerHeight + baseHeight + plinthHeight - 0.005 + headstoneTopAtCenter + crossBaseOffset;
+        const crossY = headstoneBaseY + headstoneTopAtCenter + crossBaseOffset;
         return (
-          <group position={[0, crossY, 0]}>
-            <mesh castShadow material={stoneMaterial}>
-              <boxGeometry args={[widthM * 0.06, widthM * 0.32, thicknessM * 0.4]} />
-            </mesh>
-            <mesh castShadow position={[0, widthM * 0.06, 0]} material={stoneMaterial}>
-              <boxGeometry args={[widthM * 0.22, widthM * 0.06, thicknessM * 0.4]} />
-            </mesh>
-          </group>
+          <>
+            {stelaOffsetsX.map((offsetX, idx) => (
+              <group key={`cross-${idx}`} position={[offsetX, crossY, 0]}>
+                <mesh castShadow material={stoneMaterial}>
+                  <boxGeometry args={[widthM * 0.06, widthM * 0.32, thicknessM * 0.4]} />
+                </mesh>
+                <mesh castShadow position={[0, widthM * 0.06, 0]} material={stoneMaterial}>
+                  <boxGeometry args={[widthM * 0.22, widthM * 0.06, thicknessM * 0.4]} />
+                </mesh>
+              </group>
+            ))}
+          </>
         );
       })()}
 

@@ -14,7 +14,14 @@ import {
   type InscriptionStyleId
 } from '@presentation/components/inscription-styles';
 import { MonumentViewer } from '@presentation/three/monument-viewer';
-import type { MonumentShape } from '@presentation/three/monument-model';
+import type {
+  BaseDimensionsCm,
+  MonumentDecoration,
+  MonumentLayout,
+  MonumentShape,
+  NicheStyle,
+  TombstoneSlabVariant
+} from '@presentation/three/monument-model';
 
 interface DesignerPageProps {
   materials: Material[];
@@ -34,7 +41,35 @@ const SHAPE_OPTIONS: { id: MonumentShape; labelKey: TranslationKey }[] = [
   { id: 'heart', labelKey: 'designer.shape.heart' }
 ];
 
+const DECORATION_OPTIONS: { id: MonumentDecoration; labelKey: TranslationKey }[] = [
+  { id: 'none', labelKey: 'designer.decoration.none' },
+  { id: 'portrait', labelKey: 'designer.decoration.portrait' },
+  { id: 'medallion', labelKey: 'designer.decoration.medallion' },
+  { id: 'cross', labelKey: 'designer.decoration.cross' }
+];
+
+const NICHE_STYLE_OPTIONS: { id: NicheStyle; labelKey: TranslationKey }[] = [
+  { id: 'recessed', labelKey: 'designer.nicheStyle.recessed' },
+  { id: 'framed', labelKey: 'designer.nicheStyle.framed' }
+];
+
+const SLAB_VARIANT_OPTIONS: { id: TombstoneSlabVariant; labelKey: TranslationKey }[] = [
+  { id: 'none', labelKey: 'designer.slabVariant.none' },
+  { id: 'half', labelKey: 'designer.slabVariant.half' },
+  { id: 'full', labelKey: 'designer.slabVariant.full' }
+];
+
+const SLAB_THICKNESS_OPTIONS: number[] = [5, 8];
+
+const LAYOUT_OPTIONS: { id: MonumentLayout; labelKey: TranslationKey }[] = [
+  { id: 'single', labelKey: 'designer.layout.single' },
+  { id: 'double', labelKey: 'designer.layout.double' }
+];
+
 const DEFAULT_DIMENSIONS = { heightCm: 180, widthCm: 90, thicknessCm: 15 };
+const DEFAULT_BASE_DIMENSIONS: BaseDimensionsCm = { heightCm: 14, widthCm: 130, depthCm: 40 };
+/** Default 0 = the two stelas are flush against each other ("glued"), forming a single block. */
+const DEFAULT_DOUBLE_GAP_CM = 0;
 
 interface PresetKeys {
   label: TranslationKey;
@@ -97,8 +132,19 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
     DEFAULT_INSCRIPTION_STYLE_ID
   );
   const [dimensions, setDimensions] = useState(DEFAULT_DIMENSIONS);
+  const [baseDimensions, setBaseDimensions] = useState<BaseDimensionsCm>(DEFAULT_BASE_DIMENSIONS);
   const [shape, setShape] = useState<MonumentShape>('classic');
   const [showCross, setShowCross] = useState<boolean>(false);
+  const [showFlowerbed, setShowFlowerbed] = useState<boolean>(true);
+  const [tombstoneSlab, setTombstoneSlab] = useState<TombstoneSlabVariant>('full');
+  const [slabThicknessCm, setSlabThicknessCm] = useState<number>(5);
+  const [decoration, setDecoration] = useState<MonumentDecoration>('none');
+  const [nicheStyle, setNicheStyle] = useState<NicheStyle>('recessed');
+  const [layout, setLayout] = useState<MonumentLayout>('single');
+  const [secondaryInscription, setSecondaryInscription] = useState<string>('');
+  const [secondaryName, setSecondaryName] = useState<string>('');
+  const [secondaryDates, setSecondaryDates] = useState<string>('');
+  const [doubleGapCm, setDoubleGapCm] = useState<number>(DEFAULT_DOUBLE_GAP_CM);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -133,6 +179,9 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
 
   const updateDimension = (key: keyof typeof DEFAULT_DIMENSIONS) => (value: number) =>
     setDimensions((prev) => ({ ...prev, [key]: value }));
+
+  const updateBaseDimension = (key: keyof BaseDimensionsCm) => (value: number) =>
+    setBaseDimensions((prev) => ({ ...prev, [key]: value }));
 
   const handleSubmit = async () => {
     if (!user) {
@@ -176,15 +225,68 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
             materialName={selectedMaterial?.name}
             finish={finish}
             dimensions={dimensions}
+            baseDimensions={baseDimensions}
             inscription={inscription}
             name={name}
             dates={dates}
             inscriptionStyle={inscriptionStyle.three}
             shape={shape}
             showCross={showCross}
+            showFlowerbed={showFlowerbed}
+            tombstoneSlab={tombstoneSlab}
+            slabThicknessCm={slabThicknessCm}
+            decoration={decoration}
+            nicheStyle={nicheStyle}
+            layout={layout}
+            secondaryInscription={secondaryInscription}
+            secondaryName={secondaryName}
+            secondaryDates={secondaryDates}
+            doubleGapCm={doubleGapCm}
           />
 
           <aside className="space-y-5 rounded-2xl border border-slate-700/60 bg-slate-900/70 p-6">
+            <section>
+              <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
+                {t('designer.layout')}
+              </h2>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {LAYOUT_OPTIONS.map((option) => {
+                  const active = option.id === layout;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setLayout(option.id)}
+                      className={[
+                        'rounded-md border px-3 py-2 text-sm transition',
+                        active
+                          ? 'border-amber-300 bg-amber-300/10 text-amber-100'
+                          : 'border-slate-700 text-slate-300 hover:border-slate-500'
+                      ].join(' ')}
+                    >
+                      {t(option.labelKey)}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-[11px] text-slate-500">
+                {t('designer.layout.hint')}
+              </p>
+              {layout === 'double' && (
+                <div className="mt-3">
+                  <SliderRow
+                    label={t('designer.doubleGap')}
+                    value={doubleGapCm}
+                    min={0}
+                    max={40}
+                    step={1}
+                    unit={t('designer.units.cm')}
+                    onChange={setDoubleGapCm}
+                  />
+                </div>
+              )}
+            </section>
+
             <section>
               <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
                 {t('designer.material')}
@@ -286,7 +388,7 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
 
             <section>
               <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
-                {t('designer.dimensions')}
+                {t('designer.stelaSize')}
               </h2>
               <div className="mt-3 space-y-3">
                 <SliderRow
@@ -317,6 +419,172 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
                   onChange={updateDimension('thicknessCm')}
                 />
               </div>
+            </section>
+
+            <section>
+              <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
+                {t('designer.baseSize')}
+              </h2>
+              <div className="mt-3 space-y-3">
+                <SliderRow
+                  label={t('designer.baseSize.width')}
+                  value={baseDimensions.widthCm}
+                  min={80}
+                  max={200}
+                  step={5}
+                  unit={t('designer.units.cm')}
+                  onChange={updateBaseDimension('widthCm')}
+                />
+                <SliderRow
+                  label={t('designer.baseSize.depth')}
+                  value={baseDimensions.depthCm}
+                  min={25}
+                  max={80}
+                  step={5}
+                  unit={t('designer.units.cm')}
+                  onChange={updateBaseDimension('depthCm')}
+                />
+                <SliderRow
+                  label={t('designer.baseSize.height')}
+                  value={baseDimensions.heightCm}
+                  min={6}
+                  max={30}
+                  step={1}
+                  unit={t('designer.units.cm')}
+                  onChange={updateBaseDimension('heightCm')}
+                />
+              </div>
+            </section>
+
+            <section>
+              <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
+                {t('designer.elements')}
+              </h2>
+              <div className="mt-3 space-y-4">
+                <ToggleRow
+                  label={t('designer.elements.flowerbed')}
+                  hint={t('designer.elements.flowerbed.hint')}
+                  checked={showFlowerbed}
+                  onChange={setShowFlowerbed}
+                />
+
+                <div>
+                  <h3 className="text-[11px] uppercase tracking-wider text-slate-500">
+                    {t('designer.slabVariant')}
+                  </h3>
+                  <div className="mt-2 grid grid-cols-3 gap-2">
+                    {SLAB_VARIANT_OPTIONS.map((option) => {
+                      const active = option.id === tombstoneSlab;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setTombstoneSlab(option.id)}
+                          className={[
+                            'rounded-md border px-3 py-2 text-xs transition',
+                            active
+                              ? 'border-amber-300 bg-amber-300/10 text-amber-100'
+                              : 'border-slate-700 text-slate-300 hover:border-slate-500'
+                          ].join(' ')}
+                        >
+                          {t(option.labelKey)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-2 text-[11px] text-slate-500">
+                    {t('designer.elements.tombstoneSlab.hint')}
+                  </p>
+                </div>
+
+                {tombstoneSlab !== 'none' && (
+                  <div>
+                    <h3 className="text-[11px] uppercase tracking-wider text-slate-500">
+                      {t('designer.slabThickness')}
+                    </h3>
+                    <div className="mt-2 flex gap-2">
+                      {SLAB_THICKNESS_OPTIONS.map((value) => {
+                        const active = value === slabThicknessCm;
+                        return (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => setSlabThicknessCm(value)}
+                            className={[
+                              'flex-1 rounded-md border px-3 py-2 text-sm transition',
+                              active
+                                ? 'border-amber-300 bg-amber-300/10 text-amber-100'
+                                : 'border-slate-700 text-slate-300 hover:border-slate-500'
+                            ].join(' ')}
+                          >
+                            {value} {t('designer.units.cm')}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="mt-2 text-[11px] text-slate-500">
+                      {t('designer.slabThickness.hint')}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section>
+              <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
+                {t('designer.decoration')}
+              </h2>
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {DECORATION_OPTIONS.map((option) => {
+                  const active = option.id === decoration;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setDecoration(option.id)}
+                      className={[
+                        'rounded-md border px-3 py-2 text-xs transition',
+                        active
+                          ? 'border-amber-300 bg-amber-300/10 text-amber-100'
+                          : 'border-slate-700 text-slate-300 hover:border-slate-500'
+                      ].join(' ')}
+                    >
+                      {t(option.labelKey)}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {(decoration === 'portrait' || decoration === 'medallion') && (
+                <div className="mt-4">
+                  <h3 className="text-[11px] uppercase tracking-wider text-slate-500">
+                    {t('designer.nicheStyle')}
+                  </h3>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    {NICHE_STYLE_OPTIONS.map((option) => {
+                      const active = option.id === nicheStyle;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setNicheStyle(option.id)}
+                          className={[
+                            'rounded-md border px-3 py-2 text-xs transition',
+                            active
+                              ? 'border-amber-300 bg-amber-300/10 text-amber-100'
+                              : 'border-slate-700 text-slate-300 hover:border-slate-500'
+                          ].join(' ')}
+                        >
+                          {t(option.labelKey)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-2 text-[11px] text-slate-500">
+                    {t('designer.nicheStyle.hint')}
+                  </p>
+                </div>
+              )}
             </section>
 
             <section>
@@ -398,6 +666,59 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
               </div>
             </section>
 
+            {layout === 'double' && (
+              <section>
+                <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
+                  {t('designer.secondary')}
+                </h2>
+                <p className="mt-1 text-[11px] text-slate-500">{t('designer.secondary.hint')}</p>
+                <label className="mt-3 block">
+                  <span className="text-[11px] uppercase tracking-wider text-slate-400">
+                    {t('designer.secondary.inscription')}
+                  </span>
+                  <textarea
+                    className="mt-1 h-20 w-full resize-none rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-gray-100 focus:border-amber-300 focus:outline-none"
+                    value={secondaryInscription}
+                    onChange={(e) => setSecondaryInscription(e.target.value)}
+                    placeholder={t('designer.inscriptionPlaceholder')}
+                    maxLength={140}
+                  />
+                  <p className="mt-1 text-right text-[10px] text-slate-500">
+                    {secondaryInscription.length}/140
+                  </p>
+                </label>
+
+                <div className="mt-3 grid gap-3 sm:grid-cols-[1.4fr_1fr]">
+                  <label className="block">
+                    <span className="text-[11px] uppercase tracking-wider text-slate-400">
+                      {t('designer.secondary.name')}
+                    </span>
+                    <input
+                      type="text"
+                      className="mt-1 w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-gray-100 focus:border-amber-300 focus:outline-none"
+                      value={secondaryName}
+                      onChange={(e) => setSecondaryName(e.target.value)}
+                      placeholder={t('designer.namePlaceholder')}
+                      maxLength={80}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-[11px] uppercase tracking-wider text-slate-400">
+                      {t('designer.secondary.dates')}
+                    </span>
+                    <input
+                      type="text"
+                      className="mt-1 w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-gray-100 focus:border-amber-300 focus:outline-none"
+                      value={secondaryDates}
+                      onChange={(e) => setSecondaryDates(e.target.value)}
+                      placeholder={t('designer.datesPlaceholder')}
+                      maxLength={40}
+                    />
+                  </label>
+                </div>
+              </section>
+            )}
+
             <section>
               <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
                 {t('designer.inscriptionStyle')}
@@ -478,5 +799,27 @@ const SliderRow = ({ label, value, min, max, step, unit, onChange }: SliderRowPr
       onChange={(e) => onChange(Number(e.target.value))}
       className="mt-1 w-full accent-amber-300"
     />
+  </label>
+);
+
+interface ToggleRowProps {
+  label: string;
+  hint?: string;
+  checked: boolean;
+  onChange: (next: boolean) => void;
+}
+
+const ToggleRow = ({ label, hint, checked, onChange }: ToggleRowProps) => (
+  <label className="flex cursor-pointer items-start gap-3 rounded-md border border-slate-700 bg-slate-950/40 px-3 py-2 transition hover:border-slate-500">
+    <input
+      type="checkbox"
+      className="mt-1 accent-amber-300"
+      checked={checked}
+      onChange={(e) => onChange(e.target.checked)}
+    />
+    <span className="flex-1">
+      <span className="block text-sm text-gray-100">{label}</span>
+      {hint ? <span className="mt-0.5 block text-[11px] text-slate-400">{hint}</span> : null}
+    </span>
   </label>
 );

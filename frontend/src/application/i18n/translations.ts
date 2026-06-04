@@ -138,6 +138,41 @@ export type TranslationKey =
   | 'designer.shape.cross'
   | 'designer.shape.heart'
   | 'designer.shape.showCross'
+  | 'designer.stelaSize'
+  | 'designer.baseSize'
+  | 'designer.baseSize.height'
+  | 'designer.baseSize.width'
+  | 'designer.baseSize.depth'
+  | 'designer.elements'
+  | 'designer.elements.flowerbed'
+  | 'designer.elements.flowerbed.hint'
+  | 'designer.elements.tombstoneSlab'
+  | 'designer.elements.tombstoneSlab.hint'
+  | 'designer.slabVariant'
+  | 'designer.slabVariant.none'
+  | 'designer.slabVariant.half'
+  | 'designer.slabVariant.full'
+  | 'designer.slabThickness'
+  | 'designer.slabThickness.hint'
+  | 'designer.layout'
+  | 'designer.layout.single'
+  | 'designer.layout.double'
+  | 'designer.layout.hint'
+  | 'designer.doubleGap'
+  | 'designer.secondary'
+  | 'designer.secondary.hint'
+  | 'designer.secondary.inscription'
+  | 'designer.secondary.name'
+  | 'designer.secondary.dates'
+  | 'designer.decoration'
+  | 'designer.decoration.none'
+  | 'designer.decoration.portrait'
+  | 'designer.decoration.medallion'
+  | 'designer.decoration.cross'
+  | 'designer.nicheStyle'
+  | 'designer.nicheStyle.recessed'
+  | 'designer.nicheStyle.framed'
+  | 'designer.nicheStyle.hint'
   | 'designer.presets.title'
   | 'designer.presets.classic.label'
   | 'designer.presets.classic.inscription'
@@ -414,6 +449,42 @@ const en: Dictionary = {
   'designer.shape.cross': 'With cross',
   'designer.shape.heart': 'Heart',
   'designer.shape.showCross': 'Cross on top',
+
+  'designer.stelaSize': 'Stela size',
+  'designer.baseSize': 'Base size',
+  'designer.baseSize.height': 'Height',
+  'designer.baseSize.width': 'Width',
+  'designer.baseSize.depth': 'Depth',
+  'designer.elements': 'Additional elements',
+  'designer.elements.flowerbed': 'Flower planter',
+  'designer.elements.flowerbed.hint': 'Stone flower box in front of the base.',
+  'designer.elements.tombstoneSlab': 'Tombstone slab',
+  'designer.elements.tombstoneSlab.hint': 'Flat slab covering the grave area.',
+  'designer.slabVariant': 'Tombstone slab type',
+  'designer.slabVariant.none': 'No slab',
+  'designer.slabVariant.half': 'Half slab',
+  'designer.slabVariant.full': 'Full slab',
+  'designer.slabThickness': 'Slab thickness',
+  'designer.slabThickness.hint': 'Standard slab thickness, usually 5 or 8 cm.',
+  'designer.layout': 'Monument type',
+  'designer.layout.single': 'Single',
+  'designer.layout.double': 'Double',
+  'designer.layout.hint': 'Two stelas joined on one shared base. Set the gap to 0 to fuse them into a single block.',
+  'designer.doubleGap': 'Gap between stelas',
+  'designer.secondary': 'Second person',
+  'designer.secondary.hint': 'Inscription, name and dates for the right-hand stela.',
+  'designer.secondary.inscription': 'Inscription',
+  'designer.secondary.name': 'Name',
+  'designer.secondary.dates': 'Dates',
+  'designer.decoration': 'Decoration',
+  'designer.decoration.none': 'None',
+  'designer.decoration.portrait': 'Portrait',
+  'designer.decoration.medallion': 'Medallion',
+  'designer.decoration.cross': 'Cross',
+  'designer.nicheStyle': 'Mounting style',
+  'designer.nicheStyle.recessed': 'Recessed niche',
+  'designer.nicheStyle.framed': 'Stone frame',
+  'designer.nicheStyle.hint': 'Choose how the portrait or medallion is mounted on the stela.',
 
   'designer.presets.title': 'Ready-made texts',
   'designer.presets.classic.label': 'Classic',
@@ -707,6 +778,42 @@ const pl: Dictionary = {
   'designer.shape.cross': 'Z krzyżem',
   'designer.shape.heart': 'Sercowy',
   'designer.shape.showCross': 'Krzyż na szczycie',
+
+  'designer.stelaSize': 'Rozmiar steli',
+  'designer.baseSize': 'Rozmiar podstawy',
+  'designer.baseSize.height': 'Wysokość',
+  'designer.baseSize.width': 'Szerokość',
+  'designer.baseSize.depth': 'Głębokość',
+  'designer.elements': 'Dodatkowe elementy',
+  'designer.elements.flowerbed': 'Cmentarna donica',
+  'designer.elements.flowerbed.hint': 'Kamienna donica na kwiaty przed podstawą.',
+  'designer.elements.tombstoneSlab': 'Płyta nagrobna',
+  'designer.elements.tombstoneSlab.hint': 'Płaska płyta przykrywająca grób.',
+  'designer.slabVariant': 'Rodzaj płyty nagrobnej',
+  'designer.slabVariant.none': 'Bez płyty',
+  'designer.slabVariant.half': 'Półpłyta',
+  'designer.slabVariant.full': 'Pełna płyta',
+  'designer.slabThickness': 'Grubość płyty',
+  'designer.slabThickness.hint': 'Standardowa grubość płyty — zwykle 5 lub 8 cm.',
+  'designer.layout': 'Typ pomnika',
+  'designer.layout.single': 'Pojedynczy',
+  'designer.layout.double': 'Podwójny',
+  'designer.layout.hint': 'Dwie stele połączone na wspólnej podstawie. Odstęp 0 sklei je w jeden blok.',
+  'designer.doubleGap': 'Odstęp między stelami',
+  'designer.secondary': 'Druga osoba',
+  'designer.secondary.hint': 'Inskrypcja, imię i daty dla prawej steli.',
+  'designer.secondary.inscription': 'Inskrypcja',
+  'designer.secondary.name': 'Imię i nazwisko',
+  'designer.secondary.dates': 'Daty',
+  'designer.decoration': 'Dekoracja',
+  'designer.decoration.none': 'Brak',
+  'designer.decoration.portrait': 'Portret',
+  'designer.decoration.medallion': 'Medalion',
+  'designer.decoration.cross': 'Krzyż',
+  'designer.nicheStyle': 'Sposób osadzenia',
+  'designer.nicheStyle.recessed': 'Wnęka (zagłębienie)',
+  'designer.nicheStyle.framed': 'Kamienna ramka',
+  'designer.nicheStyle.hint': 'Wybierz, jak osadzony jest portret lub medalion na steli.',
 
   'designer.presets.title': 'Gotowe teksty',
   'designer.presets.classic.label': 'Klasyczny',
@@ -1010,6 +1117,42 @@ const ru: Dictionary = {
   'designer.shape.cross': 'С крестом',
   'designer.shape.heart': 'Сердцевидная',
   'designer.shape.showCross': 'Крест на вершине',
+
+  'designer.stelaSize': 'Размер стелы',
+  'designer.baseSize': 'Размер подставки',
+  'designer.baseSize.height': 'Высота',
+  'designer.baseSize.width': 'Ширина',
+  'designer.baseSize.depth': 'Глубина',
+  'designer.elements': 'Дополнительные элементы',
+  'designer.elements.flowerbed': 'Цветник',
+  'designer.elements.flowerbed.hint': 'Каменный цветник перед подставкой.',
+  'designer.elements.tombstoneSlab': 'Плита надгробная',
+  'designer.elements.tombstoneSlab.hint': 'Плоская плита, покрывающая место захоронения.',
+  'designer.slabVariant': 'Тип надгробной плиты',
+  'designer.slabVariant.none': 'Без плиты',
+  'designer.slabVariant.half': 'Полу­надгробная плита',
+  'designer.slabVariant.full': 'Полная плита',
+  'designer.slabThickness': 'Толщина плиты',
+  'designer.slabThickness.hint': 'Стандартная толщина плиты — обычно 5 или 8 см.',
+  'designer.layout': 'Тип памятника',
+  'designer.layout.single': 'Одинарный',
+  'designer.layout.double': 'Двойной',
+  'designer.layout.hint': 'Две стелы на общей подставке. Расстояние 0 — стелы склеены в один блок.',
+  'designer.doubleGap': 'Расстояние между стелами',
+  'designer.secondary': 'Второй человек',
+  'designer.secondary.hint': 'Надпись, имя и даты для правой стелы.',
+  'designer.secondary.inscription': 'Надпись',
+  'designer.secondary.name': 'Имя',
+  'designer.secondary.dates': 'Даты',
+  'designer.decoration': 'Оформление',
+  'designer.decoration.none': 'Нет',
+  'designer.decoration.portrait': 'Портрет',
+  'designer.decoration.medallion': 'Медальон',
+  'designer.decoration.cross': 'Крест',
+  'designer.nicheStyle': 'Способ установки',
+  'designer.nicheStyle.recessed': 'Ниша (углубление)',
+  'designer.nicheStyle.framed': 'Каменная рамка',
+  'designer.nicheStyle.hint': 'Выберите, как портрет или медальон крепится на стеле.',
 
   'designer.presets.title': 'Готовые тексты',
   'designer.presets.classic.label': 'Классический',
