@@ -4,6 +4,7 @@ import type { Material } from '@domain/entities/material';
 import { AuthProvider } from '@application/auth/auth-context';
 import { I18nProvider } from '@application/i18n/i18n-context';
 import { fetchMaterials } from '@infrastructure/api/material-api';
+import { fetchProducts, type ProductItem } from '@infrastructure/api/product-api';
 import { ProtectedRoute } from '@presentation/components/protected-route';
 import { AdminLayout } from '@presentation/pages/admin-layout';
 import { AdminMessagesPage } from '@presentation/pages/admin-messages-page';
@@ -22,29 +23,34 @@ import { SignUpPage } from '@presentation/pages/sign-up-page';
 
 export const App = () => {
   const [materials, setMaterials] = useState<Material[]>([]);
-  const [isLoadingMaterials, setIsLoadingMaterials] = useState(true);
+  const [products, setProducts] = useState<ProductItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [materialsError, setMaterialsError] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadMaterials = async () => {
+    const load = async () => {
       try {
-        const loadedMaterials = await fetchMaterials();
+        const [loadedMaterials, loadedProducts] = await Promise.all([
+          fetchMaterials(),
+          fetchProducts()
+        ]);
         setMaterials(loadedMaterials);
+        setProducts(loadedProducts);
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unknown materials error';
+        const message = error instanceof Error ? error.message : 'Unknown error';
         setMaterialsError(message);
       } finally {
-        setIsLoadingMaterials(false);
+        setIsLoading(false);
       }
     };
-    loadMaterials();
+    load();
   }, []);
 
   return (
     <BrowserRouter>
       <I18nProvider>
         <AuthProvider>
-        {isLoadingMaterials ? (
+        {isLoading ? (
           <div className="flex min-h-screen items-center justify-center bg-slate-900 text-slate-200">
             Loading...
           </div>
@@ -55,7 +61,7 @@ export const App = () => {
         ) : (
           <Routes>
             <Route path="/" element={<LandingPage materials={materials} />} />
-            <Route path="/catalog" element={<CatalogPage materials={materials} />} />
+            <Route path="/catalog" element={<CatalogPage materials={materials} products={products} />} />
             <Route path="/design" element={<DesignerPage materials={materials} />} />
 
             <Route path="/sign-in" element={<SignInPage />} />

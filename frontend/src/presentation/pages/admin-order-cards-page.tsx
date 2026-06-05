@@ -35,13 +35,19 @@ interface ConvertFormState {
   installation_address: string;
   contract_details: string;
   deadline: string;
+  client_full_name: string;
+  passport_series: string;
+  passport_number: string;
 }
 
 const emptyForm: ConvertFormState = {
   price: '',
   installation_address: '',
   contract_details: '',
-  deadline: ''
+  deadline: '',
+  client_full_name: '',
+  passport_series: '',
+  passport_number: ''
 };
 
 const suggestPrice = (card: AdminOrderCard): string => {
@@ -113,7 +119,10 @@ export const AdminOrderCardsPage = () => {
         price: form.price === '' ? null : Number(form.price),
         installation_address: form.installation_address || null,
         contract_details: form.contract_details || null,
-        deadline: form.deadline || null
+        deadline: form.deadline || null,
+        client_full_name: form.client_full_name || null,
+        passport_series: form.passport_series || null,
+        passport_number: form.passport_number || null
       });
       closeConvertModal();
       await load();
@@ -404,6 +413,46 @@ export const AdminOrderCardsPage = () => {
                   onChange={(e) => setForm((p) => ({ ...p, deadline: e.target.value }))}
                 />
               </label>
+
+              <label className="block">
+                <span className="text-xs uppercase tracking-wider text-slate-400">
+                  {t('admin.orderCards.clientFullName')}
+                </span>
+                <input
+                  type="text"
+                  className="mt-1 w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-gray-100 focus:border-amber-300 focus:outline-none"
+                  value={form.client_full_name}
+                  onChange={(e) => setForm((p) => ({ ...p, client_full_name: e.target.value }))}
+                  placeholder={t('admin.orderCards.clientFullNamePlaceholder')}
+                />
+              </label>
+
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="text-xs uppercase tracking-wider text-slate-400">
+                    {t('admin.orderCards.passportSeries')}
+                  </span>
+                  <input
+                    type="text"
+                    className="mt-1 w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-gray-100 focus:border-amber-300 focus:outline-none"
+                    value={form.passport_series}
+                    onChange={(e) => setForm((p) => ({ ...p, passport_series: e.target.value }))}
+                    placeholder={t('admin.orderCards.passportSeriesPlaceholder')}
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-xs uppercase tracking-wider text-slate-400">
+                    {t('admin.orderCards.passportNumber')}
+                  </span>
+                  <input
+                    type="text"
+                    className="mt-1 w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-gray-100 focus:border-amber-300 focus:outline-none"
+                    value={form.passport_number}
+                    onChange={(e) => setForm((p) => ({ ...p, passport_number: e.target.value }))}
+                    placeholder={t('admin.orderCards.passportNumberPlaceholder')}
+                  />
+                </label>
+              </div>
 
               {convertError ? (
                 <p className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">

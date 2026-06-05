@@ -131,12 +131,19 @@ export type TranslationKey =
   | 'catalog.subtitle'
   | 'catalog.priceFrom'
   | 'catalog.footer'
+  | 'catalog.material.label'
+  | 'catalog.material.pricePerM2'
+  | 'catalog.designCta'
+  | 'catalog.basePriceFrom'
+  | 'catalog.loading'
   | 'designer.shape'
   | 'designer.shape.classic'
   | 'designer.shape.rounded'
   | 'designer.shape.gothic'
   | 'designer.shape.cross'
   | 'designer.shape.heart'
+  | 'designer.shape.stele'
+  | 'designer.shape.concave'
   | 'designer.shape.showCross'
   | 'designer.stelaSize'
   | 'designer.baseSize'
@@ -173,6 +180,14 @@ export type TranslationKey =
   | 'designer.nicheStyle.recessed'
   | 'designer.nicheStyle.framed'
   | 'designer.nicheStyle.hint'
+  | 'designer.photo'
+  | 'designer.photo.upload'
+  | 'designer.photo.change'
+  | 'designer.photo.remove'
+  | 'designer.photo.hint'
+  | 'designer.photo.removeBg'
+  | 'designer.photo.processing'
+  | 'designer.photo.processError'
   | 'designer.presets.title'
   | 'designer.presets.classic.label'
   | 'designer.presets.classic.inscription'
@@ -195,6 +210,11 @@ export type TranslationKey =
   | 'designer.pricePerM2Unit'
   | 'designer.priceUnit'
   | 'designer.units.cm'
+  | 'designer.tab.form'
+  | 'designer.tab.size'
+  | 'designer.tab.elements'
+  | 'designer.tab.inscription'
+  | 'designer.summary'
   | 'configurator.title'
   | 'configurator.subtitle'
   | 'configurator.material'
@@ -271,6 +291,12 @@ export type TranslationKey =
   | 'admin.orderCards.priceHint'
   | 'admin.orderCards.converting'
   | 'admin.orderCards.createOrder'
+  | 'admin.orderCards.clientFullName'
+  | 'admin.orderCards.clientFullNamePlaceholder'
+  | 'admin.orderCards.passportSeries'
+  | 'admin.orderCards.passportSeriesPlaceholder'
+  | 'admin.orderCards.passportNumber'
+  | 'admin.orderCards.passportNumberPlaceholder'
   | 'admin.users.title'
   | 'admin.users.subtitle'
   | 'admin.users.loadError'
@@ -438,9 +464,14 @@ const en: Dictionary = {
   'authCallback.finalizing': 'Finalizing sign-in...',
 
   'catalog.title': 'Monument Catalog',
-  'catalog.subtitle': 'Selected cemetery monument examples with pricing based on material cost.',
-  'catalog.priceFrom': 'Price: from {price} PLN / m²',
+  'catalog.subtitle': 'Select a stone material to preview pricing, then explore our monument designs.',
+  'catalog.priceFrom': 'from {price} PLN / m²',
   'catalog.footer': 'Signature Stone — memorial catalog.',
+  'catalog.material.label': 'Stone material',
+  'catalog.material.pricePerM2': '{price} PLN / m²',
+  'catalog.designCta': 'Design in 3D',
+  'catalog.basePriceFrom': 'from {price} PLN',
+  'catalog.loading': 'Loading catalog…',
 
   'designer.shape': 'Shape',
   'designer.shape.classic': 'Classic',
@@ -448,6 +479,8 @@ const en: Dictionary = {
   'designer.shape.gothic': 'Gothic',
   'designer.shape.cross': 'With cross',
   'designer.shape.heart': 'Heart',
+  'designer.shape.stele': 'Modern Stele',
+  'designer.shape.concave': 'Wave',
   'designer.shape.showCross': 'Cross on top',
 
   'designer.stelaSize': 'Stela size',
@@ -485,6 +518,15 @@ const en: Dictionary = {
   'designer.nicheStyle.recessed': 'Recessed niche',
   'designer.nicheStyle.framed': 'Stone frame',
   'designer.nicheStyle.hint': 'Choose how the portrait or medallion is mounted on the stela.',
+  'designer.photo': 'Photo',
+  'designer.photo.upload': 'Upload photo',
+  'designer.photo.change': 'Change photo',
+  'designer.photo.remove': 'Remove photo',
+  'designer.photo.hint':
+    'Just upload any clear photo of the face — it is auto-cropped to fit and shown in greyscale, like a laser engraving. Sharp, well-lit, front-facing photos work best.',
+  'designer.photo.removeBg': 'Remove background automatically',
+  'designer.photo.processing': 'Processing…',
+  'designer.photo.processError': 'Could not remove the background — using the original photo.',
 
   'designer.presets.title': 'Ready-made texts',
   'designer.presets.classic.label': 'Classic',
@@ -509,6 +551,11 @@ const en: Dictionary = {
   'designer.pricePerM2Unit': 'PLN / m²',
   'designer.priceUnit': 'PLN',
   'designer.units.cm': 'cm',
+  'designer.tab.form': 'Form',
+  'designer.tab.size': 'Dimensions',
+  'designer.tab.elements': 'Elements',
+  'designer.tab.inscription': 'Inscription',
+  'designer.summary': 'Summary',
 
   'configurator.title': 'Make Order',
   'configurator.subtitle':
@@ -593,6 +640,12 @@ const en: Dictionary = {
   'admin.orderCards.priceHint': 'Suggested from material × area. Leave blank if not yet known.',
   'admin.orderCards.converting': 'Converting...',
   'admin.orderCards.createOrder': 'Create order',
+  'admin.orderCards.clientFullName': 'Client full name',
+  'admin.orderCards.clientFullNamePlaceholder': 'Jan Kowalski',
+  'admin.orderCards.passportSeries': 'Passport series',
+  'admin.orderCards.passportSeriesPlaceholder': 'AB',
+  'admin.orderCards.passportNumber': 'Passport number',
+  'admin.orderCards.passportNumberPlaceholder': '1234567',
 
   'admin.users.title': 'Users',
   'admin.users.subtitle': 'Grant monter or admin roles. New sign-ups default to klient.',
@@ -766,10 +819,14 @@ const pl: Dictionary = {
   'authCallback.finalizing': 'Finalizowanie logowania...',
 
   'catalog.title': 'Katalog pomników',
-  'catalog.subtitle':
-    'Wybrane przykłady pomników cmentarnych z cenami opartymi na koszcie materiału.',
-  'catalog.priceFrom': 'Cena: od {price} PLN / m²',
+  'catalog.subtitle': 'Wybierz materiał, aby zobaczyć orientacyjne ceny, a następnie przeglądaj nasze projekty pomników.',
+  'catalog.priceFrom': 'od {price} PLN / m²',
   'catalog.footer': 'Signature Stone — katalog pomników.',
+  'catalog.material.label': 'Materiał kamienny',
+  'catalog.material.pricePerM2': '{price} PLN / m²',
+  'catalog.designCta': 'Projektuj w 3D',
+  'catalog.basePriceFrom': 'od {price} PLN',
+  'catalog.loading': 'Ładowanie katalogu…',
 
   'designer.shape': 'Kształt',
   'designer.shape.classic': 'Klasyczny',
@@ -777,6 +834,8 @@ const pl: Dictionary = {
   'designer.shape.gothic': 'Gotycki',
   'designer.shape.cross': 'Z krzyżem',
   'designer.shape.heart': 'Sercowy',
+  'designer.shape.stele': 'Nowoczesna stela',
+  'designer.shape.concave': 'Falowy',
   'designer.shape.showCross': 'Krzyż na szczycie',
 
   'designer.stelaSize': 'Rozmiar steli',
@@ -814,6 +873,15 @@ const pl: Dictionary = {
   'designer.nicheStyle.recessed': 'Wnęka (zagłębienie)',
   'designer.nicheStyle.framed': 'Kamienna ramka',
   'designer.nicheStyle.hint': 'Wybierz, jak osadzony jest portret lub medalion na steli.',
+  'designer.photo': 'Zdjęcie',
+  'designer.photo.upload': 'Wgraj zdjęcie',
+  'designer.photo.change': 'Zmień zdjęcie',
+  'designer.photo.remove': 'Usuń zdjęcie',
+  'designer.photo.hint':
+    'Wgraj dowolne wyraźne zdjęcie twarzy — program sam je przytnie do niszy i pokaże w skali szarości, jak grawer laserowy. Najlepiej działają ostre, dobrze doświetlone zdjęcia na wprost.',
+  'designer.photo.removeBg': 'Automatycznie usuń tło',
+  'designer.photo.processing': 'Przetwarzanie…',
+  'designer.photo.processError': 'Nie udało się usunąć tła — używam oryginalnego zdjęcia.',
 
   'designer.presets.title': 'Gotowe teksty',
   'designer.presets.classic.label': 'Klasyczny',
@@ -838,6 +906,11 @@ const pl: Dictionary = {
   'designer.pricePerM2Unit': 'PLN / m²',
   'designer.priceUnit': 'PLN',
   'designer.units.cm': 'cm',
+  'designer.tab.form': 'Forma',
+  'designer.tab.size': 'Wymiary',
+  'designer.tab.elements': 'Elementy',
+  'designer.tab.inscription': 'Inskrypcja',
+  'designer.summary': 'Podsumowanie',
 
   'configurator.title': 'Złóż zamówienie',
   'configurator.subtitle':
@@ -926,6 +999,12 @@ const pl: Dictionary = {
     'Sugerowana z materiału × powierzchnia. Pozostaw puste, jeśli jeszcze nieznana.',
   'admin.orderCards.converting': 'Przekształcanie...',
   'admin.orderCards.createOrder': 'Utwórz zamówienie',
+  'admin.orderCards.clientFullName': 'Imię i nazwisko klienta',
+  'admin.orderCards.clientFullNamePlaceholder': 'Jan Kowalski',
+  'admin.orderCards.passportSeries': 'Seria paszportu',
+  'admin.orderCards.passportSeriesPlaceholder': 'AB',
+  'admin.orderCards.passportNumber': 'Numer paszportu',
+  'admin.orderCards.passportNumberPlaceholder': '1234567',
 
   'admin.users.title': 'Użytkownicy',
   'admin.users.subtitle': 'Przyznawaj role monter lub admin. Nowi użytkownicy mają domyślnie rolę klient.',
@@ -1105,10 +1184,14 @@ const ru: Dictionary = {
   'authCallback.finalizing': 'Завершение входа...',
 
   'catalog.title': 'Каталог памятников',
-  'catalog.subtitle':
-    'Избранные примеры кладбищенских памятников с ценами на основе стоимости материала.',
-  'catalog.priceFrom': 'Цена: от {price} PLN / м²',
+  'catalog.subtitle': 'Выберите материал для предварительного расчёта цены и просмотрите наши проекты памятников.',
+  'catalog.priceFrom': 'от {price} PLN / м²',
   'catalog.footer': 'Signature Stone — каталог памятников.',
+  'catalog.material.label': 'Материал камня',
+  'catalog.material.pricePerM2': '{price} PLN / м²',
+  'catalog.designCta': 'Проектировать в 3D',
+  'catalog.basePriceFrom': 'от {price} PLN',
+  'catalog.loading': 'Загрузка каталога…',
 
   'designer.shape': 'Форма',
   'designer.shape.classic': 'Классическая',
@@ -1116,6 +1199,8 @@ const ru: Dictionary = {
   'designer.shape.gothic': 'Готическая',
   'designer.shape.cross': 'С крестом',
   'designer.shape.heart': 'Сердцевидная',
+  'designer.shape.stele': 'Современная стела',
+  'designer.shape.concave': 'Волновая',
   'designer.shape.showCross': 'Крест на вершине',
 
   'designer.stelaSize': 'Размер стелы',
@@ -1153,6 +1238,15 @@ const ru: Dictionary = {
   'designer.nicheStyle.recessed': 'Ниша (углубление)',
   'designer.nicheStyle.framed': 'Каменная рамка',
   'designer.nicheStyle.hint': 'Выберите, как портрет или медальон крепится на стеле.',
+  'designer.photo': 'Фото',
+  'designer.photo.upload': 'Загрузить фото',
+  'designer.photo.change': 'Изменить фото',
+  'designer.photo.remove': 'Удалить фото',
+  'designer.photo.hint':
+    'Загрузите любое чёткое фото лица — программа сама обрежет его под нишу и покажет в оттенках серого, как лазерную гравировку. Лучше всего подходят резкие, хорошо освещённые фото анфас.',
+  'designer.photo.removeBg': 'Автоматически удалить фон',
+  'designer.photo.processing': 'Обработка…',
+  'designer.photo.processError': 'Не удалось удалить фон — используется исходное фото.',
 
   'designer.presets.title': 'Готовые тексты',
   'designer.presets.classic.label': 'Классический',
@@ -1177,6 +1271,11 @@ const ru: Dictionary = {
   'designer.pricePerM2Unit': 'PLN / м²',
   'designer.priceUnit': 'PLN',
   'designer.units.cm': 'см',
+  'designer.tab.form': 'Форма',
+  'designer.tab.size': 'Размеры',
+  'designer.tab.elements': 'Элементы',
+  'designer.tab.inscription': 'Надпись',
+  'designer.summary': 'Итог',
 
   'configurator.title': 'Оформить заказ',
   'configurator.subtitle':
@@ -1265,6 +1364,12 @@ const ru: Dictionary = {
     'Предложено из материала × площадь. Оставьте пустым, если ещё не известно.',
   'admin.orderCards.converting': 'Преобразование...',
   'admin.orderCards.createOrder': 'Создать заказ',
+  'admin.orderCards.clientFullName': 'ФИО клиента',
+  'admin.orderCards.clientFullNamePlaceholder': 'Иван Иванов',
+  'admin.orderCards.passportSeries': 'Серия паспорта',
+  'admin.orderCards.passportSeriesPlaceholder': 'AB',
+  'admin.orderCards.passportNumber': 'Номер паспорта',
+  'admin.orderCards.passportNumberPlaceholder': '1234567',
 
   'admin.users.title': 'Пользователи',
   'admin.users.subtitle':

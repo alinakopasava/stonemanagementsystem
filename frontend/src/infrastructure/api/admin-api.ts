@@ -18,6 +18,9 @@ export interface AdminOrder {
   installation_address: string | null;
   contract_details: string | null;
   deadline: string | null;
+  client_full_name: string | null;
+  passport_series: string | null;
+  passport_number: string | null;
   created_at: string | null;
   updated_at: string | null;
   user_id: string | null;
@@ -75,6 +78,9 @@ export interface ConvertOrderCardPayload {
   installation_address?: string | null;
   contract_details?: string | null;
   deadline?: string | null;
+  client_full_name?: string | null;
+  passport_series?: string | null;
+  passport_number?: string | null;
 }
 
 export const fetchAdminOrderCards = (converted?: boolean) => {

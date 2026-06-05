@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@application/auth/auth-context';
 import { useTranslation } from '@application/i18n/i18n-context';
@@ -35,6 +35,8 @@ const FINISH_OPTIONS: { id: FinishType; labelKey: TranslationKey }[] = [
 
 const SHAPE_OPTIONS: { id: MonumentShape; labelKey: TranslationKey }[] = [
   { id: 'classic', labelKey: 'designer.shape.classic' },
+  { id: 'stele', labelKey: 'designer.shape.stele' },
+  { id: 'concave', labelKey: 'designer.shape.concave' },
   { id: 'rounded', labelKey: 'designer.shape.rounded' },
   { id: 'gothic', labelKey: 'designer.shape.gothic' },
   { id: 'cross', labelKey: 'designer.shape.cross' },
@@ -64,6 +66,15 @@ const SLAB_THICKNESS_OPTIONS: number[] = [5, 8];
 const LAYOUT_OPTIONS: { id: MonumentLayout; labelKey: TranslationKey }[] = [
   { id: 'single', labelKey: 'designer.layout.single' },
   { id: 'double', labelKey: 'designer.layout.double' }
+];
+
+type ConfiguratorTab = 'form' | 'size' | 'elements' | 'inscription';
+
+const TABS: { id: ConfiguratorTab; labelKey: TranslationKey }[] = [
+  { id: 'form', labelKey: 'designer.tab.form' },
+  { id: 'size', labelKey: 'designer.tab.size' },
+  { id: 'elements', labelKey: 'designer.tab.elements' },
+  { id: 'inscription', labelKey: 'designer.tab.inscription' }
 ];
 
 const DEFAULT_DIMENSIONS = { heightCm: 180, widthCm: 90, thicknessCm: 15 };
@@ -114,6 +125,17 @@ const priceOf = (m: Material | undefined, d: { heightCm: number; widthCm: number
   return Math.round(areaM2 * m.pricePerM2 * 100) / 100;
 };
 
+const readAsDataUrl = (blob: Blob) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error ?? new Error('Failed to read file'));
+    reader.readAsDataURL(blob);
+  });
+
+const fileToDataUrl = (file: File) => readAsDataUrl(file);
+const blobToDataUrl = (blob: Blob) => readAsDataUrl(blob);
+
 export const DesignerPage = ({ materials }: DesignerPageProps) => {
   const { user } = useAuth();
   const { t, language } = useTranslation();
@@ -140,6 +162,13 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
   const [slabThicknessCm, setSlabThicknessCm] = useState<number>(5);
   const [decoration, setDecoration] = useState<MonumentDecoration>('none');
   const [nicheStyle, setNicheStyle] = useState<NicheStyle>('recessed');
+  const [originalPhotoUrl, setOriginalPhotoUrl] = useState<string | null>(null);
+  const [cutoutPhotoUrl, setCutoutPhotoUrl] = useState<string | null>(null);
+  const [removeBg, setRemoveBg] = useState(true);
+  const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+
+  const photoUrl = removeBg ? (cutoutPhotoUrl ?? originalPhotoUrl) : originalPhotoUrl;
   const [layout, setLayout] = useState<MonumentLayout>('single');
   const [secondaryInscription, setSecondaryInscription] = useState<string>('');
   const [secondaryName, setSecondaryName] = useState<string>('');
@@ -148,6 +177,7 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<ConfiguratorTab>('form');
 
   const inscriptionStyle = getInscriptionStyle(inscriptionStyleId);
 
@@ -182,6 +212,49 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
 
   const updateBaseDimension = (key: keyof BaseDimensionsCm) => (value: number) =>
     setBaseDimensions((prev) => ({ ...prev, [key]: value }));
+
+  const runBackgroundRemoval = async (sourceUrl: string) => {
+    setIsProcessingPhoto(true);
+    setPhotoError(null);
+    try {
+      const mod = await import('@imgly/background-removal');
+      const removeBackground = mod.removeBackground ?? mod.default;
+      const blob = await removeBackground(sourceUrl);
+      const cutoutUrl = await blobToDataUrl(blob);
+      setCutoutPhotoUrl(cutoutUrl);
+    } catch {
+      setCutoutPhotoUrl(null);
+      setPhotoError(t('designer.photo.processError'));
+    } finally {
+      setIsProcessingPhoto(false);
+    }
+  };
+
+  const handlePhotoChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setCutoutPhotoUrl(null);
+    setPhotoError(null);
+    const dataUrl = await fileToDataUrl(file);
+    setOriginalPhotoUrl(dataUrl);
+    if (removeBg) {
+      void runBackgroundRemoval(dataUrl);
+    }
+  };
+
+  const handleToggleRemoveBg = (next: boolean) => {
+    setRemoveBg(next);
+    if (next && originalPhotoUrl && !cutoutPhotoUrl && !isProcessingPhoto) {
+      void runBackgroundRemoval(originalPhotoUrl);
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    setOriginalPhotoUrl(null);
+    setCutoutPhotoUrl(null);
+    setPhotoError(null);
+  };
 
   const handleSubmit = async () => {
     if (!user) {
@@ -219,7 +292,7 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
           <p className="mt-2 max-w-3xl text-slate-300">{t('designer.subtitle')}</p>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+        <div className="grid items-start gap-6 lg:grid-cols-[1.4fr_1fr]">
           <MonumentViewer
             textureUrl={textureUrl}
             materialName={selectedMaterial?.name}
@@ -237,6 +310,7 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
             slabThicknessCm={slabThicknessCm}
             decoration={decoration}
             nicheStyle={nicheStyle}
+            photoUrl={photoUrl ?? undefined}
             layout={layout}
             secondaryInscription={secondaryInscription}
             secondaryName={secondaryName}
@@ -244,7 +318,31 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
             doubleGapCm={doubleGapCm}
           />
 
-          <aside className="space-y-5 rounded-2xl border border-slate-700/60 bg-slate-900/70 p-6">
+          <aside className="flex flex-col overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-900/70 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)]">
+            <nav className="flex gap-1 border-b border-slate-700/60 bg-slate-950/40 p-2">
+              {TABS.map((tab) => {
+                const active = tab.id === activeTab;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id)}
+                    className={[
+                      'flex-1 rounded-md px-2 py-2 text-xs font-medium transition sm:text-sm',
+                      active
+                        ? 'bg-amber-300/15 text-amber-100 shadow-sm'
+                        : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
+                    ].join(' ')}
+                  >
+                    {t(tab.labelKey)}
+                  </button>
+                );
+              })}
+            </nav>
+
+            <div className="flex-1 space-y-5 overflow-y-auto p-6">
+              {activeTab === 'form' && (
+                <>
             <section>
               <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
                 {t('designer.layout')}
@@ -385,7 +483,11 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
                 </label>
               </div>
             </section>
+                </>
+              )}
 
+              {activeTab === 'size' && (
+                <>
             <section>
               <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
                 {t('designer.stelaSize')}
@@ -455,7 +557,11 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
                 />
               </div>
             </section>
+                </>
+              )}
 
+              {activeTab === 'elements' && (
+                <>
             <section>
               <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
                 {t('designer.elements')}
@@ -585,8 +691,88 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
                   </p>
                 </div>
               )}
-            </section>
 
+              {(decoration === 'portrait' || decoration === 'medallion') && (
+                <div className="mt-4">
+                  <h3 className="text-[11px] uppercase tracking-wider text-slate-500">
+                    {t('designer.photo')}
+                  </h3>
+                  <div className="mt-2 flex items-center gap-3">
+                    <div className="relative shrink-0">
+                      {photoUrl ? (
+                        <img
+                          src={photoUrl}
+                          alt=""
+                          className={[
+                            'h-16 w-16 border border-slate-600 bg-slate-950 object-cover',
+                            decoration === 'medallion' ? 'rounded-full' : 'rounded-md'
+                          ].join(' ')}
+                        />
+                      ) : (
+                        <div
+                          className={[
+                            'flex h-16 w-16 items-center justify-center border border-dashed border-slate-600 text-[10px] text-slate-500',
+                            decoration === 'medallion' ? 'rounded-full' : 'rounded-md'
+                          ].join(' ')}
+                        >
+                          {t('designer.photo')}
+                        </div>
+                      )}
+                      {isProcessingPhoto && (
+                        <div
+                          className={[
+                            'absolute inset-0 flex items-center justify-center bg-slate-950/75 px-1 text-center text-[9px] leading-tight text-amber-100',
+                            decoration === 'medallion' ? 'rounded-full' : 'rounded-md'
+                          ].join(' ')}
+                        >
+                          {t('designer.photo.processing')}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <label className="block cursor-pointer rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-center text-xs text-slate-200 transition hover:border-amber-300 hover:text-amber-100">
+                        {photoUrl ? t('designer.photo.change') : t('designer.photo.upload')}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handlePhotoChange}
+                        />
+                      </label>
+                      {photoUrl && (
+                        <button
+                          type="button"
+                          onClick={handleRemovePhoto}
+                          className="text-[11px] text-slate-400 underline-offset-2 hover:text-red-300 hover:underline"
+                        >
+                          {t('designer.photo.remove')}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <label className="mt-3 flex cursor-pointer items-center gap-2 text-[11px] text-slate-300">
+                    <input
+                      type="checkbox"
+                      className="accent-amber-300"
+                      checked={removeBg}
+                      onChange={(e) => handleToggleRemoveBg(e.target.checked)}
+                    />
+                    {t('designer.photo.removeBg')}
+                  </label>
+
+                  {photoError ? (
+                    <p className="mt-2 text-[11px] text-red-300">{photoError}</p>
+                  ) : null}
+                  <p className="mt-2 text-[11px] text-slate-500">{t('designer.photo.hint')}</p>
+                </div>
+              )}
+            </section>
+                </>
+              )}
+
+              {activeTab === 'inscription' && (
+                <>
             <section>
               <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
                 {t('designer.inscription')}
@@ -731,40 +917,50 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
                 />
               </div>
             </section>
+                </>
+              )}
+            </div>
 
-            <section className="rounded-lg border border-slate-700 bg-slate-950/60 p-4">
-              <div className="flex items-baseline justify-between">
-                <span className="text-xs text-slate-400">{t('designer.estimatedCost')}</span>
-                <span className="font-serif text-2xl text-amber-200">
+            <div className="space-y-3 border-t border-slate-700/60 bg-slate-950/50 p-5">
+              <div className="flex items-baseline justify-between gap-3">
+                <div className="min-w-0">
+                  <span className="block text-xs text-slate-400">
+                    {t('designer.estimatedCost')}
+                  </span>
+                  <span className="block truncate text-[11px] text-slate-500">
+                    {selectedMaterial?.name ?? '—'} · {dimensions.heightCm}×{dimensions.widthCm}{' '}
+                    {t('designer.units.cm')}
+                  </span>
+                </div>
+                <span className="shrink-0 font-serif text-3xl text-amber-200">
                   {estimatedPrice.toFixed(2)} {t('designer.priceUnit')}
                 </span>
               </div>
-              <p className="mt-1 text-[11px] text-slate-500">{t('designer.estimatedCostHint')}</p>
-            </section>
 
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={!selectedMaterial || isSubmitting}
-              className="w-full rounded-md bg-gray-100 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-white disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
-            >
-              {isSubmitting
-                ? t('designer.submitting')
-                : user
-                  ? t('designer.placeOrder')
-                  : t('designer.signInToOrder')}
-            </button>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={!selectedMaterial || isSubmitting}
+                className="w-full rounded-md bg-gray-100 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-white disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
+              >
+                {isSubmitting
+                  ? t('designer.submitting')
+                  : user
+                    ? t('designer.placeOrder')
+                    : t('designer.signInToOrder')}
+              </button>
 
-            {submitMessage ? (
-              <p className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
-                {submitMessage}
-              </p>
-            ) : null}
-            {submitError ? (
-              <p className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
-                {submitError}
-              </p>
-            ) : null}
+              {submitMessage ? (
+                <p className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+                  {submitMessage}
+                </p>
+              ) : null}
+              {submitError ? (
+                <p className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                  {submitError}
+                </p>
+              ) : null}
+            </div>
           </aside>
         </div>
       </main>

@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Text } from '@react-three/drei';
 import type { FinishType } from '@domain/entities/order-card';
 import { useStoneAlbedoTexture } from './use-stone-albedo-texture';
+import { usePhotoTexture } from './use-photo-texture';
 import { createHeadstoneExtrudeGeometry } from './headstone-extrude-geometry';
 
 export interface MonumentDimensionsCm {
@@ -23,7 +24,7 @@ export interface InscriptionStyleHints {
   transform: 'none' | 'uppercase';
 }
 
-export type MonumentShape = 'classic' | 'rounded' | 'cross' | 'gothic' | 'heart';
+export type MonumentShape = 'classic' | 'rounded' | 'cross' | 'gothic' | 'heart' | 'stele' | 'concave';
 
 export type MonumentDecoration = 'none' | 'portrait' | 'medallion' | 'cross';
 
@@ -63,6 +64,8 @@ interface MonumentModelProps {
   decoration?: MonumentDecoration;
   /** Visual treatment for portrait/medallion: recessed niche or raised frame. */
   nicheStyle?: NicheStyle;
+  /** Optional portrait photo (data URL) shown inside the portrait/medallion niche. */
+  photoUrl?: string;
   /** Single stela (default) or a double monument with two stelas side by side. */
   layout?: MonumentLayout;
   /** Text on the right-hand stela when layout='double'. Ignored otherwise. */
@@ -143,12 +146,14 @@ const wordAwareLineCount = (value: string, charsPerLine: number) => {
 const finishToSurface = (finish: FinishType) => {
   switch (finish) {
     case 'Polished':
-      return { roughness: 0.18, metalness: 0.25, clearcoat: 0.6 };
+      // Near-mirror polish: very low roughness, high clearcoat → crisp edge highlights on bevels
+      return { roughness: 0.04, metalness: 0.42, clearcoat: 1.0, clearcoatRoughness: 0.04 };
     case 'Honed':
-      return { roughness: 0.5, metalness: 0.12, clearcoat: 0.15 };
+      // Satin/brushed: visible directionality, muted sheen
+      return { roughness: 0.38, metalness: 0.14, clearcoat: 0.22, clearcoatRoughness: 0.28 };
     case 'Matte':
     default:
-      return { roughness: 0.9, metalness: 0.05, clearcoat: 0 };
+      return { roughness: 0.88, metalness: 0.04, clearcoat: 0, clearcoatRoughness: 0 };
   }
 };
 
@@ -239,11 +244,50 @@ const buildCrossShape = (widthM: number, heightM: number) => {
   return shape;
 };
 
+/** Modern minimalist stele — nearly straight sides with a small diagonal chamfer on the top corners,
+ *  and a very slight taper (top is ~5 % narrower than the base). */
+const buildSteleShape = (widthM: number, heightM: number) => {
+  const shape = new THREE.Shape();
+  const hw = widthM / 2;
+  const chamfer = Math.min(0.05, widthM * 0.07);
+  const taper = widthM * 0.03;
+  shape.moveTo(-hw, 0);
+  shape.lineTo(hw, 0);
+  shape.lineTo(hw - taper, heightM - chamfer);
+  shape.lineTo(hw - taper - chamfer, heightM);
+  shape.lineTo(-(hw - taper - chamfer), heightM);
+  shape.lineTo(-(hw - taper), heightM - chamfer);
+  shape.lineTo(-hw, 0);
+  return shape;
+};
+
+/** Concave "wave" stele — both sides curve inward (concave) to form a dramatic waist at ~42 % of
+ *  the height, then flare back out to broad shoulders with a semicircular crown.
+ *  Common in Polish / Eastern-European memorial catalogs. */
+const buildConcaveShape = (widthM: number, heightM: number) => {
+  const shape = new THREE.Shape();
+  const hw = widthM / 2;
+  const waist = widthM * 0.17;
+  const wy = heightM * 0.42;
+  const si = widthM * 0.04;
+  const bh = Math.max(0.05, heightM - (hw - si));
+  shape.moveTo(-hw, 0);
+  shape.lineTo(hw, 0);
+  shape.bezierCurveTo(hw, heightM * 0.14, hw - waist * 0.4, wy * 0.65, hw - waist, wy);
+  shape.bezierCurveTo(hw - waist, wy + heightM * 0.13, hw - si, bh * 0.88, hw - si, bh);
+  shape.absarc(0, bh, hw - si, 0, Math.PI, false);
+  shape.bezierCurveTo(-(hw - si), bh * 0.88, -(hw - waist), wy + heightM * 0.13, -(hw - waist), wy);
+  shape.bezierCurveTo(-(hw - waist * 0.4), wy * 0.65, -hw, heightM * 0.14, -hw, 0);
+  return shape;
+};
+
 const buildShape = (kind: MonumentShape, widthM: number, heightM: number) => {
   switch (kind) {
     case 'rounded': return buildRoundedShape(widthM, heightM);
     case 'gothic': return buildGothicShape(widthM, heightM);
     case 'heart': return buildHeartShape(widthM, heightM);
+    case 'stele': return buildSteleShape(widthM, heightM);
+    case 'concave': return buildConcaveShape(widthM, heightM);
     case 'cross': return buildCrossShape(widthM, heightM);
     case 'classic':
     default: return buildClassicShape(widthM, heightM);
@@ -267,6 +311,7 @@ export const MonumentModel = ({
   slabThicknessCm = 5,
   decoration = 'none',
   nicheStyle = 'recessed',
+  photoUrl,
   layout = 'single',
   secondaryInscription = '',
   secondaryName = '',
@@ -349,6 +394,61 @@ export const MonumentModel = ({
   const albedoMap = useStoneAlbedoTexture(textureUrl, materialName);
   const spanM = Math.max(dimensions.heightCm, dimensions.widthCm, dimensions.thicknessCm * 2) * CM_TO_M;
 
+  /** User portrait photo, only relevant for portrait/medallion decorations. */
+  const photoTexture = usePhotoTexture(
+    decoration === 'portrait' || decoration === 'medallion' ? photoUrl : undefined
+  );
+
+  /** Material that renders the photo as a high-contrast greyscale "laser-etched" look. */
+  const photoMaterial = useMemo(() => {
+    if (!photoTexture) return null;
+    const mat = new THREE.MeshStandardMaterial({
+      map: photoTexture,
+      roughness: 0.55,
+      metalness: 0.0,
+      transparent: true,
+      alphaTest: 0.05
+    });
+    mat.onBeforeCompile = (shader) => {
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <map_fragment>',
+        [
+          '#include <map_fragment>',
+          'float _etchGray = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));',
+          '_etchGray = clamp((_etchGray - 0.5) * 1.35 + 0.5, 0.0, 1.0);',
+          'diffuseColor.rgb = vec3(_etchGray);'
+        ].join('\n')
+      );
+    };
+    mat.needsUpdate = true;
+    return mat;
+  }, [photoTexture]);
+
+  useEffect(() => () => photoMaterial?.dispose(), [photoMaterial]);
+
+  /** Cover-fit any uploaded photo into the niche: crop to fill, centered, no distortion.
+   *  Portrait niche is 1 : 1.25 (w : h); medallion is a 1 : 1 disc. */
+  useEffect(() => {
+    if (!photoTexture) return;
+    const img = photoTexture.image as { width?: number; height?: number } | undefined;
+    const iw = img?.width ?? 0;
+    const ih = img?.height ?? 0;
+    if (!iw || !ih) return;
+    const imgAspect = iw / ih;
+    const targetAspect = decoration === 'medallion' ? 1 : 1 / 1.25;
+    if (imgAspect > targetAspect) {
+      const r = targetAspect / imgAspect;
+      photoTexture.repeat.set(r, 1);
+      photoTexture.offset.set((1 - r) / 2, 0);
+    } else {
+      const r = imgAspect / targetAspect;
+      photoTexture.repeat.set(1, r);
+      // Bias the crop slightly upward so faces (usually upper-centre) stay in frame.
+      photoTexture.offset.set(0, Math.min(1 - r, (1 - r) * 0.7));
+    }
+    photoTexture.needsUpdate = true;
+  }, [photoTexture, decoration]);
+
   useLayoutEffect(() => {
     applyAlbedoTextureTiling(albedoMap, spanM, materialName);
   }, [albedoMap, spanM, materialName]);
@@ -370,7 +470,7 @@ export const MonumentModel = ({
       roughness: surface.roughness,
       metalness: surface.metalness,
       clearcoat: surface.clearcoat,
-      clearcoatRoughness: 0.25
+      clearcoatRoughness: surface.clearcoatRoughness
     });
   }, [albedoMap, finish]);
 
@@ -388,9 +488,9 @@ export const MonumentModel = ({
   const extrudeSettings = useMemo(() => ({
     depth: thicknessM,
     bevelEnabled: true,
-    bevelThickness: 0.008,
-    bevelSize: 0.008,
-    bevelSegments: 4,
+    bevelThickness: 0.014,
+    bevelSize: 0.014,
+    bevelSegments: 5,
     curveSegments: 48
   }), [thicknessM]);
 
@@ -407,6 +507,8 @@ export const MonumentModel = ({
       case 'heart': return Math.max(0.05, heightM - widthM * 0.6);
       case 'gothic': return Math.max(0.05, heightM - widthM * 0.55);
       case 'rounded': return Math.max(0.05, heightM - widthM / 2);
+      case 'stele': return heightM * 0.93;
+      case 'concave': return Math.max(0.05, heightM - (widthM / 2 - widthM * 0.04));
       case 'classic':
       default: return Math.max(0.06, heightM - widthM * 0.48);
     }
@@ -421,6 +523,8 @@ export const MonumentModel = ({
     switch (shapeKind) {
       case 'classic': return 0.66;
       case 'cross': return 0.38;
+      case 'stele': return 0.84;
+      case 'concave': return 0.56;
       case 'rounded':
       case 'gothic':
       case 'heart':
@@ -484,8 +588,9 @@ export const MonumentModel = ({
    *  When `layout='double'`, the same decoration kind is mirrored on each stela. */
   const decorationSize = (() => {
     if (decoration === 'none') return { w: 0, h: 0 };
-    const w = widthM * (decoration === 'cross' ? 0.32 : 0.42);
-    const h = decoration === 'portrait' ? w * 1.25 : w;
+    const w = widthM * (decoration === 'cross' ? 0.34 : 0.42);
+    const h =
+      decoration === 'portrait' ? w * 1.25 : decoration === 'cross' ? w * 1.7 : w;
     return { w, h };
   })();
   const decorationCenterY = bodyHeight * 0.74;
@@ -531,6 +636,18 @@ export const MonumentModel = ({
             desiredCenterY: heightM * 0.42,
             topLimit: bodyHeight * 0.96,
             bottomLimit: bodyHeight * 0.1
+          };
+        case 'stele':
+          return {
+            desiredCenterY: bodyHeight * 0.42,
+            topLimit: bodyHeight * 0.78,
+            bottomLimit: bodyHeight * 0.08
+          };
+        case 'concave':
+          return {
+            desiredCenterY: heightM * 0.28,
+            topLimit: heightM * 0.44,
+            bottomLimit: bodyHeight * 0.06
           };
         default:
           return {
@@ -704,18 +821,19 @@ export const MonumentModel = ({
               const { w, h } = decorationSize;
 
               if (decoration === 'cross') {
-                const crossThickness = Math.max(0.012, widthM * 0.018);
-                const vertW = w * 0.22;
-                const horizH = h * 0.22;
+                /** Classic raised Latin cross carved from the same stone (relief on the face).
+                 *  Square-section beams; the crossbar sits in the upper third. */
+                const beam = w * 0.26;
+                const reliefDepth = Math.max(0.02, widthM * 0.03);
+                const crossZ = thicknessM + reliefDepth / 2;
+                const crossbarY = h / 2 - h * 0.28;
                 return (
                   <group position={[0, decorationCenterY, 0]}>
-                    <mesh position={[0, 0, plateZ]}>
-                      <boxGeometry args={[vertW, h, crossThickness]} />
-                      <meshStandardMaterial color={nichePlateColor} roughness={0.7} metalness={0.1} />
+                    <mesh position={[0, 0, crossZ]} castShadow material={stoneMaterial}>
+                      <boxGeometry args={[beam, h, reliefDepth]} />
                     </mesh>
-                    <mesh position={[0, h * 0.18, plateZ]}>
-                      <boxGeometry args={[w, horizH, crossThickness]} />
-                      <meshStandardMaterial color={nichePlateColor} roughness={0.7} metalness={0.1} />
+                    <mesh position={[0, crossbarY, crossZ]} castShadow material={stoneMaterial}>
+                      <boxGeometry args={[w, beam, reliefDepth]} />
                     </mesh>
                   </group>
                 );
@@ -736,6 +854,17 @@ export const MonumentModel = ({
                     <mesh position={[0, 0, plateOutZ]}>
                       <boxGeometry args={[w, h, 0.012]} />
                       <meshStandardMaterial color={nichePlateColor} roughness={0.6} metalness={0.15} />
+                    </mesh>
+                  )}
+
+                  {photoMaterial && (
+                    /** Portrait photo sits just in front of the dark plate; the plate forms a border. */
+                    <mesh position={[0, 0, plateOutZ + 0.0066]} material={photoMaterial}>
+                      {isMedallion ? (
+                        <circleGeometry args={[(w / 2) * 0.9, 48]} />
+                      ) : (
+                        <planeGeometry args={[w * 0.86, h * 0.86]} />
+                      )}
                     </mesh>
                   )}
 

@@ -2,6 +2,7 @@ import cors from 'cors';
 import express from 'express';
 import { env } from './config/env.js';
 import { materialRouter } from './routes/material.routes.js';
+import { productRouter } from './routes/product.routes.js';
 import { orderRouter } from './routes/order.routes.js';
 import { meRouter } from './routes/me.routes.js';
 import { adminRouter } from './routes/admin.routes.js';
@@ -22,6 +23,7 @@ app.get('/health', (_req, res) => {
 });
 
 app.use('/api/materials', materialRouter);
+app.use('/api/products', productRouter);
 app.use('/api/orders', orderRouter);
 app.use('/api/me', meRouter);
 app.use('/api/admin', adminRouter);

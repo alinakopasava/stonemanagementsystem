@@ -77,6 +77,9 @@ export const listOrders = async () => {
       installation_address,
       contract_details,
       deadline,
+      client_full_name,
+      passport_series,
+      passport_number,
       created_at,
       updated_at,
       user_id,
@@ -245,6 +248,19 @@ export const convertOrderCardToOrder = async ({ orderCardId, payload }) => {
   const deadline =
     typeof payload?.deadline === 'string' && payload.deadline ? payload.deadline : null;
 
+  const clientFullName =
+    typeof payload?.client_full_name === 'string'
+      ? payload.client_full_name.trim() || null
+      : null;
+  const passportSeries =
+    typeof payload?.passport_series === 'string'
+      ? payload.passport_series.trim() || null
+      : null;
+  const passportNumber =
+    typeof payload?.passport_number === 'string'
+      ? payload.passport_number.trim() || null
+      : null;
+
   const { data: order, error: insertError } = await supabaseAdmin
     .from('orders')
     .insert({
@@ -254,10 +270,13 @@ export const convertOrderCardToOrder = async ({ orderCardId, payload }) => {
       price,
       installation_address: installationAddress,
       contract_details: contractDetails,
-      deadline
+      deadline,
+      client_full_name: clientFullName,
+      passport_series: passportSeries,
+      passport_number: passportNumber
     })
     .select(
-      'id, status, price, installation_address, contract_details, deadline, created_at, updated_at, user_id, order_card_id'
+      'id, status, price, installation_address, contract_details, deadline, client_full_name, passport_series, passport_number, created_at, updated_at, user_id, order_card_id'
     )
     .single();
 
