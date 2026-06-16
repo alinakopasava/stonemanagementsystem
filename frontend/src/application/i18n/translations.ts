@@ -144,6 +144,10 @@ export type TranslationKey =
   | 'designer.shape.heart'
   | 'designer.shape.stele'
   | 'designer.shape.concave'
+  | 'designer.shape.asymmetric'
+  | 'designer.shape.waveSteep'
+  | 'designer.shape.dome'
+  | 'designer.shape.arc'
   | 'designer.shape.showCross'
   | 'designer.stelaSize'
   | 'designer.baseSize'
@@ -481,6 +485,10 @@ const en: Dictionary = {
   'designer.shape.heart': 'Heart',
   'designer.shape.stele': 'Modern Stele',
   'designer.shape.concave': 'Wave',
+  'designer.shape.asymmetric': 'Asymmetric wave',
+  'designer.shape.waveSteep': 'Steep wave',
+  'designer.shape.dome': 'Dome',
+  'designer.shape.arc': 'Arc',
   'designer.shape.showCross': 'Cross on top',
 
   'designer.stelaSize': 'Stela size',
@@ -836,6 +844,10 @@ const pl: Dictionary = {
   'designer.shape.heart': 'Sercowy',
   'designer.shape.stele': 'Nowoczesna stela',
   'designer.shape.concave': 'Falowy',
+  'designer.shape.asymmetric': 'Asymetryczna fala',
+  'designer.shape.waveSteep': 'Stroma fala',
+  'designer.shape.dome': 'Kopulasty',
+  'designer.shape.arc': 'Łuk',
   'designer.shape.showCross': 'Krzyż na szczycie',
 
   'designer.stelaSize': 'Rozmiar steli',
@@ -1201,6 +1213,10 @@ const ru: Dictionary = {
   'designer.shape.heart': 'Сердцевидная',
   'designer.shape.stele': 'Современная стела',
   'designer.shape.concave': 'Волновая',
+  'designer.shape.asymmetric': 'Асимметричная волна',
+  'designer.shape.waveSteep': 'Крутая волна',
+  'designer.shape.dome': 'Купольная',
+  'designer.shape.arc': 'Дуга',
   'designer.shape.showCross': 'Крест на вершине',
 
   'designer.stelaSize': 'Размер стелы',

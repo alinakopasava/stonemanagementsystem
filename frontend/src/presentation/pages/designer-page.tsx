@@ -33,9 +33,17 @@ const FINISH_OPTIONS: { id: FinishType; labelKey: TranslationKey }[] = [
   { id: 'Matte', labelKey: 'designer.finish.matte' }
 ];
 
-const SHAPE_OPTIONS: { id: MonumentShape; labelKey: TranslationKey }[] = [
+/** `recommendedAspect` = intended H/W ratio for this silhouette. When the user picks a shape
+ *  whose ratio differs noticeably from the current dimensions, the height is auto-adjusted so
+ *  the rendered headstone matches the design profile the shape was tuned for. The user can
+ *  still override the height afterwards via the slider. */
+const SHAPE_OPTIONS: { id: MonumentShape; labelKey: TranslationKey; recommendedAspect?: number }[] = [
   { id: 'classic', labelKey: 'designer.shape.classic' },
   { id: 'stele', labelKey: 'designer.shape.stele' },
+  { id: 'asymmetric', labelKey: 'designer.shape.asymmetric', recommendedAspect: 2.6 },
+  { id: 'dome', labelKey: 'designer.shape.dome', recommendedAspect: 2.6 },
+  { id: 'arc', labelKey: 'designer.shape.arc', recommendedAspect: 2.25 },
+  { id: 'wave-steep', labelKey: 'designer.shape.waveSteep' },
   { id: 'concave', labelKey: 'designer.shape.concave' },
   { id: 'rounded', labelKey: 'designer.shape.rounded' },
   { id: 'gothic', labelKey: 'designer.shape.gothic' },
@@ -458,7 +466,24 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
                     <button
                       key={option.id}
                       type="button"
-                      onClick={() => setShape(option.id)}
+                      onClick={() => {
+                        setShape(option.id);
+                        /** Auto-adjust height to match the shape's intended H/W ratio when one
+                         *  is declared and the current geometry is off by more than 10 %. The
+                         *  user keeps full manual control via the height slider afterwards. */
+                        if (option.recommendedAspect) {
+                          setDimensions((prev) => {
+                            const currentAspect = prev.heightCm / Math.max(1, prev.widthCm);
+                            if (Math.abs(currentAspect - option.recommendedAspect!) > 0.1) {
+                              return {
+                                ...prev,
+                                heightCm: Math.round(prev.widthCm * option.recommendedAspect!)
+                              };
+                            }
+                            return prev;
+                          });
+                        }
+                      }}
                       className={[
                         'rounded-md border px-3 py-2 text-xs transition',
                         active

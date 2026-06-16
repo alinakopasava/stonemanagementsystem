@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>Edytor kształtu pomnika</title>
+<style>
+  *,*::before,*::after { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, Arial, sans-serif; background:#f4f1ea; color:#222; padding:20px; }
+  h1 { margin:0 0 6px; font-size:20px; }
+  .sub { color:#666; font-size:13px; margin:0 0 16px; line-height:1.5;}
+  .wrap { display:grid; grid-template-columns: 1fr 320px 1fr; gap:20px; align-items:start; }
+  @media (max-width:1100px){ .wrap { grid-template-columns: 1fr; } }
+  .card { background:#fff; border-radius:8px; padding:14px 16px; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+  .card h2 { margin:0 0 10px; font-size:13px; color:#555; text-transform:uppercase; letter-spacing:.04em; }
+  .stage { display:flex; justify-content:center; }
+  .stage img, .stage svg { display:block; height:640px; width:auto; max-width:100%; user-select:none; -webkit-user-select:none; touch-action:none; }
+  label { display:block; margin:14px 0 4px; font-size:12px; color:#444; }
+  .row { display:flex; align-items:center; gap:8px; }
+  .row input[type=range] { flex:1; }
+  .row output { font-variant-numeric: tabular-nums; font-size:12px; min-width:54px; text-align:right; color:#222; background:#f1ede2; padding:3px 6px; border-radius:4px; }
+  button { margin-top:8px; padding:8px 12px; border:0; border-radius:6px; background:#222; color:#fff; cursor:pointer; font-size:13px; }
+  button + button { margin-left:6px; }
+  button.secondary { background:#888; }
+  button.success { background:#2a7a2a; }
+  pre { background:#0f1115; color:#e7e0c8; padding:12px; border-radius:6px; font-size:12px; line-height:1.45; overflow:auto; max-height:260px; }
+  .legend { font-size:11px; color:#666; margin-top:8px; line-height:1.5; }
+  .legend b { color:#28a; } .legend i { color:#d23; font-style:normal; }
+
+  .handle { cursor: grab; }
+  .handle:hover { filter: drop-shadow(0 0 2px rgba(0,0,0,.5)); }
+  .handle.active { cursor: grabbing; }
+  .handle-hit { fill: transparent; cursor: inherit; }
+  .silhouette-hit { fill: transparent; stroke: transparent; stroke-width: 4; cursor: copy; }
+</style>
+</head>
+<body>
+  <h1>Edytor kształtu pomnika</h1>
+  <p class="sub">
+    <b>Przeciągaj</b> kropki bezpośrednio na podglądzie. Niebieskie = kotwice (kształt krzywej), czerwone = uchwyty styczne (zakrzywienie segmentu).<br>
+    <b>+ Dodaj punkt</b> wstawia kotwicę dzieląc najdłuższy segment (kształt się nie zmienia). <b>Dwuklik na konturze</b> wstawia ją w miejscu kliknięcia. <b>Prawy klik na niebieskiej kotwicy</b> usuwa ją (min 2).
+  </p>
+
+  <div class="wrap">
+
+    <div class="card stage">
+      <div>
+        <h2>Oryginał</h2>
+        <img src="file:///C:/Users/Alina/.cursor/projects/c-repo234/assets/c__Users_Alina_AppData_Roaming_Cursor_User_workspaceStorage_c7fd5707b5af818739b7b53584080863_images_image-33459bc4-488c-4d19-9dad-820dc29872c4.png" alt="oryginał">
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Parametry globalne</h2>
+
+      <label>Proporcja W:H pomnika (szerokość = 1)</label>
+      <div class="row"><input id="aspect" type="range" min="1.8" max="3.6" step="0.05" value="2.60"><output id="aspect_v">2.60</output></div>
+
+      <label>Zwężenie u dołu (% szerokości po każdej stronie)</label>
+      <div class="row"><input id="taper" type="range" min="0" max="30" step="0.5" value="16.5"><output id="taper_v">16.5</output></div>
+
+      <h2 style="margin-top:18px">Kotwice (od prawej do lewej)</h2>
+      <button class="success" onclick="addAnchor()">+ Dodaj punkt</button>
+      <button class="secondary" onclick="smoothAll()">Wygładź wszystkie</button>
+      <br>
+      <button class="secondary" onclick="resetAnchors()">Reset kotwic</button>
+      <button class="secondary" onclick="resetAll()">Reset wszystkiego</button>
+
+      <label style="display:flex; align-items:center; gap:8px; margin-top:14px; cursor:pointer;">
+        <input id="autoSmooth" type="checkbox" checked>
+        <span>Gładkie kotwice (auto-symetria uchwytów)</span>
+      </label>
+      <div class="legend" style="margin-top:6px">
+        Gdy włączone: przeciąganie czerwonego uchwytu wewnętrznej kotwicy lustruje drugi uchwyt (symetrycznie — ta sama długość, przeciwny kierunek). Krzywa nie ma kąta w tym miejscu.<br>
+        Gdy wyłączone: oba uchwyty są niezależne — można zrobić ostry „kant" na kotwicy.
+      </div>
+
+      <div class="legend" style="margin-top:10px">
+        <b>● niebieskie</b> = kotwice (punkty, przez które przechodzi krzywa).<br>
+        <i>● czerwone</i> = uchwyty styczne (kierunek wejścia/wyjścia z kotwicy).<br>
+        Pierwsza kotwica = prawa krawędź (X = 100 %), ostatnia = lewa krawędź (X = 0 %) — ich X jest zafiksowany.
+      </div>
+
+      <div class="legend" style="margin-top:8px; padding:8px; background:#f7f2d6; border-radius:4px;">
+        <b>💡 Tip dla bardziej okrągłej krzywej:</b> dodaj 2–4 punkty wzdłuż fali i kliknij „Wygładź wszystkie" — każdy dodatkowy punkt to dodatkowy segment Beziera, czyli więcej swobody na zaokrąglenie. Możesz też wyciągnąć uchwyty styczne (czerwone) dalej od kotwic — dłuższe styczne = mocniejsze zaokrąglenie.
+      </div>
+
+      <button onclick="copyValues()" style="margin-top:14px">Skopiuj wartości do schowka</button>
+
+      <label style="margin-top:12px">Aktualne wartości (do wysłania mi):</label>
+      <pre id="dump"></pre>
+    </div>
+
+    <div class="card stage">
+      <div>
+        <h2>Twoja propozycja</h2>
+        <svg id="preview" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+  /**
+   * Anchors traverse the top profile from RIGHT (x=100 %) to LEFT (x=0 %).
+   * Each anchor has:
+   *   x, y    — anchor position in % (x of width, y of height; y=100 is top)
+   *   hIn     — incoming tangent handle position {x, y} in % (control point on the side
+   *             of the PREVIOUS anchor); null for the first anchor
+   *   hOut    — outgoing tangent handle position {x, y} in %; null for the last anchor
+   *
+   * The first anchor's x is locked to 100, the last anchor's x is locked to 0.
+   * Inner anchors are fully free.
+   */
+  const DEFAULT_ANCHORS = () => [
+    { x: 100, y: 83.5, hIn: null,            hOut: { x: 68, y: 82.5 } },
+    { x: 0,   y: 91,   hIn: { x: 52, y:103 }, hOut: null               }
+  ];
+  let anchors = DEFAULT_ANCHORS();
+
+  function aspect(){ return parseFloat(document.getElementById('aspect').value); }
+  function taper(){ return parseFloat(document.getElementById('taper').value); }
+
+  /** Cache SVG layout — refreshed each render(); used to map pointer→params. */
+  let LAYOUT = { ox:5, oy:5, W:100, H:260 };
+
+  function pctToSvg(xPct, yPct){
+    return {
+      x: LAYOUT.ox + xPct * LAYOUT.W / 100,
+      y: LAYOUT.oy + (100 - yPct) * LAYOUT.H / 100
+    };
+  }
+  function svgToPct(x, y){
+    return {
+      x: (x - LAYOUT.ox) * 100 / LAYOUT.W,
+      y: 100 - (y - LAYOUT.oy) * 100 / LAYOUT.H
+    };
+  }
+
+  function render(){
+    const a = aspect(), t = taper();
+    document.getElementById('aspect_v').textContent = a.toFixed(2);
+    document.getElementById('taper_v').textContent = t.toFixed(1);
+
+    const W = 100, H = 100 * a;
+    LAYOUT = { ox: 5, oy: 5, W, H };
+
+    const BLx = LAYOUT.ox + t * W / 100;
+    const BLy = LAYOUT.oy + H;
+    const BRx = LAYOUT.ox + W - t * W / 100;
+    const BRy = LAYOUT.oy + H;
+
+    /** Build the closed path: bottom edge, right edge up to first anchor, Bezier chain over
+     *  the top (right→left), left edge back down to start. */
+    const A = anchors.map(an => ({ ...pctToSvg(an.x, an.y), hIn: an.hIn && pctToSvg(an.hIn.x, an.hIn.y), hOut: an.hOut && pctToSvg(an.hOut.x, an.hOut.y) }));
+    let path = `M ${BLx} ${BLy} L ${BRx} ${BRy} L ${A[0].x} ${A[0].y}`;
+    for (let i = 0; i < A.length - 1; i++) {
+      const a1 = A[i], a2 = A[i+1];
+      path += ` C ${a1.hOut.x} ${a1.hOut.y}, ${a2.hIn.x} ${a2.hIn.y}, ${a2.x} ${a2.y}`;
+    }
+    path += ` L ${BLx} ${BLy} Z`;
+
+    let grid = '';
+    for (let i=0;i<=10;i++){
+      const x = LAYOUT.ox + i*W/10;
+      grid += `<line x1="${x}" y1="${LAYOUT.oy}" x2="${x}" y2="${LAYOUT.oy+H}" stroke="#e2dccd" stroke-width="0.2"/>`;
+    }
+    for (let i=0;i<=10;i++){
+      const y = LAYOUT.oy + i*H/10;
+      grid += `<line x1="${LAYOUT.ox}" y1="${y}" x2="${LAYOUT.ox+W}" y2="${y}" stroke="#e2dccd" stroke-width="0.2"/>`;
+    }
+
+    /** Tangent lines from each anchor to its handles. */
+    let tangents = '';
+    A.forEach((an, i) => {
+      if (an.hIn)  tangents += `<line x1="${an.x}" y1="${an.y}" x2="${an.hIn.x}"  y2="${an.hIn.y}"  stroke="#d23" stroke-width="0.25" stroke-dasharray="1.5 1"/>`;
+      if (an.hOut) tangents += `<line x1="${an.x}" y1="${an.y}" x2="${an.hOut.x}" y2="${an.hOut.y}" stroke="#d23" stroke-width="0.25" stroke-dasharray="1.5 1"/>`;
+    });
+
+    /** Dots (visible) + hit targets (transparent, larger, for easy grabbing). */
+    const dotR = 1.6, hitR = 3.6;
+    let dots = '';
+    A.forEach((an, i) => {
+      dots += `<circle cx="${an.x}" cy="${an.y}" r="${dotR}" fill="#28a"/>`;
+      if (an.hIn)  dots += `<circle cx="${an.hIn.x}"  cy="${an.hIn.y}"  r="${dotR}" fill="#d23"/>`;
+      if (an.hOut) dots += `<circle cx="${an.hOut.x}" cy="${an.hOut.y}" r="${dotR}" fill="#d23"/>`;
+    });
+    dots += `<circle cx="${BLx}" cy="${BLy}" r="${dotR*0.85}" fill="#28a"/>`;
+    dots += `<circle cx="${BRx}" cy="${BRy}" r="${dotR*0.85}" fill="#28a"/>`;
+
+    let hits = '';
+    A.forEach((an, i) => {
+      hits += `<circle class="handle handle-hit" data-handle="anchor:${i}" cx="${an.x}" cy="${an.y}" r="${hitR}"></circle>`;
+      if (an.hIn)  hits += `<circle class="handle handle-hit" data-handle="hIn:${i}"  cx="${an.hIn.x}"  cy="${an.hIn.y}"  r="${hitR}"></circle>`;
+      if (an.hOut) hits += `<circle class="handle handle-hit" data-handle="hOut:${i}" cx="${an.hOut.x}" cy="${an.hOut.y}" r="${hitR}"></circle>`;
+    });
+    hits += `<circle class="handle handle-hit" data-handle="taperL" cx="${BLx}" cy="${BLy}" r="${hitR}"></circle>`;
+    hits += `<circle class="handle handle-hit" data-handle="taperR" cx="${BRx}" cy="${BRy}" r="${hitR}"></circle>`;
+
+    const svg = document.getElementById('preview');
+    svg.setAttribute('viewBox', `0 0 ${W+10} ${H+10}`);
+    svg.innerHTML = `
+      ${grid}
+      <path id="silhouette" d="${path}" fill="#1b1b1b" stroke="#444" stroke-width="0.4"/>
+      <path id="silhouette-hit" class="silhouette-hit" d="${path}"/>
+      ${tangents}
+      ${dots}
+      ${hits}
+    `;
+
+    bindHandles();
+    bindSilhouetteDblClick();
+    updateDump();
+  }
+
+  function updateDump(){
+    const lines = [
+      `aspect (W:H) = 1 : ${aspect().toFixed(2)}`,
+      `taper        = ${taper().toFixed(1)}%`,
+      `anchors (right → left, ${anchors.length} total):`
+    ];
+    anchors.forEach((a, i) => {
+      const parts = [`#${i}:  pos=(${a.x.toFixed(2)}%, ${a.y.toFixed(2)}%)`];
+      if (a.hIn)  parts.push(`hIn=(${a.hIn.x.toFixed(2)}%, ${a.hIn.y.toFixed(2)}%)`);
+      if (a.hOut) parts.push(`hOut=(${a.hOut.x.toFixed(2)}%, ${a.hOut.y.toFixed(2)}%)`);
+      lines.push('  ' + parts.join('   '));
+    });
+    document.getElementById('dump').textContent = lines.join('\n');
+  }
+
+  function pointerToSvg(evt, svg){
+    const pt = svg.createSVGPoint();
+    pt.x = evt.clientX; pt.y = evt.clientY;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return { x:0, y:0 };
+    return pt.matrixTransform(ctm.inverse());
+  }
+
+  let dragging = null;
+  function onPointerMove(evt){
+    if (!dragging) return;
+    evt.preventDefault();
+    const svg = document.getElementById('preview');
+    const { x, y } = pointerToSvg(evt, svg);
+    const pct = svgToPct(x, y);
+
+    const [kind, idxStr] = dragging.split(':');
+    const idx = parseInt(idxStr, 10);
+
+    if (kind === 'anchor') {
+      const a = anchors[idx];
+      const isFirst = idx === 0;
+      const isLast = idx === anchors.length - 1;
+      const oldX = a.x, oldY = a.y;
+      a.x = isFirst ? 100 : isLast ? 0 : pct.x;
+      a.y = pct.y;
+      const dx = a.x - oldX, dy = a.y - oldY;
+      if (a.hIn)  { a.hIn.x  += dx; a.hIn.y  += dy; }
+      if (a.hOut) { a.hOut.x += dx; a.hOut.y += dy; }
+    } else if (kind === 'hIn') {
+      anchors[idx].hIn = { x: pct.x, y: pct.y };
+      mirrorIfSmooth(idx, 'hIn');
+    } else if (kind === 'hOut') {
+      anchors[idx].hOut = { x: pct.x, y: pct.y };
+      mirrorIfSmooth(idx, 'hOut');
+    } else if (dragging === 'taperL') {
+      setSlider('taper', pct.x);
+    } else if (dragging === 'taperR') {
+      setSlider('taper', 100 - pct.x);
+    }
+    render();
+  }
+
+  /** When auto-smooth is on, mirror the OPPOSITE handle of an inner anchor across the anchor
+   *  position with the same length (symmetric node — gives C¹ continuity, no kink). */
+  function mirrorIfSmooth(idx, draggedKind){
+    const auto = document.getElementById('autoSmooth')?.checked;
+    if (!auto) return;
+    const a = anchors[idx];
+    const isInner = idx > 0 && idx < anchors.length - 1;
+    if (!isInner) return;
+    if (!a.hIn || !a.hOut) return;
+    if (draggedKind === 'hOut') {
+      a.hIn = { x: 2*a.x - a.hOut.x, y: 2*a.y - a.hOut.y };
+    } else {
+      a.hOut = { x: 2*a.x - a.hIn.x, y: 2*a.y - a.hIn.y };
+    }
+  }
+
+  /** Apply symmetric (collinear, equal-length) handles to every inner anchor — keeps the
+   *  curve as smooth as possible without changing the anchor positions. The direction is
+   *  the average of (anchor → previous anchor) and (anchor → next anchor), reversed for
+   *  hOut so it points toward the next; length is the mean of the original handle radii. */
+  function smoothAll(){
+    for (let i = 1; i < anchors.length - 1; i++) {
+      const a = anchors[i], prev = anchors[i-1], next = anchors[i+1];
+      // Direction from prev to next (tangent at anchor)
+      const dx = next.x - prev.x, dy = next.y - prev.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const ux = dx / len, uy = dy / len;
+      // Preserve roughly the original handle "radius" — average of the two existing lengths
+      const rIn  = a.hIn  ? Math.hypot(a.hIn.x - a.x, a.hIn.y - a.y)   : 0;
+      const rOut = a.hOut ? Math.hypot(a.hOut.x - a.x, a.hOut.y - a.y) : 0;
+      const r = (rIn + rOut) > 0 ? (rIn + rOut) / 2 : len * 0.33;
+      a.hIn  = { x: a.x - ux * r, y: a.y - uy * r };
+      a.hOut = { x: a.x + ux * r, y: a.y + uy * r };
+    }
+    render();
+  }
+
+  function onPointerUp(){
+    if (!dragging) return;
+    document.querySelectorAll('.handle.active').forEach(el => el.classList.remove('active'));
+    dragging = null;
+    window.removeEventListener('pointermove', onPointerMove);
+    window.removeEventListener('pointerup', onPointerUp);
+    window.removeEventListener('pointercancel', onPointerUp);
+  }
+
+  function bindHandles(){
+    document.querySelectorAll('.handle').forEach(el => {
+      el.addEventListener('pointerdown', (evt) => {
+        if (evt.button === 2) return;
+        evt.preventDefault();
+        dragging = el.dataset.handle;
+        el.classList.add('active');
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+        window.addEventListener('pointercancel', onPointerUp);
+      });
+      el.addEventListener('contextmenu', (evt) => {
+        const [kind, idxStr] = el.dataset.handle.split(':');
+        if (kind === 'anchor') {
+          evt.preventDefault();
+          const idx = parseInt(idxStr, 10);
+          if (anchors.length <= 2) {
+            alert('Minimum to 2 kotwice (lewa i prawa krawędź).');
+            return;
+          }
+          if (idx === 0 || idx === anchors.length - 1) {
+            alert('Skrajne kotwice (lewa i prawa krawędź) są nieusuwalne. Możesz je tylko przeciągać w pionie.');
+            return;
+          }
+          anchors.splice(idx, 1);
+          render();
+        }
+      });
+    });
+  }
+
+  function setSlider(id, val){
+    const el = document.getElementById(id);
+    const lo = parseFloat(el.min), hi = parseFloat(el.max);
+    el.value = Math.max(lo, Math.min(hi, val));
+  }
+
+  /** Add anchor by splitting the longest top segment at t = 0.5 using de Casteljau.
+   *  The shape stays geometrically identical — only the parameterisation changes. */
+  function addAnchor(){
+    let bestI = 0, bestLen = -1;
+    for (let i = 0; i < anchors.length - 1; i++) {
+      const len = approxBezierLength(anchors[i], anchors[i+1]);
+      if (len > bestLen) { bestLen = len; bestI = i; }
+    }
+    splitSegment(bestI, 0.5);
+    render();
+  }
+
+  function approxBezierLength(a, b){
+    const p0 = { x: a.x, y: a.y };
+    const p1 = a.hOut || p0;
+    const p2 = b.hIn || b;
+    const p3 = { x: b.x, y: b.y };
+    let len = 0, prev = p0;
+    for (let s = 1; s <= 24; s++) {
+      const t = s / 24;
+      const u = 1 - t;
+      const pt = {
+        x: u*u*u*p0.x + 3*u*u*t*p1.x + 3*u*t*t*p2.x + t*t*t*p3.x,
+        y: u*u*u*p0.y + 3*u*u*t*p1.y + 3*u*t*t*p2.y + t*t*t*p3.y
+      };
+      len += Math.hypot(pt.x - prev.x, pt.y - prev.y);
+      prev = pt;
+    }
+    return len;
+  }
+
+  /** De Casteljau split of the i-th top segment at parameter t. */
+  function splitSegment(i, t){
+    const a = anchors[i], b = anchors[i+1];
+    const P0 = { x: a.x, y: a.y };
+    const P1 = a.hOut || P0;
+    const P2 = b.hIn || b;
+    const P3 = { x: b.x, y: b.y };
+    const lerp = (p, q, t) => ({ x: p.x + (q.x - p.x) * t, y: p.y + (q.y - p.y) * t });
+    const Q0 = lerp(P0, P1, t);
+    const Q1 = lerp(P1, P2, t);
+    const Q2 = lerp(P2, P3, t);
+    const R0 = lerp(Q0, Q1, t);
+    const R1 = lerp(Q1, Q2, t);
+    const S  = lerp(R0, R1, t);
+
+    a.hOut = { x: Q0.x, y: Q0.y };
+    b.hIn  = { x: Q2.x, y: Q2.y };
+    const newAnchor = {
+      x: S.x, y: S.y,
+      hIn:  { x: R0.x, y: R0.y },
+      hOut: { x: R1.x, y: R1.y }
+    };
+    anchors.splice(i + 1, 0, newAnchor);
+  }
+
+  /** Find which segment of the top curve a point is closest to, and the parameter t along it. */
+  function nearestSegmentToPoint(svgX, svgY){
+    let best = { segIdx: 0, t: 0.5, dist: Infinity };
+    for (let i = 0; i < anchors.length - 1; i++) {
+      const a = anchors[i], b = anchors[i+1];
+      const aSvg = pctToSvg(a.x, a.y);
+      const bSvg = pctToSvg(b.x, b.y);
+      const aOutSvg = a.hOut ? pctToSvg(a.hOut.x, a.hOut.y) : aSvg;
+      const bInSvg  = b.hIn  ? pctToSvg(b.hIn.x,  b.hIn.y ) : bSvg;
+      const P0 = aSvg, P1 = aOutSvg, P2 = bInSvg, P3 = bSvg;
+      for (let s = 0; s <= 40; s++) {
+        const t = s / 40;
+        const u = 1 - t;
+        const px = u*u*u*P0.x + 3*u*u*t*P1.x + 3*u*t*t*P2.x + t*t*t*P3.x;
+        const py = u*u*u*P0.y + 3*u*u*t*P1.y + 3*u*t*t*P2.y + t*t*t*P3.y;
+        const d  = Math.hypot(px - svgX, py - svgY);
+        if (d < best.dist) best = { segIdx: i, t, dist: d };
+      }
+    }
+    return best;
+  }
+
+  function bindSilhouetteDblClick(){
+    const hit = document.getElementById('silhouette-hit');
+    if (!hit) return;
+    hit.addEventListener('dblclick', (evt) => {
+      evt.preventDefault();
+      const svg = document.getElementById('preview');
+      const { x, y } = pointerToSvg(evt, svg);
+      const found = nearestSegmentToPoint(x, y);
+      if (found.dist > 6) {
+        const pct = svgToPct(x, y);
+        anchors.splice(1, 0, {
+          x: Math.max(1, Math.min(99, pct.x)),
+          y: pct.y,
+          hIn:  { x: pct.x + 8, y: pct.y },
+          hOut: { x: pct.x - 8, y: pct.y }
+        });
+      } else {
+        splitSegment(found.segIdx, found.t);
+      }
+      render();
+    });
+  }
+
+  function copyValues(){
+    const txt = document.getElementById('dump').textContent;
+    navigator.clipboard.writeText(txt).then(()=>alert('Skopiowane! Wklej mi to w czacie.'));
+  }
+
+  function resetAnchors(){
+    anchors = DEFAULT_ANCHORS();
+    render();
+  }
+  function resetAll(){
+    document.getElementById('aspect').value = 2.60;
+    document.getElementById('taper').value = 16.5;
+    resetAnchors();
+  }
+
+  document.getElementById('aspect').addEventListener('input', render);
+  document.getElementById('taper').addEventListener('input', render);
+
+  /** Block default browser context menu in the SVG (so right-click delete works cleanly). */
+  document.getElementById('preview').addEventListener('contextmenu', (e) => e.preventDefault());
+
+  render();
+</script>
+
+</body>
+</html>

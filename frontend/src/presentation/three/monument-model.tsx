@@ -24,7 +24,18 @@ export interface InscriptionStyleHints {
   transform: 'none' | 'uppercase';
 }
 
-export type MonumentShape = 'classic' | 'rounded' | 'cross' | 'gothic' | 'heart' | 'stele' | 'concave';
+export type MonumentShape =
+  | 'classic'
+  | 'rounded'
+  | 'cross'
+  | 'gothic'
+  | 'heart'
+  | 'stele'
+  | 'concave'
+  | 'asymmetric'
+  | 'wave-steep'
+  | 'dome'
+  | 'arc';
 
 export type MonumentDecoration = 'none' | 'portrait' | 'medallion' | 'cross';
 
@@ -281,6 +292,134 @@ const buildConcaveShape = (widthM: number, heightM: number) => {
   return shape;
 };
 
+/** Asymmetric wave-top stele — specific Russian / Polish catalogue silhouette (tuned
+ *  interactively in the SVG editor and confirmed by the user).
+ *
+ *  Profile:
+ *  – sides flare outward going up: base is inset by 16.5 % per side, top is full width,
+ *  – left edge tops out at  91   % H,
+ *  – right edge tops out at 83.5 % H,
+ *  – top wave is a single cubic Bezier with control points producing a soft apex slightly
+ *    left of centre (cp2 sits ABOVE heightM at 103 %).
+ *
+ *  All percentages live in the standard `widthM` × `heightM` frame the other builders use,
+ *  so the rest of the model (base / pedestal / slab / decoration) works unchanged. */
+const buildAsymmetricShape = (widthM: number, heightM: number) => {
+  const shape = new THREE.Shape();
+  const hw = widthM / 2;
+
+  const BOTTOM_TAPER = 0.165;
+  const taperInset = widthM * BOTTOM_TAPER;
+
+  const leftTopY = heightM * 0.91;
+  const rightTopY = heightM * 0.835;
+
+  /** Bezier control points expressed in the same centred frame.
+   *  cp1 sits near the RIGHT edge (curve leaves right top point toward this point).
+   *  cp2 sits near the LEFT edge (curve arrives at left top point from this point).
+   *  Editor values are % of widthM from the LEFT side; we map them by subtracting hw. */
+  const cp1x = -hw + widthM * 0.68;
+  const cp1y = heightM * 0.825;
+  const cp2x = -hw + widthM * 0.52;
+  const cp2y = heightM * 1.03;
+
+  shape.moveTo(-hw + taperInset, 0);
+  shape.lineTo(hw - taperInset, 0);
+  shape.lineTo(hw, rightTopY);
+  shape.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, -hw, leftTopY);
+  shape.lineTo(-hw + taperInset, 0);
+
+  return shape;
+};
+
+/** Dome-top stele — gentle peaked silhouette tuned interactively in the SVG editor.
+ *
+ *  Profile (3 anchors → 2 cubic Bezier segments stitched at the central anchor):
+ *  – left edge tops out at 79.43 % H, right at 79.95 % H (near-symmetric),
+ *  – central anchor sits at (x = 51.80 %, y = 88.43 % H) — peak slightly left of centre,
+ *  – control handles produce a soft, low arch (the rise from edge to apex is only ~ 9 % H).
+ *
+ *  Sides are straight vertical (no taper). All percentages live in the standard widthM/heightM
+ *  reference frame — `pct(x)` converts editor "% from the LEFT" to the model's centred frame. */
+const buildDomeShape = (widthM: number, heightM: number) => {
+  const shape = new THREE.Shape();
+  const hw = widthM / 2;
+  const px = (pct: number) => (pct / 100 - 0.5) * widthM;
+  const py = (pct: number) => (pct / 100) * heightM;
+
+  shape.moveTo(-hw, 0);
+  shape.lineTo(+hw, 0);
+  shape.lineTo(+hw, py(79.95));
+
+  /** Right segment: from the right edge anchor #0 → central anchor #1.
+   *  hOut #0 = (70.25, 83.93), hIn #1 = (71.60, 88.61), anchor #1 = (51.80, 88.43). */
+  shape.bezierCurveTo(
+    px(70.25), py(83.93),
+    px(71.60), py(88.61),
+    px(51.80), py(88.43)
+  );
+
+  /** Left segment: from central anchor #1 → left edge anchor #2.
+   *  hOut #1 = (32.00, 88.26), hIn #2 = (33.80, 84.97), anchor #2 = (0, 79.43). */
+  shape.bezierCurveTo(
+    px(32.00), py(88.26),
+    px(33.80), py(84.97),
+    -hw,       py(79.43)
+  );
+
+  shape.lineTo(-hw, 0);
+  return shape;
+};
+
+/** Arc-top stele — single soft asymmetric arch tuned interactively in the SVG editor.
+ *
+ *  Profile (2 anchors → single cubic Bezier segment):
+ *  – left edge tops out at  79.26 % H, right at 79.95 % H — nearly equal,
+ *  – control hOut at the right anchor points slightly below it (64.85, 77.13) — tangent
+ *    eases the curve out almost horizontally,
+ *  – control hIn at the left anchor sits high above it (36.05, 94.78), pulling the apex up.
+ *
+ *  Net effect: a low, soft arch with its apex ≈ 86 % H shifted to ≈ −0.35 · hw (left of
+ *  centre). Straight vertical sides, no taper. */
+const buildArcShape = (widthM: number, heightM: number) => {
+  const shape = new THREE.Shape();
+  const hw = widthM / 2;
+  const px = (pct: number) => (pct / 100 - 0.5) * widthM;
+  const py = (pct: number) => (pct / 100) * heightM;
+
+  shape.moveTo(-hw, 0);
+  shape.lineTo(+hw, 0);
+  shape.lineTo(+hw, py(79.95));
+  shape.bezierCurveTo(
+    px(64.85), py(77.13),
+    px(36.05), py(94.78),
+    -hw,       py(79.26)
+  );
+  shape.lineTo(-hw, 0);
+  return shape;
+};
+
+/** Steep-wave stele — generic asymmetric silhouette, straight vertical sides (no taper),
+ *  single cubic Bezier across the top with a noticeable height difference between the two
+ *  edges (96 % vs 78 %). Control points push past full height to produce a wave-like apex
+ *  above the upper left portion of the face. */
+const buildWaveSteepShape = (widthM: number, heightM: number) => {
+  const shape = new THREE.Shape();
+  const hw = widthM / 2;
+  const leftTopY = heightM * 0.96;
+  const rightTopY = heightM * 0.78;
+  shape.moveTo(-hw, 0);
+  shape.lineTo(hw, 0);
+  shape.lineTo(hw, rightTopY);
+  shape.bezierCurveTo(
+    hw * 0.55, heightM * 1.0,
+    -hw * 0.25, heightM * 1.05,
+    -hw, leftTopY
+  );
+  shape.lineTo(-hw, 0);
+  return shape;
+};
+
 const buildShape = (kind: MonumentShape, widthM: number, heightM: number) => {
   switch (kind) {
     case 'rounded': return buildRoundedShape(widthM, heightM);
@@ -288,6 +427,10 @@ const buildShape = (kind: MonumentShape, widthM: number, heightM: number) => {
     case 'heart': return buildHeartShape(widthM, heightM);
     case 'stele': return buildSteleShape(widthM, heightM);
     case 'concave': return buildConcaveShape(widthM, heightM);
+    case 'asymmetric': return buildAsymmetricShape(widthM, heightM);
+    case 'wave-steep': return buildWaveSteepShape(widthM, heightM);
+    case 'dome': return buildDomeShape(widthM, heightM);
+    case 'arc': return buildArcShape(widthM, heightM);
     case 'cross': return buildCrossShape(widthM, heightM);
     case 'classic':
     default: return buildClassicShape(widthM, heightM);
@@ -394,60 +537,93 @@ export const MonumentModel = ({
   const albedoMap = useStoneAlbedoTexture(textureUrl, materialName);
   const spanM = Math.max(dimensions.heightCm, dimensions.widthCm, dimensions.thicknessCm * 2) * CM_TO_M;
 
-  /** User portrait photo, only relevant for portrait/medallion decorations. */
+  /** Stone luminance class — drives:
+   *  – text fill / outline colour (light letters on dark stone, dark letters on light stone),
+   *  – portrait engraving polarity (white-on-black etch on granite, dark-on-light on marble),
+   *  – default niche plate colour.
+   *  Defined early so the photo material below can branch on it. */
+  const isDarkStone =
+    materialName === 'Black Granite' || materialName === 'Labradorite Blue';
+
+  /** User portrait photo, only relevant for portrait/medallion decorations. The hook
+   *  pre-bakes both the aspect crop and a soft edge vignette into the texture so this
+   *  component doesn't have to coordinate UV repeat/offset with shader-side masking. */
   const photoTexture = usePhotoTexture(
-    decoration === 'portrait' || decoration === 'medallion' ? photoUrl : undefined
+    decoration === 'portrait' || decoration === 'medallion' ? photoUrl : undefined,
+    decoration === 'medallion' ? 'square' : 'portrait'
   );
 
-  /** Material that renders the photo as a high-contrast greyscale "laser-etched" look. */
+  /** Photo material — renders the uploaded portrait as a laser-etched grayscale engraving.
+   *
+   *  Modes (driven by `nicheStyle` and stone luminance):
+   *  – recessed + dark stone: bright photo pixels stay bright, dark pixels become transparent
+   *    so the polished granite shows through (alpha = grayscale). Looks like a laser etch.
+   *  – recessed + light stone: dark photo pixels become a charcoal engraving, light pixels
+   *    disappear into the stone.
+   *  – framed: opaque high-contrast grayscale (porcelain photo plaque inside the stone rim).
+   *
+   *  Edge softness is delegered to `usePhotoTexture`'s canvas-level vignette (applied after
+   *  background removal) — keeping the GPU shader simple avoids version-specific issues with
+   *  three.js shader chunk renames. */
+  const isDecorationCircle = decoration === 'medallion';
   const photoMaterial = useMemo(() => {
     if (!photoTexture) return null;
     const mat = new THREE.MeshStandardMaterial({
       map: photoTexture,
-      roughness: 0.55,
+      roughness: nicheStyle === 'framed' ? 0.45 : 0.32,
       metalness: 0.0,
       transparent: true,
-      alphaTest: 0.05
+      alphaTest: 0.01,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -1
     });
+
+    const f = (v: number) => v.toFixed(3);
+    const isDark = isDarkStone ? 1.0 : 0.0;
+    const isFramed = nicheStyle === 'framed' ? 1.0 : 0.0;
+
     mat.onBeforeCompile = (shader) => {
       shader.fragmentShader = shader.fragmentShader.replace(
         '#include <map_fragment>',
-        [
-          '#include <map_fragment>',
-          'float _etchGray = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));',
-          '_etchGray = clamp((_etchGray - 0.5) * 1.35 + 0.5, 0.0, 1.0);',
-          'diffuseColor.rgb = vec3(_etchGray);'
-        ].join('\n')
+        `
+          #include <map_fragment>
+
+          // Photo texture's existing alpha (from canvas vignette + background removal) is
+          // preserved as _srcAlpha so we don't lose the soft border further down.
+          float _srcAlpha = diffuseColor.a;
+
+          float _gray = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+          // High-contrast S-curve so etched marks read on stone (real laser-etch portraits
+          // are pushed past photo contrast — the operator clamps midtones aggressively).
+          _gray = clamp((_gray - 0.5) * 1.55 + 0.5, 0.0, 1.0);
+
+          float _isDark   = ${f(isDark)};
+          float _isFramed = ${f(isFramed)};
+
+          // Recessed engraving — colour AND alpha vary with source brightness, so the
+          // engraving has the same tonal range as a real laser etch (forehead brighter than
+          // cheeks, hair almost dissolves into the stone, etc.):
+          //  – dark stone: marks are mid-to-light gray; bright photo pixels are most visible
+          //  – light stone: marks are charcoal; DARK photo pixels are most visible
+          vec3 _recessedColor = mix(vec3(0.08), vec3(_gray), _isDark);
+          float _recessedAlpha = mix(1.0 - _gray, _gray, _isDark);
+          _recessedAlpha = pow(_recessedAlpha, 0.8);
+
+          diffuseColor.rgb = mix(_recessedColor, vec3(_gray), _isFramed);
+          float _photoAlpha = mix(_recessedAlpha, 1.0, _isFramed);
+
+          // Combine with the texture's own alpha (canvas vignette / background removal).
+          diffuseColor.a = _photoAlpha * _srcAlpha;
+        `
       );
     };
     mat.needsUpdate = true;
     return mat;
-  }, [photoTexture]);
+  }, [photoTexture, isDarkStone, nicheStyle, isDecorationCircle]);
 
   useEffect(() => () => photoMaterial?.dispose(), [photoMaterial]);
-
-  /** Cover-fit any uploaded photo into the niche: crop to fill, centered, no distortion.
-   *  Portrait niche is 1 : 1.25 (w : h); medallion is a 1 : 1 disc. */
-  useEffect(() => {
-    if (!photoTexture) return;
-    const img = photoTexture.image as { width?: number; height?: number } | undefined;
-    const iw = img?.width ?? 0;
-    const ih = img?.height ?? 0;
-    if (!iw || !ih) return;
-    const imgAspect = iw / ih;
-    const targetAspect = decoration === 'medallion' ? 1 : 1 / 1.25;
-    if (imgAspect > targetAspect) {
-      const r = targetAspect / imgAspect;
-      photoTexture.repeat.set(r, 1);
-      photoTexture.offset.set((1 - r) / 2, 0);
-    } else {
-      const r = imgAspect / targetAspect;
-      photoTexture.repeat.set(1, r);
-      // Bias the crop slightly upward so faces (usually upper-centre) stay in frame.
-      photoTexture.offset.set(0, Math.min(1 - r, (1 - r) * 0.7));
-    }
-    photoTexture.needsUpdate = true;
-  }, [photoTexture, decoration]);
 
   useLayoutEffect(() => {
     applyAlbedoTextureTiling(albedoMap, spanM, materialName);
@@ -509,6 +685,14 @@ export const MonumentModel = ({
       case 'rounded': return Math.max(0.05, heightM - widthM / 2);
       case 'stele': return heightM * 0.93;
       case 'concave': return Math.max(0.05, heightM - (widthM / 2 - widthM * 0.04));
+      /** Asymmetric (tapered) — lower top edge at 83.5 % H. */
+      case 'asymmetric': return heightM * 0.835;
+      /** Steep-wave generic — lower top edge at 78 % H. */
+      case 'wave-steep': return heightM * 0.78;
+      /** Dome — both top edges ≈ 79.4–79.95 % H; use the lower for safety. */
+      case 'dome': return heightM * 0.794;
+      /** Arc — left edge 79.26 % H (lower of the two), use that as the inscription ceiling. */
+      case 'arc': return heightM * 0.793;
       case 'classic':
       default: return Math.max(0.06, heightM - widthM * 0.48);
     }
@@ -525,6 +709,13 @@ export const MonumentModel = ({
       case 'cross': return 0.38;
       case 'stele': return 0.84;
       case 'concave': return 0.56;
+      /** Base is 16.5 % narrower than the top on each side, so the chord at the typical text
+       *  band (y ≈ 0.25–0.40 H) is ≈ 80 % of widthM. 0.7 leaves a safe inner margin. */
+      case 'asymmetric': return 0.7;
+      case 'wave-steep': return 0.78;
+      /** Straight vertical sides + low arch leaves plenty of horizontal room for text. */
+      case 'dome': return 0.82;
+      case 'arc': return 0.82;
       case 'rounded':
       case 'gothic':
       case 'heart':
@@ -557,8 +748,6 @@ export const MonumentModel = ({
 
   /** Bez panelu pod tekstem trzeba dobrać kolor liter pod kamień: ciemne litery na jasnym kamieniu,
    *  jasne litery na ciemnym — inaczej kremowy domyślny napis ginął na marmurze/piaskowcu. */
-  const isDarkStone =
-    materialName === 'Black Granite' || materialName === 'Labradorite Blue';
   const textFillColor = isDarkStone ? '#f5e9c8' : '#1a1208';
   const textOutlineColor = isDarkStone ? '#0b0805' : '#fbf5e3';
 
@@ -647,6 +836,38 @@ export const MonumentModel = ({
           return {
             desiredCenterY: heightM * 0.28,
             topLimit: heightM * 0.44,
+            bottomLimit: bodyHeight * 0.06
+          };
+        case 'asymmetric':
+          /** Text sits in the lower-middle band — wave top is reserved for the portrait / cross
+           *  engraving. Bottom margin is bigger than other shapes because the base is tapered:
+           *  a too-low line would touch the inward-sloping side. */
+          return {
+            desiredCenterY: heightM * 0.34,
+            topLimit: heightM * 0.65,
+            bottomLimit: bodyHeight * 0.14
+          };
+        case 'wave-steep':
+          return {
+            desiredCenterY: heightM * 0.34,
+            topLimit: heightM * 0.62,
+            bottomLimit: bodyHeight * 0.06
+          };
+        case 'dome':
+          /** Top arch peaks at 88 % and edges are at 79 % — text can safely go up to ~66 %
+           *  before flirting with the curve. Inscription typically centred a bit higher than
+           *  asymmetric shapes because the arch makes the available band feel taller. */
+          return {
+            desiredCenterY: heightM * 0.36,
+            topLimit: heightM * 0.66,
+            bottomLimit: bodyHeight * 0.06
+          };
+        case 'arc':
+          /** Apex ≈ 86 % H, edges ≈ 79 % — band is similar to dome but the apex is shifted
+           *  left, so we keep the same conservative top limit. */
+          return {
+            desiredCenterY: heightM * 0.36,
+            topLimit: heightM * 0.64,
             bottomLimit: bodyHeight * 0.06
           };
         default:
@@ -840,11 +1061,23 @@ export const MonumentModel = ({
               }
 
               const isMedallion = decoration === 'medallion';
-              /** Recessed: plate sits flush with the bevel, no rim. Framed: thicker plate + raised border. */
-              const plateOutZ = nicheStyle === 'framed' ? plateZ : thicknessM + 0.002;
+              const isFramed = nicheStyle === 'framed';
+              /** Framed: real porcelain-plaque look — keep the dark backing plate at `plateZ`.
+               *  Recessed: laser engraving directly on the polished stone — NO plate at all
+               *  (the dark plate was the main thing making the portrait look "pasted"). */
+              const plateOutZ = plateZ;
+              /** Photo geometry: full niche size for recessed (vignette in the shader fades the
+               *  edge), slightly inset for framed so the porcelain image has a visible border. */
+              const photoW = isFramed ? w * 0.86 : w;
+              const photoH = isFramed ? h * 0.86 : h;
+              const photoR = isFramed ? (w / 2) * 0.9 : w / 2;
+              const photoZ = isFramed
+                ? plateOutZ + 0.0066
+                : thicknessM + 0.0018;
+
               return (
                 <group position={[0, decorationCenterY, 0]}>
-                  {isMedallion ? (
+                  {isFramed && (isMedallion ? (
                     /** cylinderGeometry is Y-aligned by default; rotate 90° around X so the disc faces +Z. */
                     <mesh position={[0, 0, plateOutZ]} rotation={[Math.PI / 2, 0, 0]}>
                       <cylinderGeometry args={[w / 2, w / 2, 0.012, 48]} />
@@ -855,15 +1088,17 @@ export const MonumentModel = ({
                       <boxGeometry args={[w, h, 0.012]} />
                       <meshStandardMaterial color={nichePlateColor} roughness={0.6} metalness={0.15} />
                     </mesh>
-                  )}
+                  ))}
 
                   {photoMaterial && (
-                    /** Portrait photo sits just in front of the dark plate; the plate forms a border. */
-                    <mesh position={[0, 0, plateOutZ + 0.0066]} material={photoMaterial}>
+                    /** Recessed: photo plane is glued to the stone face — alpha + vignette in the
+                     *  shader make it look engraved. Framed: photo sits just in front of the
+                     *  porcelain-style plate, with a visible plate rim around it. */
+                    <mesh position={[0, 0, photoZ]} material={photoMaterial} renderOrder={1}>
                       {isMedallion ? (
-                        <circleGeometry args={[(w / 2) * 0.9, 48]} />
+                        <circleGeometry args={[photoR, 64]} />
                       ) : (
-                        <planeGeometry args={[w * 0.86, h * 0.86]} />
+                        <planeGeometry args={[photoW, photoH]} />
                       )}
                     </mesh>
                   )}
@@ -933,6 +1168,22 @@ export const MonumentModel = ({
               const heartTop = heightM * 0.92;
               return bodyH + (heartTop - bodyH) * 0.55;
             }
+            /** Asymmetric / tapered (91/83.5 edges, control points at 82.5/103 % H): curve at
+             *  x = 0 evaluated where the parametric form crosses centre (t ≈ 0.6) → 0.93 · H. */
+            case 'asymmetric':
+              return heightM * 0.93;
+            /** Steep-wave generic (96/78 edges, control points at 100/105 % H): the curve at
+             *  x = 0 sits near the upper bound, around 0.95 · H. */
+            case 'wave-steep':
+              return heightM * 0.95;
+            /** Dome — apex at (51.8 %, 88.4 % H); at x = 0 the curve is essentially the apex
+             *  height because the central anchor sits within 2 % of centre. */
+            case 'dome':
+              return heightM * 0.884;
+            /** Arc — at x = 0 the cubic crosses centre near t = 0.5, giving y ≈ 0.844 · H
+             *  (peak itself sits left of centre, ≈ 86 % at x ≈ −0.35 · hw). */
+            case 'arc':
+              return heightM * 0.844;
             case 'cross':
             case 'rounded':
             case 'gothic':
