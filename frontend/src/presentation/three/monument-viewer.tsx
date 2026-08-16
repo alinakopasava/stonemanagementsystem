@@ -33,17 +33,30 @@ interface MonumentViewerProps {
   decoration?: MonumentDecoration;
   nicheStyle?: NicheStyle;
   photoUrl?: string;
+  photoBrightness?: number;
+  photoContrast?: number;
+  photoBlend?: number;
+  stoneContrast?: number;
   layout?: MonumentLayout;
   secondaryInscription?: string;
   secondaryName?: string;
   secondaryDates?: string;
   doubleGapCm?: number;
+  /** Tailwind height class for the canvas container. Defaults to the tall designer view. */
+  heightClassName?: string;
+  /** 'demand' renders only on change/interaction — use for catalog grids with many canvases. */
+  frameloop?: 'always' | 'demand';
 }
 
-export const MonumentViewer = (props: MonumentViewerProps) => {
+export const MonumentViewer = ({
+  heightClassName = 'h-[540px]',
+  frameloop = 'always',
+  ...props
+}: MonumentViewerProps) => {
   return (
-    <div className="h-[540px] w-full overflow-hidden rounded-2xl border border-slate-200/30 bg-[#eceae8]">
+    <div className={`${heightClassName} w-full overflow-hidden rounded-2xl border border-slate-200/30 bg-[#eceae8]`}>
       <Canvas
+        frameloop={frameloop}
         shadows={{ enabled: true, type: THREE.PCFShadowMap }}
         dpr={[1, 2]}
         camera={{ position: [-1.6, 1.7, 3.1], fov: 34 }}

@@ -51,6 +51,8 @@ export type TranslationKey =
   | 'designer.subtitle'
   | 'designer.material'
   | 'designer.finish'
+  | 'designer.stoneContrast'
+  | 'designer.stoneContrast.hint'
   | 'designer.finish.polished'
   | 'designer.finish.honed'
   | 'designer.finish.matte'
@@ -136,6 +138,7 @@ export type TranslationKey =
   | 'catalog.designCta'
   | 'catalog.basePriceFrom'
   | 'catalog.loading'
+  | 'catalog.shapeTagline'
   | 'designer.shape'
   | 'designer.shape.classic'
   | 'designer.shape.rounded'
@@ -145,6 +148,8 @@ export type TranslationKey =
   | 'designer.shape.stele'
   | 'designer.shape.concave'
   | 'designer.shape.asymmetric'
+  | 'designer.shape.crossTop'
+  | 'designer.shape.curvy'
   | 'designer.shape.waveSteep'
   | 'designer.shape.dome'
   | 'designer.shape.arc'
@@ -192,6 +197,11 @@ export type TranslationKey =
   | 'designer.photo.removeBg'
   | 'designer.photo.processing'
   | 'designer.photo.processError'
+  | 'designer.photo.adjust'
+  | 'designer.photo.adjust.reset'
+  | 'designer.photo.adjust.brightness'
+  | 'designer.photo.adjust.contrast'
+  | 'designer.photo.adjust.blend'
   | 'designer.presets.title'
   | 'designer.presets.classic.label'
   | 'designer.presets.classic.inscription'
@@ -378,6 +388,9 @@ const en: Dictionary = {
     'Choose the stone, finish, size, and engraving. Drag to rotate, scroll to zoom. What you see is what we craft.',
   'designer.material': 'Material',
   'designer.finish': 'Finish',
+  'designer.stoneContrast': 'Stone contrast',
+  'designer.stoneContrast.hint':
+    'Some materials look harsh — lower this to soften the texture, raise it for more depth.',
   'designer.finish.polished': 'Polished',
   'designer.finish.honed': 'Honed',
   'designer.finish.matte': 'Matte',
@@ -476,6 +489,7 @@ const en: Dictionary = {
   'catalog.designCta': 'Design in 3D',
   'catalog.basePriceFrom': 'from {price} PLN',
   'catalog.loading': 'Loading catalog…',
+  'catalog.shapeTagline': 'Available in every material and finish — fully customizable in 3D.',
 
   'designer.shape': 'Shape',
   'designer.shape.classic': 'Classic',
@@ -486,6 +500,8 @@ const en: Dictionary = {
   'designer.shape.stele': 'Modern Stele',
   'designer.shape.concave': 'Wave',
   'designer.shape.asymmetric': 'Asymmetric wave',
+  'designer.shape.crossTop': 'Wave with cross',
+  'designer.shape.curvy': 'Curvy sides',
   'designer.shape.waveSteep': 'Steep wave',
   'designer.shape.dome': 'Dome',
   'designer.shape.arc': 'Arc',
@@ -535,6 +551,11 @@ const en: Dictionary = {
   'designer.photo.removeBg': 'Remove background automatically',
   'designer.photo.processing': 'Processing…',
   'designer.photo.processError': 'Could not remove the background — using the original photo.',
+  'designer.photo.adjust': 'Engraving look',
+  'designer.photo.adjust.reset': 'Reset',
+  'designer.photo.adjust.brightness': 'Brightness',
+  'designer.photo.adjust.contrast': 'Contrast',
+  'designer.photo.adjust.blend': 'Blend into stone',
 
   'designer.presets.title': 'Ready-made texts',
   'designer.presets.classic.label': 'Classic',
@@ -733,6 +754,9 @@ const pl: Dictionary = {
     'Wybierz kamień, wykończenie, rozmiar i grawer. Przeciągnij, aby obracać, kółkiem przybliżysz. To co widzisz, to co wykonujemy.',
   'designer.material': 'Materiał',
   'designer.finish': 'Wykończenie',
+  'designer.stoneContrast': 'Kontrast kamienia',
+  'designer.stoneContrast.hint':
+    'Niektóre materiały wyglądają zbyt ostro — zmniejsz, aby złagodzić teksturę, zwiększ dla większej głębi.',
   'designer.finish.polished': 'Polerowane',
   'designer.finish.honed': 'Szlifowane',
   'designer.finish.matte': 'Matowe',
@@ -835,6 +859,7 @@ const pl: Dictionary = {
   'catalog.designCta': 'Projektuj w 3D',
   'catalog.basePriceFrom': 'od {price} PLN',
   'catalog.loading': 'Ładowanie katalogu…',
+  'catalog.shapeTagline': 'Dostępny w każdym materiale i wykończeniu — w pełni konfigurowalny w 3D.',
 
   'designer.shape': 'Kształt',
   'designer.shape.classic': 'Klasyczny',
@@ -845,6 +870,8 @@ const pl: Dictionary = {
   'designer.shape.stele': 'Nowoczesna stela',
   'designer.shape.concave': 'Falowy',
   'designer.shape.asymmetric': 'Asymetryczna fala',
+  'designer.shape.crossTop': 'Fala z krzyżem',
+  'designer.shape.curvy': 'Falujące boki',
   'designer.shape.waveSteep': 'Stroma fala',
   'designer.shape.dome': 'Kopulasty',
   'designer.shape.arc': 'Łuk',
@@ -894,6 +921,11 @@ const pl: Dictionary = {
   'designer.photo.removeBg': 'Automatycznie usuń tło',
   'designer.photo.processing': 'Przetwarzanie…',
   'designer.photo.processError': 'Nie udało się usunąć tła — używam oryginalnego zdjęcia.',
+  'designer.photo.adjust': 'Wygląd grawerunku',
+  'designer.photo.adjust.reset': 'Reset',
+  'designer.photo.adjust.brightness': 'Jasność',
+  'designer.photo.adjust.contrast': 'Kontrast',
+  'designer.photo.adjust.blend': 'Wtopienie w kamień',
 
   'designer.presets.title': 'Gotowe teksty',
   'designer.presets.classic.label': 'Klasyczny',
@@ -1098,6 +1130,9 @@ const ru: Dictionary = {
     'Выберите камень, отделку, размер и гравировку. Перетащите для вращения, прокрутите для масштабирования. Что вы видите — то мы и сделаем.',
   'designer.material': 'Материал',
   'designer.finish': 'Отделка',
+  'designer.stoneContrast': 'Контраст камня',
+  'designer.stoneContrast.hint':
+    'Некоторые материалы выглядят слишком резко — уменьшите, чтобы смягчить текстуру, увеличьте для большей глубины.',
   'designer.finish.polished': 'Полированная',
   'designer.finish.honed': 'Шлифованная',
   'designer.finish.matte': 'Матовая',
@@ -1204,6 +1239,7 @@ const ru: Dictionary = {
   'catalog.designCta': 'Проектировать в 3D',
   'catalog.basePriceFrom': 'от {price} PLN',
   'catalog.loading': 'Загрузка каталога…',
+  'catalog.shapeTagline': 'Доступен в любом материале и отделке — полностью настраивается в 3D.',
 
   'designer.shape': 'Форма',
   'designer.shape.classic': 'Классическая',
@@ -1214,6 +1250,8 @@ const ru: Dictionary = {
   'designer.shape.stele': 'Современная стела',
   'designer.shape.concave': 'Волновая',
   'designer.shape.asymmetric': 'Асимметричная волна',
+  'designer.shape.crossTop': 'Волна с крестом',
+  'designer.shape.curvy': 'Фигурный',
   'designer.shape.waveSteep': 'Крутая волна',
   'designer.shape.dome': 'Купольная',
   'designer.shape.arc': 'Дуга',
@@ -1263,6 +1301,11 @@ const ru: Dictionary = {
   'designer.photo.removeBg': 'Автоматически удалить фон',
   'designer.photo.processing': 'Обработка…',
   'designer.photo.processError': 'Не удалось удалить фон — используется исходное фото.',
+  'designer.photo.adjust': 'Вид гравировки',
+  'designer.photo.adjust.reset': 'Сброс',
+  'designer.photo.adjust.brightness': 'Яркость',
+  'designer.photo.adjust.contrast': 'Контраст',
+  'designer.photo.adjust.blend': 'Слияние с камнем',
 
   'designer.presets.title': 'Готовые тексты',
   'designer.presets.classic.label': 'Классический',

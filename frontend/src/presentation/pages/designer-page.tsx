@@ -13,6 +13,7 @@ import {
   getInscriptionStyle,
   type InscriptionStyleId
 } from '@presentation/components/inscription-styles';
+import { ShapePreview } from '@presentation/components/shape-preview';
 import { MonumentViewer } from '@presentation/three/monument-viewer';
 import type {
   BaseDimensionsCm,
@@ -41,6 +42,8 @@ const SHAPE_OPTIONS: { id: MonumentShape; labelKey: TranslationKey; recommendedA
   { id: 'classic', labelKey: 'designer.shape.classic' },
   { id: 'stele', labelKey: 'designer.shape.stele' },
   { id: 'asymmetric', labelKey: 'designer.shape.asymmetric', recommendedAspect: 2.6 },
+  { id: 'cross-top', labelKey: 'designer.shape.crossTop', recommendedAspect: 2.6 },
+  { id: 'curvy', labelKey: 'designer.shape.curvy', recommendedAspect: 2.2 },
   { id: 'dome', labelKey: 'designer.shape.dome', recommendedAspect: 2.6 },
   { id: 'arc', labelKey: 'designer.shape.arc', recommendedAspect: 2.25 },
   { id: 'wave-steep', labelKey: 'designer.shape.waveSteep' },
@@ -151,6 +154,8 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
 
   const [materialId, setMaterialId] = useState<string>('');
   const [finish, setFinish] = useState<FinishType>('Polished');
+  /** Stone texture contrast: 1 = original image, lower flattens harsh-looking materials. */
+  const [stoneContrast, setStoneContrast] = useState(1);
   /** Index of the currently active preset, or `null` when user typed custom text. */
   const [presetIndex, setPresetIndex] = useState<number | null>(0);
   const [inscription, setInscription] = useState<string>(() =>
@@ -175,6 +180,12 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
   const [removeBg, setRemoveBg] = useState(true);
   const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  /** Live engraving adjustments for the on-stone portrait. Defaults match the shader's
+   *  auto-tuned baseline; the user can fine-tune per material via sliders. */
+  const [photoBrightness, setPhotoBrightness] = useState(0);
+  const [photoContrast, setPhotoContrast] = useState(1.1);
+  /** 0 = opaque photo (max visible), 1 = strongly dissolves into the stone (seamless). */
+  const [photoBlend, setPhotoBlend] = useState(0.4);
 
   const photoUrl = removeBg ? (cutoutPhotoUrl ?? originalPhotoUrl) : originalPhotoUrl;
   const [layout, setLayout] = useState<MonumentLayout>('single');
@@ -227,6 +238,9 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
     try {
       const mod = await import('@imgly/background-removal');
       const removeBackground = mod.removeBackground ?? mod.default;
+      if (typeof removeBackground !== 'function') {
+        throw new Error('removeBackground export not found on @imgly/background-removal module');
+      }
       const blob = await removeBackground(sourceUrl);
       const cutoutUrl = await blobToDataUrl(blob);
       setCutoutPhotoUrl(cutoutUrl);
@@ -244,10 +258,14 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
     if (!file) return;
     setCutoutPhotoUrl(null);
     setPhotoError(null);
-    const dataUrl = await fileToDataUrl(file);
-    setOriginalPhotoUrl(dataUrl);
-    if (removeBg) {
-      void runBackgroundRemoval(dataUrl);
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      setOriginalPhotoUrl(dataUrl);
+      if (removeBg) {
+        void runBackgroundRemoval(dataUrl);
+      }
+    } catch {
+      setPhotoError(t('designer.photo.processError'));
     }
   };
 
@@ -319,6 +337,10 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
             decoration={decoration}
             nicheStyle={nicheStyle}
             photoUrl={photoUrl ?? undefined}
+            photoBrightness={photoBrightness}
+            photoContrast={photoContrast}
+            photoBlend={photoBlend}
+            stoneContrast={stoneContrast}
             layout={layout}
             secondaryInscription={secondaryInscription}
             secondaryName={secondaryName}
@@ -453,19 +475,32 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
                   );
                 })}
               </div>
+              <div className="mt-3">
+                <SliderRow
+                  label={t('designer.stoneContrast')}
+                  value={stoneContrast}
+                  min={0.4}
+                  max={1.4}
+                  step={0.05}
+                  unit=""
+                  onChange={setStoneContrast}
+                />
+                <p className="mt-1 text-[11px] text-slate-500">{t('designer.stoneContrast.hint')}</p>
+              </div>
             </section>
 
             <section>
               <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
                 {t('designer.shape')}
               </h2>
-              <div className="mt-3 grid grid-cols-3 gap-2">
+              <div className="mt-3 grid grid-cols-4 gap-2">
                 {SHAPE_OPTIONS.map((option) => {
                   const active = option.id === shape;
                   return (
                     <button
                       key={option.id}
                       type="button"
+                      title={t(option.labelKey)}
                       onClick={() => {
                         setShape(option.id);
                         /** Auto-adjust height to match the shape's intended H/W ratio when one
@@ -485,13 +520,13 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
                         }
                       }}
                       className={[
-                        'rounded-md border px-3 py-2 text-xs transition',
+                        'group relative flex aspect-square items-center justify-center rounded-md border bg-slate-950 p-2 transition',
                         active
-                          ? 'border-amber-300 bg-amber-300/10 text-amber-100'
-                          : 'border-slate-700 text-slate-300 hover:border-slate-500'
+                          ? 'border-amber-300 bg-amber-300/10 text-amber-200 shadow-[0_0_0_1px_rgba(252,211,77,0.45)]'
+                          : 'border-slate-700 text-slate-300 hover:border-slate-500 hover:text-slate-100'
                       ].join(' ')}
                     >
-                      {t(option.labelKey)}
+                      <ShapePreview id={option.id} className="h-full w-full" />
                     </button>
                   );
                 })}
@@ -785,6 +820,54 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
                     />
                     {t('designer.photo.removeBg')}
                   </label>
+
+                  {photoUrl && (
+                    <div className="mt-3 space-y-2 rounded-md border border-slate-700/60 bg-slate-950/40 p-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-[11px] uppercase tracking-wider text-slate-500">
+                          {t('designer.photo.adjust')}
+                        </h4>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPhotoBrightness(0);
+                            setPhotoContrast(1.1);
+                            setPhotoBlend(0.4);
+                          }}
+                          className="text-[10px] text-slate-400 underline-offset-2 hover:text-amber-200 hover:underline"
+                        >
+                          {t('designer.photo.adjust.reset')}
+                        </button>
+                      </div>
+                      <SliderRow
+                        label={t('designer.photo.adjust.brightness')}
+                        value={photoBrightness}
+                        min={-0.4}
+                        max={0.4}
+                        step={0.02}
+                        unit=""
+                        onChange={setPhotoBrightness}
+                      />
+                      <SliderRow
+                        label={t('designer.photo.adjust.contrast')}
+                        value={photoContrast}
+                        min={0.5}
+                        max={2.5}
+                        step={0.05}
+                        unit=""
+                        onChange={setPhotoContrast}
+                      />
+                      <SliderRow
+                        label={t('designer.photo.adjust.blend')}
+                        value={photoBlend}
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        unit=""
+                        onChange={setPhotoBlend}
+                      />
+                    </div>
+                  )}
 
                   {photoError ? (
                     <p className="mt-2 text-[11px] text-red-300">{photoError}</p>

@@ -52,24 +52,25 @@ function buildVignettedTexture(img: HTMLImageElement, aspect: PhotoAspect): THRE
     const dy = (H - drawH) * 0.35;
     ctx.drawImage(img, dx, dy, drawW, drawH);
 
-    /** Soft elliptical vignette punched into the alpha channel — fades the outer ~20 % of
-     *  the rectangle to fully transparent so the photo blends into the stone without a
-     *  visible boundary. We draw an ellipse-shaped radial gradient by stretching the
-     *  coordinate system before painting. */
-    const grad = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.32, W / 2, H / 2, Math.min(W, H) * 0.55);
-    grad.addColorStop(0.0, 'rgba(0,0,0,1)');
-    grad.addColorStop(0.7, 'rgba(0,0,0,1)');
-    grad.addColorStop(1.0, 'rgba(0,0,0,0)');
-
+    /** Soft elliptical vignette punched into the alpha channel so the photo fades into the
+     *  stone with no visible rectangular boundary.
+     *
+     *  Worked in NORMALISED space: we scale the context by (W/2, H/2) so a unit circle maps
+     *  exactly onto the ellipse that touches all four edge midpoints. A radial gradient with
+     *  outer radius 1.0 therefore reaches the left/right AND top/bottom edges regardless of
+     *  aspect ratio — the previous `min(W,H)` radius left the long-axis sides opaque, which
+     *  is what produced the hard vertical border on tall portraits. */
     ctx.save();
     ctx.globalCompositeOperation = 'destination-in';
-    /** Stretch the radial gradient to match canvas aspect — produces an ellipse rather
-     *  than a circle when H ≠ W, so the vignette tracks the rectangle's edge uniformly. */
     ctx.translate(W / 2, H / 2);
-    ctx.scale(1, H / W);
-    ctx.translate(-W / 2, -H / 2);
+    ctx.scale(W / 2, H / 2);
+    const grad = ctx.createRadialGradient(0, 0, 0.45, 0, 0, 1.0);
+    grad.addColorStop(0.0, 'rgba(0,0,0,1)');
+    grad.addColorStop(0.5, 'rgba(0,0,0,1)');
+    grad.addColorStop(0.78, 'rgba(0,0,0,0.45)');
+    grad.addColorStop(1.0, 'rgba(0,0,0,0)');
     ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(-1, -1, 2, 2);
     ctx.restore();
   }
 
@@ -107,8 +108,14 @@ export function usePhotoTexture(
 
     let cancelled = false;
     const img = new Image();
-    /** Allow data URLs (no CORS) and remote URLs (best-effort). */
-    img.crossOrigin = 'anonymous';
+    /** crossOrigin must NOT be set for data: URLs — Chrome/Edge treat the combination as
+     *  invalid and silently fail to load the image (no onload, no onerror, just nothing).
+     *  Only opt-in to CORS for genuinely remote http(s) URLs where the canvas would
+     *  otherwise be tainted. */
+    const isDataUrl = url.startsWith('data:');
+    if (!isDataUrl) {
+      img.crossOrigin = 'anonymous';
+    }
     img.onload = () => {
       if (cancelled) return;
       try {

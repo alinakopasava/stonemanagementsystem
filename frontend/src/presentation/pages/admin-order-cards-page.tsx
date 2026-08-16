@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowRight, FileText, Trash2, X } from 'lucide-react';
 import { useTranslation } from '@application/i18n/i18n-context';
-import type { TranslationKey } from '@application/i18n/translations';
+import type { Language, TranslationKey } from '@application/i18n/translations';
 import {
   convertOrderCardToOrder,
   deleteAdminOrderCard,
@@ -60,8 +60,17 @@ const suggestPrice = (card: AdminOrderCard): string => {
   return Number.isFinite(price) ? price.toFixed(2) : '';
 };
 
+/** Maps the app language to a BCP-47 locale so dates follow the selected UI language
+ *  instead of defaulting to the browser/OS locale. */
+const DATE_LOCALES: Record<Language, string> = {
+  en: 'en-GB',
+  pl: 'pl-PL',
+  ru: 'ru-RU'
+};
+
 export const AdminOrderCardsPage = () => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const dateLocale = DATE_LOCALES[language];
   const [cards, setCards] = useState<AdminOrderCard[]>([]);
   const [filter, setFilter] = useState<Filter>('pending');
   const [isLoading, setIsLoading] = useState(true);
@@ -291,7 +300,7 @@ export const AdminOrderCardsPage = () => {
                       : t('admin.orderCards.noPrice')}
                     {card.converted_order.deadline
                       ? ` · ${t('admin.orderCards.dueLabel', {
-                          date: new Date(card.converted_order.deadline).toLocaleDateString()
+                          date: new Date(card.converted_order.deadline).toLocaleDateString(dateLocale)
                         })}`
                       : ''}
                   </span>
