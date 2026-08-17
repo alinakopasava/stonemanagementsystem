@@ -191,7 +191,7 @@ export const CatalogPage = ({ materials }: CatalogPageProps) => {
                       {t('catalog.shapeTagline')}
                     </p>
                     <Link
-                      to="/design"
+                      to={`/design?shape=${shape}`}
                       className="mt-5 block rounded-md bg-gray-100 px-4 py-2.5 text-center text-sm font-semibold text-slate-900 transition hover:bg-white"
                     >
                       {t('catalog.designCta')}

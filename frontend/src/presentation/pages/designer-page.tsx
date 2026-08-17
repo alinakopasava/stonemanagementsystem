@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@application/auth/auth-context';
 import { useTranslation } from '@application/i18n/i18n-context';
 import type { TranslationKey } from '@application/i18n/translations';
@@ -168,7 +168,13 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
   );
   const [dimensions, setDimensions] = useState(DEFAULT_DIMENSIONS);
   const [baseDimensions, setBaseDimensions] = useState<BaseDimensionsCm>(DEFAULT_BASE_DIMENSIONS);
-  const [shape, setShape] = useState<MonumentShape>('classic');
+  const [searchParams] = useSearchParams();
+  const shapeFromCatalog = searchParams.get('shape');
+  const initialShape =
+    SHAPE_OPTIONS.some((option) => option.id === shapeFromCatalog)
+      ? (shapeFromCatalog as MonumentShape)
+      : 'classic';
+  const [shape, setShape] = useState<MonumentShape>(initialShape);
   const [showCross, setShowCross] = useState<boolean>(false);
   const [showFlowerbed, setShowFlowerbed] = useState<boolean>(true);
   const [tombstoneSlab, setTombstoneSlab] = useState<TombstoneSlabVariant>('full');

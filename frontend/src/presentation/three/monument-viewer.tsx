@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import * as THREE from 'three';
 import { Canvas } from '@react-three/fiber';
 import { Environment, OrbitControls } from '@react-three/drei';
+import { ClassicMonumentModel } from './classic-monument-model';
 import { MonumentModel } from './monument-model';
 import type {
   BaseDimensionsCm,
@@ -53,13 +54,18 @@ export const MonumentViewer = ({
   frameloop = 'always',
   ...props
 }: MonumentViewerProps) => {
+  const isClassicGlb = props.shape === 'classic' && props.layout !== 'double';
+
   return (
     <div className={`${heightClassName} w-full overflow-hidden rounded-2xl border border-slate-200/30 bg-[#eceae8]`}>
       <Canvas
         frameloop={frameloop}
         shadows={{ enabled: true, type: THREE.PCFShadowMap }}
         dpr={[1, 2]}
-        camera={{ position: [-1.6, 1.7, 3.1], fov: 34 }}
+        camera={{
+          position: isClassicGlb ? [1.7, 1.35, 3.6] : [-1.6, 1.7, 3.1],
+          fov: 34
+        }}
         gl={{
           antialias: true,
           toneMapping: THREE.ACESFilmicToneMapping,
@@ -104,7 +110,17 @@ export const MonumentViewer = ({
             <shadowMaterial opacity={0.18} />
           </mesh>
 
-          <MonumentModel {...props} />
+          {props.shape === 'classic' && props.layout !== 'double' ? (
+            <ClassicMonumentModel
+              dimensions={props.dimensions}
+              textureUrl={props.textureUrl}
+              materialName={props.materialName}
+              finish={props.finish}
+              stoneContrast={props.stoneContrast}
+            />
+          ) : (
+            <MonumentModel {...props} />
+          )}
         </Suspense>
 
         <OrbitControls
@@ -113,7 +129,7 @@ export const MonumentViewer = ({
           maxDistance={6}
           minPolarAngle={Math.PI / 6}
           maxPolarAngle={Math.PI / 2.1}
-          target={[0, 0.6, 0]}
+          target={isClassicGlb ? [0, 0.95, 0] : [0, 0.6, 0]}
           makeDefault
         />
       </Canvas>
