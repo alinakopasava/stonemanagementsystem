@@ -3,8 +3,16 @@ import * as THREE from 'three';
 import { Text } from '@react-three/drei';
 import type { FinishType } from '@domain/entities/order-card';
 import { useStoneAlbedoTexture } from './use-stone-albedo-texture';
-import { usePhotoTexture } from './use-photo-texture';
+import { usePhotoTexture, type PhotoCrop } from './use-photo-texture';
+import { createNaturalEngravedPhotoMaterial } from './engraved-photo-material';
 import { createHeadstoneExtrudeGeometry } from './headstone-extrude-geometry';
+import {
+  getInscriptionColors,
+  isDarkStone as isDarkStoneName,
+  isSeamlessStone,
+  sampleStoneTextureStats,
+  type StoneTextureStats
+} from './stone-catalog';
 
 export interface MonumentDimensionsCm {
   heightCm: number;
@@ -118,6 +126,8 @@ interface MonumentModelProps {
   nicheStyle?: NicheStyle;
   /** Optional portrait photo (data URL) shown inside the portrait/medallion niche. */
   photoUrl?: string;
+  /** Interactive crop — which region of the source photo appears on the stone. */
+  photoCrop?: PhotoCrop;
   /** Live engraving adjustments for the on-stone portrait (user-tunable per material).
    *  brightness: −0.4..0.4 tonal shift; contrast: 0.5..2.5 multiplier; blend: 0..1 where
    *  0 = opaque/max-visible and 1 = strongly dissolves into the stone. */
@@ -148,19 +158,13 @@ const getTextureBitmapSize = (map: THREE.Texture): { w: number; h: number } => {
   return w > 0 && h > 0 ? { w, h } : { w: 1, h: 1 };
 };
 
-/** Materiały, dla których chcemy jednolitą teksturę bez kafelków (jeden „kawałek” na cały pomnik). */
-const SEAMLESS_MATERIALS = new Set(['Marble', 'Labradorite Blue']);
-
-/**
- * Granit / piaskowiec: powtarzalna tekstura imitująca gęsto ziarnisty kamień.
- * Marmur / labradoryt: jedna instancja tekstury rozciągnięta na powierzchnię — brak widocznych kafelków.
- */
+/** Granit o równym ziarnie: kafelkujemy. Kamień z żyłami / dużym rysunkiem: jedna płyta. */
 const applyAlbedoTextureTiling = (
   map: THREE.Texture,
   spanM: number,
   materialName: string | undefined
 ) => {
-  if (materialName && SEAMLESS_MATERIALS.has(materialName)) {
+  if (isSeamlessStone(materialName)) {
     map.wrapS = map.wrapT = THREE.ClampToEdgeWrapping;
     map.repeat.set(1, 1);
     map.center.set(0.5, 0.5);
@@ -646,9 +650,10 @@ export const MonumentModel = ({
   decoration = 'none',
   nicheStyle = 'recessed',
   photoUrl,
+  photoCrop,
   photoBrightness = 0,
   photoContrast = 1.1,
-  photoBlend = 0.4,
+  photoBlend = 0.08,
   stoneContrast = 1,
   layout = 'single',
   secondaryInscription = '',
@@ -737,8 +742,7 @@ export const MonumentModel = ({
    *  – portrait engraving polarity (white-on-black etch on granite, dark-on-light on marble),
    *  – default niche plate colour.
    *  Defined early so the photo material below can branch on it. */
-  const isDarkStone =
-    materialName === 'Black Granite' || materialName === 'Labradorite Blue';
+  const isDarkStone = isDarkStoneName(materialName);
 
   /** Actual average luminance (0..1) of the currently selected stone, sampled from its
    *  albedo texture. This drives the portrait engraving so it adapts to ANY material:
@@ -747,29 +751,19 @@ export const MonumentModel = ({
    *  a mid-gray stone. Seeded from the dark/light class so the first frame is sensible
    *  before the texture has been sampled. */
   const [stoneLuma, setStoneLuma] = useState<number>(isDarkStone ? 0.08 : 0.6);
+  const [stoneTextureStats, setStoneTextureStats] = useState<StoneTextureStats | undefined>();
 
   useEffect(() => {
     const img = albedoMap.image as CanvasImageSource | undefined;
     if (!img) return;
-    try {
-      const c = document.createElement('canvas');
-      c.width = 24;
-      c.height = 24;
-      const cx = c.getContext('2d');
-      if (!cx) return;
-      cx.drawImage(img, 0, 0, 24, 24);
-      const data = cx.getImageData(0, 0, 24, 24).data;
-      let sum = 0;
-      let n = 0;
-      for (let i = 0; i < data.length; i += 4) {
-        sum += (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]) / 255;
-        n++;
-      }
-      if (n > 0) setStoneLuma(Math.min(1, Math.max(0, sum / n)));
-    } catch {
-      /** Cross-origin / not-yet-decoded image — keep the class-based seed. */
-      setStoneLuma(isDarkStone ? 0.08 : 0.6);
+    const stats = sampleStoneTextureStats(img);
+    if (stats) {
+      setStoneLuma(Math.min(1, Math.max(0, stats.meanLuma)));
+      setStoneTextureStats(stats);
+      return;
     }
+    setStoneLuma(isDarkStone ? 0.08 : 0.6);
+    setStoneTextureStats(undefined);
   }, [albedoMap, isDarkStone]);
 
   /** User portrait photo, only relevant for portrait/medallion decorations. The hook
@@ -777,7 +771,9 @@ export const MonumentModel = ({
    *  component doesn't have to coordinate UV repeat/offset with shader-side masking. */
   const photoTexture = usePhotoTexture(
     decoration === 'portrait' || decoration === 'medallion' ? photoUrl : undefined,
-    decoration === 'medallion' ? 'square' : 'portrait'
+    decoration === 'medallion' ? 'square' : 'portrait',
+    decoration === 'medallion' ? 'radial' : 'sides',
+    photoCrop
   );
 
   /** Photo material — renders the uploaded portrait as a laser-etched grayscale engraving.
@@ -792,68 +788,20 @@ export const MonumentModel = ({
    *  Edge softness is delegered to `usePhotoTexture`'s canvas-level vignette (applied after
    *  background removal) — keeping the GPU shader simple avoids version-specific issues with
    *  three.js shader chunk renames. */
-  const isDecorationCircle = decoration === 'medallion';
   const photoMaterial = useMemo(() => {
     if (!photoTexture) return null;
-    const mat = new THREE.MeshStandardMaterial({
-      map: photoTexture,
+    return createNaturalEngravedPhotoMaterial({
+      photoMap: photoTexture,
+      stoneMap: albedoMap,
+      stoneRepeat: new THREE.Vector2(albedoMap.repeat.x, albedoMap.repeat.y),
+      stoneLuma,
       roughness: nicheStyle === 'framed' ? 0.45 : 0.32,
-      metalness: 0.0,
-      transparent: true,
-      alphaTest: 0.01,
-      depthWrite: false,
-      polygonOffset: true,
-      polygonOffsetFactor: -1,
-      polygonOffsetUnits: -1
+      photoBrightness,
+      photoContrast,
+      photoBlend,
+      framed: nicheStyle === 'framed'
     });
-
-    const f = (v: number) => v.toFixed(3);
-    const isFramed = nicheStyle === 'framed' ? 1.0 : 0.0;
-
-    mat.onBeforeCompile = (shader) => {
-      shader.fragmentShader = shader.fragmentShader.replace(
-        '#include <map_fragment>',
-        `
-          #include <map_fragment>
-
-          // Photo texture's existing alpha (canvas vignette + background removal) is kept as
-          // _srcAlpha — it is what fades the outer edge of the photo into the stone.
-          float _srcAlpha = diffuseColor.a;
-
-          // Grayscale (Rec.601 luma) with USER-TUNABLE contrast + brightness so the operator
-          // can dial the look in per material. Defaults are the auto-tuned baseline.
-          float _gray = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
-          float _tone = clamp((_gray - 0.5) * ${f(photoContrast)} + 0.5 + ${f(photoBrightness)}, 0.0, 1.0);
-
-          float _stoneLuma = ${f(stoneLuma)};
-          float _isFramed  = ${f(isFramed)};
-
-          // MATERIAL-ADAPTIVE engraving. Opacity is driven by how much the photo tone
-          // CONTRASTS with the actual stone luminance:
-          //  – tones close to the stone melt into it (seamless blend, no border),
-          //  – tones that differ stay opaque and clearly visible.
-          // The user "blend" slider (_blend) widens the dissolve range and lowers the
-          // visibility floor: blend=0 → nearly opaque photo (max visible), blend=1 →
-          // strongly dissolved into the stone (max seamless).
-          float _blend = ${f(photoBlend)};
-          float _range = mix(0.10, 0.40, _blend);
-          float _floor = mix(0.85, 0.04, _blend);
-          float _contrast = abs(_tone - _stoneLuma);
-          float _alpha = smoothstep(0.02, _range, _contrast);
-          _alpha = max(_alpha, _floor);
-
-          // Framed porcelain plaque is a fully opaque grayscale photo.
-          diffuseColor.rgb = vec3(_tone);
-          float _photoAlpha = mix(_alpha, 1.0, _isFramed);
-
-          // Multiply by the texture alpha so the vignette / cut-out edge blends softly too.
-          diffuseColor.a = _photoAlpha * _srcAlpha;
-        `
-      );
-    };
-    mat.needsUpdate = true;
-    return mat;
-  }, [photoTexture, stoneLuma, nicheStyle, isDecorationCircle, photoBrightness, photoContrast, photoBlend]);
+  }, [photoTexture, albedoMap, stoneLuma, nicheStyle, photoBrightness, photoContrast, photoBlend]);
 
   useEffect(() => () => photoMaterial?.dispose(), [photoMaterial]);
 
@@ -965,7 +913,7 @@ export const MonumentModel = ({
   }, [shapeKind, heightM, widthM]);
 
   /** Za mały offset + faza extrude → z-fight przy orbicie (widać to częściej przy ostrym czole classic). */
-  const textZ = frontFaceZ + 0.022;
+  const textZ = frontFaceZ + 0.028;
 
   /** Klasyczny ma wąską „szyję” (≈0.56·width na neckY), więc bez marginesu napis dochodziłby do krawędzi.
    *  Krzyż ma tylko wąski trzon — jeszcze ciaśniej. Pozostałe są zbliżone do prostokąta. */
@@ -1018,10 +966,9 @@ export const MonumentModel = ({
 
   const baseSize = Math.max(0.04, Math.min(widthM * 0.13, bodyHeight * 0.14));
 
-  /** Bez panelu pod tekstem trzeba dobrać kolor liter pod kamień: ciemne litery na jasnym kamieniu,
-   *  jasne litery na ciemnym — inaczej kremowy domyślny napis ginął na marmurze/piaskowcu. */
-  const textFillColor = isDarkStone ? '#f5e9c8' : '#1a1208';
-  const textOutlineColor = isDarkStone ? '#0b0805' : '#fbf5e3';
+  const inscriptionColors = getInscriptionColors(materialName, stoneTextureStats);
+  const textFillColor = inscriptionColors.fill;
+  const textOutlineColor = inscriptionColors.outline;
 
   const commonTextProps = {
     color: textFillColor,
@@ -1033,8 +980,8 @@ export const MonumentModel = ({
     maxWidth: textMaxWidth,
     letterSpacing: inscriptionStyle.letterSpacing,
     font: inscriptionStyle.fontUrl,
-    /** Wymuszamy depthTest=false na materiale Text przez renderOrder — tekst po headstone w kolejności rysowania. */
-    renderOrder: 2,
+    /** Text always above stone and engraved photo (photo renderOrder = 3). */
+    renderOrder: 5,
     depthOffset: -1
   };
 
@@ -1049,19 +996,20 @@ export const MonumentModel = ({
    *  When `layout='double'`, the same decoration kind is mirrored on each stela. */
   const decorationSize = (() => {
     if (decoration === 'none') return { w: 0, h: 0 };
-    const w = widthM * (decoration === 'cross' ? 0.34 : 0.42);
+    const w = widthM * (decoration === 'cross' ? 0.34 : decoration === 'portrait' ? 0.56 : 0.42);
     const h =
-      decoration === 'portrait' ? w * 1.25 : decoration === 'cross' ? w * 1.7 : w;
+      decoration === 'portrait' ? w * 1.18 : decoration === 'cross' ? w * 1.7 : w;
     return { w, h };
   })();
-  const decorationCenterY = bodyHeight * 0.74;
+  /** Portrait sits in the middle of the upper third of the stele. */
+  const decorationCenterY = bodyHeight * (decoration === 'portrait' ? 0.76 : 0.74);
   const decorationBottomY = decorationCenterY - decorationSize.h / 2;
   const hasDecoration = decoration !== 'none';
 
   /** Shape-dependent text bounds are the same on both stelas (same shape, same widthM, same heightM).
    *  Computed once so we don't repeat the switch for each stela in a double monument. */
   const textBounds = (() => {
-    const decorationGap = baseSize * 0.45;
+    const decorationGap = baseSize * (decoration === 'portrait' ? 0.9 : 0.45);
     const decorationTopLimit = hasDecoration
       ? Math.max(bodyHeight * 0.1, decorationBottomY - decorationGap)
       : Infinity;
@@ -1070,9 +1018,9 @@ export const MonumentModel = ({
       switch (shapeKind) {
         case 'classic':
           return {
-            desiredCenterY: bodyHeight * 0.45,
-            topLimit: bodyHeight * 0.72,
-            bottomLimit: bodyHeight * 0.08
+            desiredCenterY: bodyHeight * (decoration === 'portrait' ? 0.34 : 0.45),
+            topLimit: bodyHeight * (decoration === 'portrait' ? 0.54 : 0.72),
+            bottomLimit: bodyHeight * 0.06
           };
         case 'cross':
           return {
@@ -1240,7 +1188,8 @@ export const MonumentModel = ({
   ];
 
   /** Niche colour: ciemne tło pod portret/medalion, w odcieniu kontrastującym z kamieniem. */
-  const nichePlateColor = isDarkStone ? '#0b0805' : '#1c130b';
+  const nichePlateColor =
+    inscriptionColors.metalness >= 0.4 ? inscriptionColors.outline : '#1c130b';
 
   return (
     <group>
@@ -1362,7 +1311,7 @@ export const MonumentModel = ({
               const photoR = isFramed ? (w / 2) * 0.9 : w / 2;
               const photoZ = isFramed
                 ? plateOutZ + 0.0066
-                : frontFaceZ + 0.0018;
+                : frontFaceZ + 0.012;
 
               return (
                 <group position={[0, decorationCenterY, 0]}>
@@ -1383,7 +1332,7 @@ export const MonumentModel = ({
                     /** Recessed: photo plane is glued to the stone face — alpha + vignette in the
                      *  shader make it look engraved. Framed: photo sits just in front of the
                      *  porcelain-style plate, with a visible plate rim around it. */
-                    <mesh position={[0, 0, photoZ]} material={photoMaterial} renderOrder={1}>
+                    <mesh position={[0, 0, photoZ]} material={photoMaterial} renderOrder={3}>
                       {isMedallion ? (
                         <circleGeometry args={[photoR, 64]} />
                       ) : (

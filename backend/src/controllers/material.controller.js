@@ -1,4 +1,5 @@
 import { getMaterials } from '../services/material.service.js';
+import { sendError } from '../http/errors.js';
 
 export const getMaterialsController = async (_req, res) => {
   try {
@@ -8,8 +9,6 @@ export const getMaterialsController = async (_req, res) => {
       data: materials
     });
   } catch (error) {
-    return res.status(400).json({
-      message: error.message
-    });
+    return sendError(res, error, 'Failed to load materials.');
   }
 };

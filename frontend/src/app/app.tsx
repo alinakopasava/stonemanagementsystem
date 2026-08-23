@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import type { Material } from '@domain/entities/material';
 import { AuthProvider } from '@application/auth/auth-context';
-import { I18nProvider } from '@application/i18n/i18n-context';
+import { I18nProvider, useTranslation } from '@application/i18n/i18n-context';
+import { CurrencyProvider } from '@application/currency/currency-context';
 import { fetchMaterials } from '@infrastructure/api/material-api';
 import { fetchProducts, type ProductItem } from '@infrastructure/api/product-api';
 import { ProtectedRoute } from '@presentation/components/protected-route';
@@ -16,10 +17,35 @@ import { CatalogPage } from '@presentation/pages/catalog-page';
 import { ConfirmEmailPage } from '@presentation/pages/confirm-email-page';
 import { DesignerPage } from '@presentation/pages/designer-page';
 import { ForgotPasswordPage } from '@presentation/pages/forgot-password-page';
+import { InstallerCardsPage } from '@presentation/pages/installer-cards-page';
 import { LandingPage } from '@presentation/pages/landing-page';
 import { ResetPasswordPage } from '@presentation/pages/reset-password-page';
 import { SignInPage } from '@presentation/pages/sign-in-page';
 import { SignUpPage } from '@presentation/pages/sign-up-page';
+
+const AppBootScreen = ({
+  isLoading,
+  materialsError
+}: {
+  isLoading: boolean;
+  materialsError: string | null;
+}) => {
+  const { t } = useTranslation();
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-900 text-slate-200">
+        {t('app.loading')}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-900 text-red-300">
+      {t('app.materialsError', { message: materialsError ?? t('admin.common.unknown') })}
+    </div>
+  );
+};
 
 export const App = () => {
   const [materials, setMaterials] = useState<Material[]>([]);
@@ -49,47 +75,59 @@ export const App = () => {
   return (
     <BrowserRouter>
       <I18nProvider>
+        <CurrencyProvider>
         <AuthProvider>
-        {isLoading ? (
-          <div className="flex min-h-screen items-center justify-center bg-slate-900 text-slate-200">
-            Loading...
-          </div>
-        ) : materialsError ? (
-          <div className="flex min-h-screen items-center justify-center bg-slate-900 text-red-300">
-            Failed to load materials: {materialsError}
-          </div>
-        ) : (
           <Routes>
-            <Route path="/" element={<LandingPage materials={materials} />} />
-            <Route path="/catalog" element={<CatalogPage materials={materials} products={products} />} />
-            <Route path="/design" element={<DesignerPage materials={materials} />} />
-
             <Route path="/sign-in" element={<SignInPage />} />
             <Route path="/sign-up" element={<SignUpPage />} />
             <Route path="/confirm-email" element={<ConfirmEmailPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
-
             <Route
-              path="/admin"
+              path="/installer"
               element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <AdminLayout />
+                <ProtectedRoute allowedRoles={['monter', 'admin']}>
+                  <InstallerCardsPage />
                 </ProtectedRoute>
               }
-            >
-              <Route index element={<Navigate to="users" replace />} />
-              <Route path="users" element={<AdminUsersPage />} />
-              <Route path="order-cards" element={<AdminOrderCardsPage />} />
-              <Route path="orders" element={<AdminOrdersPage />} />
-              <Route path="messages" element={<AdminMessagesPage />} />
-            </Route>
+            />
 
-            <Route path="*" element={<Navigate to="/" replace />} />
+            {isLoading || materialsError ? (
+              <Route
+                path="*"
+                element={<AppBootScreen isLoading={isLoading} materialsError={materialsError} />}
+              />
+            ) : (
+              <>
+                <Route path="/" element={<LandingPage materials={materials} />} />
+                <Route
+                  path="/catalog"
+                  element={<CatalogPage materials={materials} products={products} />}
+                />
+                <Route path="/design" element={<DesignerPage materials={materials} />} />
+
+                <Route
+                  path="/admin"
+                  element={
+                    <ProtectedRoute allowedRoles={['admin']}>
+                      <AdminLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<Navigate to="users" replace />} />
+                  <Route path="users" element={<AdminUsersPage />} />
+                  <Route path="order-cards" element={<AdminOrderCardsPage />} />
+                  <Route path="orders" element={<AdminOrdersPage />} />
+                  <Route path="messages" element={<AdminMessagesPage />} />
+                </Route>
+
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </>
+            )}
           </Routes>
-        )}
         </AuthProvider>
+        </CurrencyProvider>
       </I18nProvider>
     </BrowserRouter>
   );

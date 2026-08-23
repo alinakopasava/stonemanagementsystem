@@ -1,4 +1,6 @@
 import { supabaseAdmin } from '../config/supabase.js';
+import { PublicError } from '../http/errors.js';
+import { writeAuditLog } from './audit.service.js';
 
 const MAX_NAME_LENGTH = 120;
 const MAX_EMAIL_LENGTH = 200;
@@ -11,17 +13,17 @@ const trimOrEmpty = (value) => (typeof value === 'string' ? value.trim() : '');
 
 const requireField = (value, fieldName) => {
   if (!value) {
-    throw new Error(`Missing required field: ${fieldName}`);
+    throw new PublicError(`Missing required field: ${fieldName}.`);
   }
 };
 
 const enforceMaxLength = (value, fieldName, maxLength) => {
   if (value.length > maxLength) {
-    throw new Error(`Field "${fieldName}" exceeds max length of ${maxLength}.`);
+    throw new PublicError(`Field "${fieldName}" is too long.`);
   }
 };
 
-export const submitContactMessage = async ({ payload }) => {
+export const submitContactMessage = async ({ payload, ip, userAgent }) => {
   const name = trimOrEmpty(payload?.name);
   const email = trimOrEmpty(payload?.email);
   const phone = trimOrEmpty(payload?.phone);
@@ -37,12 +39,9 @@ export const submitContactMessage = async ({ payload }) => {
   enforceMaxLength(message, 'message', MAX_MESSAGE_LENGTH);
 
   if (!EMAIL_PATTERN.test(email)) {
-    throw new Error('Invalid email address.');
+    throw new PublicError('Invalid email address.');
   }
 
-  // Service-role insert: bypasses RLS so anonymous visitors can submit
-  // without needing a permissive anon INSERT policy. The endpoint is the
-  // only public ingress point, validated above.
   const { data, error } = await supabaseAdmin
     .from('contact_messages')
     .insert({
@@ -55,14 +54,22 @@ export const submitContactMessage = async ({ payload }) => {
     .single();
 
   if (error) {
-    throw new Error(`Failed to save contact message: ${error.message}`);
+    throw new Error('Failed to save contact message.');
   }
+
+  await writeAuditLog({
+    action: 'contact.created',
+    entity: 'contact_messages',
+    entityId: data.id,
+    ip,
+    userAgent
+  });
 
   return { id: data.id, receivedAt: data.created_at };
 };
 
-export const listContactMessages = async ({ status } = {}) => {
-  let query = supabaseAdmin
+export const listContactMessages = async ({ supabase, status } = {}) => {
+  let query = supabase
     .from('contact_messages')
     .select('id, name, email, phone, message, status, created_at, read_at, read_by')
     .order('created_at', { ascending: false });
@@ -74,7 +81,7 @@ export const listContactMessages = async ({ status } = {}) => {
   const { data, error } = await query;
 
   if (error) {
-    throw new Error(`Failed to list contact messages: ${error.message}`);
+    throw new Error('Failed to list contact messages.');
   }
 
   return data ?? [];
@@ -82,17 +89,17 @@ export const listContactMessages = async ({ status } = {}) => {
 
 const ALLOWED_STATUSES = new Set(['new', 'read', 'archived']);
 
-export const updateContactMessageStatus = async ({ id, status, actorUserId }) => {
+export const updateContactMessageStatus = async ({ supabase, id, status, actorUserId }) => {
   if (!id) {
-    throw new Error('Missing contact message id.');
+    throw new PublicError('Missing contact message id.');
   }
   if (!ALLOWED_STATUSES.has(status)) {
-    throw new Error(`Invalid status: ${status}`);
+    throw new PublicError('Invalid status.');
   }
 
   const isMarkingRead = status === 'read';
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await supabase
     .from('contact_messages')
     .update({
       status,
@@ -104,25 +111,31 @@ export const updateContactMessageStatus = async ({ id, status, actorUserId }) =>
     .single();
 
   if (error) {
-    throw new Error(`Failed to update contact message: ${error.message}`);
+    throw new Error('Failed to update contact message.');
   }
 
   return data;
 };
 
-export const deleteContactMessage = async ({ id }) => {
+export const deleteContactMessage = async ({ supabase, id, actorUserId, ip, userAgent }) => {
   if (!id) {
-    throw new Error('Missing contact message id.');
+    throw new PublicError('Missing contact message id.');
   }
 
-  const { error } = await supabaseAdmin
-    .from('contact_messages')
-    .delete()
-    .eq('id', id);
+  const { error } = await supabase.from('contact_messages').delete().eq('id', id);
 
   if (error) {
-    throw new Error(`Failed to delete contact message: ${error.message}`);
+    throw new Error('Failed to delete contact message.');
   }
+
+  await writeAuditLog({
+    actorId: actorUserId,
+    action: 'contact.deleted',
+    entity: 'contact_messages',
+    entityId: id,
+    ip,
+    userAgent
+  });
 
   return { id };
 };

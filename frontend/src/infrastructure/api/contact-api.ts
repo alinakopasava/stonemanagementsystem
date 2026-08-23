@@ -15,6 +15,5 @@ interface ContactMessageResponse {
 export const submitContactMessage = (payload: ContactMessagePayload) =>
   apiFetch<ContactMessageResponse>('/api/contact', {
     method: 'POST',
-    body: payload,
-    auth: false
+    body: payload
   });

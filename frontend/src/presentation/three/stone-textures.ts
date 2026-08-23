@@ -15,6 +15,83 @@ export type StonePalette = {
 };
 
 const PALETTES: Record<string, StonePalette> = {
+  'Gabbro-Diabase': {
+    base: '#1f2024',
+    speckle: ['#3a3d44', '#6b6f78', '#a9adb6', '#0c0d10'],
+    grain: 'coarse'
+  },
+  'Gandhi Granite': {
+    base: '#4a5560',
+    speckle: ['#2b333c', '#7a8694', '#c5cdd6', '#1a1e24'],
+    grain: 'coarse'
+  },
+  'Labradorite Granite': {
+    base: '#2b3a4a',
+    speckle: ['#1a2331', '#5b7da3', '#86b6e6', '#cfe5ff'],
+    grain: 'coarse'
+  },
+  Marble: {
+    base: '#ece8df',
+    speckle: ['#d8d2c4', '#f5f1e6'],
+    vein: '#7a716a',
+    veinDensity: 0.6,
+    grain: 'marble'
+  },
+  'Africa Granite': {
+    base: '#8a3d2a',
+    speckle: ['#2a1a14', '#c46a48', '#e0a07a', '#1a0e0a'],
+    grain: 'coarse'
+  },
+  'Amadeus Granite': {
+    base: '#1c1d22',
+    speckle: ['#3a3d44', '#d8dce3'],
+    vein: '#e8eaee',
+    veinDensity: 0.45,
+    grain: 'marble'
+  },
+  'Aurora Granite': {
+    base: '#8b3a28',
+    speckle: ['#1a1210', '#c45c38', '#e8c4a0'],
+    vein: '#1a1210',
+    veinDensity: 0.5,
+    grain: 'coarse'
+  },
+  'Baltic Granite': {
+    base: '#8a5a3a',
+    speckle: ['#1f1612', '#c48a58', '#e2c4a0', '#3a2418'],
+    grain: 'coarse'
+  },
+  'Juparana Granite': {
+    base: '#d4a080',
+    speckle: ['#2a2420', '#f0d4c0', '#8a7060'],
+    vein: '#2a2420',
+    veinDensity: 0.4,
+    grain: 'marble'
+  },
+  'Leznikovsky Granite': {
+    base: '#b85a62',
+    speckle: ['#2a1818', '#e8a8a8', '#f5d0d0', '#1a1010'],
+    grain: 'coarse'
+  },
+  'Maslovsky Granite': {
+    base: '#3d5a3a',
+    speckle: ['#1a2418', '#7a9a68', '#c5d8b0', '#0e140c'],
+    grain: 'coarse'
+  },
+  'Silk Granite': {
+    base: '#c8c4bc',
+    speckle: ['#e8e4dc', '#9a9690'],
+    vein: '#8a8680',
+    veinDensity: 0.45,
+    grain: 'marble'
+  },
+  'Tiffany Granite': {
+    base: '#4a8a82',
+    speckle: ['#e8ece8', '#2a3a38', '#c45a28'],
+    vein: '#d8dcd8',
+    veinDensity: 0.35,
+    grain: 'coarse'
+  },
   'Black Granite': {
     base: '#1f2024',
     speckle: ['#3a3d44', '#6b6f78', '#a9adb6', '#0c0d10'],
@@ -29,22 +106,10 @@ const PALETTES: Record<string, StonePalette> = {
     base: '#2b3a4a',
     speckle: ['#1a2331', '#5b7da3', '#86b6e6', '#cfe5ff'],
     grain: 'coarse'
-  },
-  Marble: {
-    base: '#ece8df',
-    speckle: ['#d8d2c4', '#f5f1e6'],
-    vein: '#7a716a',
-    veinDensity: 0.6,
-    grain: 'marble'
-  },
-  Sandstone: {
-    base: '#c9a978',
-    speckle: ['#a17a4d', '#e2c391', '#8b683f'],
-    grain: 'fine'
   }
 };
 
-const DEFAULT_PALETTE: StonePalette = PALETTES['Grey Granite'];
+const DEFAULT_PALETTE: StonePalette = PALETTES['Gabbro-Diabase'];
 
 const hashString = (value: string) => {
   let hash = 0;

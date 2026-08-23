@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Archive, Mail, MailOpen, Trash2 } from 'lucide-react';
 import { useTranslation } from '@application/i18n/i18n-context';
-import type { TranslationKey } from '@application/i18n/translations';
+import { LANGUAGE_LOCALES, type TranslationKey } from '@application/i18n/translations';
 import {
   deleteContactMessage,
   fetchAdminContactMessages,
@@ -30,7 +30,8 @@ const statusBadge: Record<ContactMessageStatus, string> = {
 };
 
 export const AdminMessagesPage = () => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const dateLocale = LANGUAGE_LOCALES[language];
   const [messages, setMessages] = useState<AdminContactMessage[]>([]);
   const [filter, setFilter] = useState<ContactMessageStatus | 'all'>('all');
   const [isLoading, setIsLoading] = useState(true);
@@ -176,7 +177,7 @@ export const AdminMessagesPage = () => {
                     ) : null}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
-                    {new Date(m.created_at).toLocaleString()}
+                    {new Date(m.created_at).toLocaleString(dateLocale)}
                   </p>
                 </div>
                 <span

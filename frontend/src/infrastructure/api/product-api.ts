@@ -25,6 +25,6 @@ const toProductItem = (row: ProductDto): ProductItem => ({
 });
 
 export const fetchProducts = async (): Promise<ProductItem[]> => {
-  const payload = await apiFetch<{ data: ProductDto[] }>('/api/products', { auth: false });
+  const payload = await apiFetch<{ data: ProductDto[] }>('/api/products');
   return payload.data.map(toProductItem);
 };

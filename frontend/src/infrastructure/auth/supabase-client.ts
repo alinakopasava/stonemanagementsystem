@@ -9,36 +9,24 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
+try {
+  window.localStorage.removeItem('signature-stone.auth');
+} catch {
+  // Ignore private-mode / disabled storage.
+}
+
 /**
- * Simple in-process mutex to replace supabase-js's default Navigator Locks
- * implementation. The default cross-tab lock is noisy under React 18
- * StrictMode (effects mount twice) and occasionally aborts in-flight
- * requests with NavigatorLockAcquireTimeoutError. For a single-tab SPA
- * this lock is enough.
+ * Used only to complete email confirmation / password-recovery links created by
+ * the backend Supabase client. Those server-initiated email flows use the
+ * implicit callback format; supabase-js clears the URL fragment immediately.
+ * The long-lived session lives in httpOnly cookies set by the Express API.
  */
-const inflightByLockName = new Map<string, Promise<unknown>>();
-
-const inMemoryLock = async <R>(
-  name: string,
-  _acquireTimeout: number,
-  fn: () => Promise<R>
-): Promise<R> => {
-  const previous = inflightByLockName.get(name) ?? Promise.resolve();
-  const next = previous.then(fn, fn);
-  inflightByLockName.set(
-    name,
-    next.catch(() => undefined)
-  );
-  return next;
-};
-
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    persistSession: true,
-    autoRefreshToken: true,
+    persistSession: false,
+    autoRefreshToken: false,
     detectSessionInUrl: true,
-    storageKey: 'signature-stone.auth',
-    flowType: 'pkce',
-    lock: inMemoryLock
+    flowType: 'implicit',
+    storageKey: 'signature-stone.auth'
   }
 });

@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { ClipboardList, LayoutDashboard, Mail, Package, Users } from 'lucide-react';
+import { useTranslation } from '@application/i18n/i18n-context';
 import { Header } from '@presentation/components/header';
 
 const navItemClass = ({ isActive }: { isActive: boolean }) =>
@@ -11,6 +12,8 @@ const navItemClass = ({ isActive }: { isActive: boolean }) =>
   ].join(' ');
 
 export const AdminLayout = () => {
+  const { t } = useTranslation();
+
   return (
     <div className="min-h-screen bg-transparent text-gray-100">
       <Header />
@@ -19,24 +22,24 @@ export const AdminLayout = () => {
           <div className="rounded-xl border border-slate-700/60 bg-slate-900/70 p-3">
             <div className="flex items-center gap-2 px-2 pb-2 text-xs uppercase tracking-[0.18em] text-slate-400">
               <LayoutDashboard className="h-3.5 w-3.5" />
-              Admin
+              {t('header.admin')}
             </div>
             <nav className="space-y-1">
               <NavLink to="/admin/users" className={navItemClass}>
                 <Users className="h-4 w-4" />
-                Users
+                {t('admin.users.title')}
               </NavLink>
               <NavLink to="/admin/order-cards" className={navItemClass}>
                 <ClipboardList className="h-4 w-4" />
-                Order cards
+                {t('admin.orderCards.title')}
               </NavLink>
               <NavLink to="/admin/orders" className={navItemClass}>
                 <Package className="h-4 w-4" />
-                Orders
+                {t('admin.orders.title')}
               </NavLink>
               <NavLink to="/admin/messages" className={navItemClass}>
                 <Mail className="h-4 w-4" />
-                Messages
+                {t('admin.messages.title')}
               </NavLink>
             </nav>
           </div>

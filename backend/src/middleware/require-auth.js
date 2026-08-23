@@ -1,4 +1,11 @@
 import { supabaseAdmin, supabaseForUser } from '../config/supabase.js';
+import {
+  ACCESS_COOKIE,
+  REFRESH_COOKIE,
+  clearSessionCookies,
+  setSessionCookies
+} from '../http/cookies.js';
+import { refreshAccessToken } from '../services/auth.service.js';
 
 const extractBearerToken = (authorizationHeader) => {
   if (!authorizationHeader || typeof authorizationHeader !== 'string') {
@@ -11,27 +18,58 @@ const extractBearerToken = (authorizationHeader) => {
   return token.trim();
 };
 
+const toAuthUser = (user, profile) => ({
+  id: user.id,
+  email: user.email ?? null,
+  role: profile.role,
+  profile: {
+    id: profile.id,
+    firstName: profile.first_name,
+    lastName: profile.last_name,
+    phoneNumber: profile.phone_number,
+    role: profile.role
+  }
+});
+
 /**
- * Verifies the Supabase JWT from the Authorization header, loads the user's
- * profile (and role), and attaches a per-request Supabase client that runs
- * as that user so Row Level Security is always enforced.
+ * Verifies the Supabase JWT from an httpOnly cookie (or Authorization header),
+ * loads the user's profile (and role), and attaches a per-request Supabase
+ * client that runs as that user so Row Level Security is always enforced.
  */
 export const requireAuth = async (req, res, next) => {
   try {
-    const token = extractBearerToken(req.headers.authorization);
+    let token = req.cookies?.[ACCESS_COOKIE] || extractBearerToken(req.headers.authorization);
+
     if (!token) {
-      return res.status(401).json({ message: 'Missing or malformed Authorization header.' });
+      const refreshed = await refreshAccessToken(req.cookies?.[REFRESH_COOKIE]);
+      if (!refreshed) {
+        return res.status(401).json({ message: 'Not authenticated.' });
+      }
+      setSessionCookies(res, refreshed);
+      token = refreshed.access_token;
     }
 
-    const { data, error } = await supabaseAdmin.auth.getUser(token);
+    let { data, error } = await supabaseAdmin.auth.getUser(token);
+
     if (error || !data?.user) {
-      return res.status(401).json({ message: 'Invalid or expired session.' });
+      const refreshed = await refreshAccessToken(req.cookies?.[REFRESH_COOKIE]);
+      if (!refreshed) {
+        clearSessionCookies(res);
+        return res.status(401).json({ message: 'Invalid or expired session.' });
+      }
+      setSessionCookies(res, refreshed);
+      token = refreshed.access_token;
+      ({ data, error } = await supabaseAdmin.auth.getUser(token));
+      if (error || !data?.user) {
+        clearSessionCookies(res);
+        return res.status(401).json({ message: 'Invalid or expired session.' });
+      }
     }
 
     const userScopedClient = supabaseForUser(token);
 
     const selectProfile = async () =>
-      supabaseAdmin
+      userScopedClient
         .from('profiles')
         .select('id, first_name, last_name, phone_number, role')
         .eq('id', data.user.id)
@@ -68,20 +106,23 @@ export const requireAuth = async (req, res, next) => {
       }
     }
 
-    req.user = {
-      id: data.user.id,
-      email: data.user.email ?? null,
-      role: profile.role,
-      profile
-    };
+    req.user = toAuthUser(data.user, profile);
+    req.accessToken = token;
     req.supabase = userScopedClient;
 
     return next();
   } catch (error) {
-    return res.status(500).json({
-      message: error instanceof Error ? error.message : 'Authentication error.'
-    });
+    console.error('[auth] Unexpected authentication error:', error);
+    return res.status(500).json({ message: 'Authentication error.' });
   }
+};
+
+export const optionalAuth = async (req, res, next) => {
+  const token = req.cookies?.[ACCESS_COOKIE] || extractBearerToken(req.headers.authorization);
+  if (!token && !req.cookies?.[REFRESH_COOKIE]) {
+    return next();
+  }
+  return requireAuth(req, res, next);
 };
 
 /** Factory: require the caller to have one of the given roles. */

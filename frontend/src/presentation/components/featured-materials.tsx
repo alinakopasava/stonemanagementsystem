@@ -1,5 +1,7 @@
 import type { Material } from '@domain/entities/material';
 import { useTranslation } from '@application/i18n/i18n-context';
+import { useCurrency } from '@application/currency/currency-context';
+import { categoryLabel, materialLabel } from '@application/i18n/catalog-labels';
 
 interface FeaturedMaterialsProps {
   materials: Material[];
@@ -7,6 +9,7 @@ interface FeaturedMaterialsProps {
 
 export const FeaturedMaterials = ({ materials }: FeaturedMaterialsProps) => {
   const { t } = useTranslation();
+  const { formatFromByn } = useCurrency();
 
   return (
     <section className="mx-auto w-full max-w-6xl px-6 py-10" id="catalog">
@@ -25,16 +28,16 @@ export const FeaturedMaterials = ({ materials }: FeaturedMaterialsProps) => {
           >
             <img
               src={material.imageUrl}
-              alt={t('featured.imageAlt', { name: material.name })}
+              alt={t('featured.imageAlt', { name: materialLabel(material.name, t) })}
               className="h-36 w-full object-cover"
             />
             <div className="space-y-1 p-4">
               <p className="text-xs uppercase tracking-[0.16em] text-slate-400">
-                {material.category}
+                {categoryLabel(material.category, t)}
               </p>
-              <h3 className="font-serif text-lg text-gray-100">{material.name}</h3>
+              <h3 className="font-serif text-lg text-gray-100">{materialLabel(material.name, t)}</h3>
               <p className="text-sm text-slate-200">
-                {t('catalog.priceFrom', { price: material.pricePerM2.toFixed(2) })}
+                {t('catalog.priceFrom', { price: formatFromByn(material.pricePerM2, { digits: 2 }) })}
               </p>
             </div>
           </article>

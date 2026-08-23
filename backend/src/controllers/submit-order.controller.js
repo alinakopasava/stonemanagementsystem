@@ -1,4 +1,5 @@
 import { submitOrder } from '../services/submit-order.service.js';
+import { sendError } from '../http/errors.js';
 
 export const submitOrderController = async (req, res) => {
   try {
@@ -13,8 +14,6 @@ export const submitOrderController = async (req, res) => {
       data: result
     });
   } catch (error) {
-    return res.status(400).json({
-      message: error instanceof Error ? error.message : 'Failed to submit order.'
-    });
+    return sendError(res, error, 'Failed to submit order.');
   }
 };

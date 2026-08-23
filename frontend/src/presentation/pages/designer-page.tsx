@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@application/auth/auth-context';
 import { useTranslation } from '@application/i18n/i18n-context';
+import { useCurrency } from '@application/currency/currency-context';
+import { materialLabel } from '@application/i18n/catalog-labels';
 import type { TranslationKey } from '@application/i18n/translations';
 import type { FinishType } from '@domain/entities/order-card';
 import type { Material } from '@domain/entities/material';
@@ -13,8 +15,11 @@ import {
   getInscriptionStyle,
   type InscriptionStyleId
 } from '@presentation/components/inscription-styles';
+import { LazyMonumentViewer } from '@presentation/components/lazy-monument-viewer';
+import { PhotoCropEditor } from '@presentation/components/photo-crop-editor';
+import { getDefaultPhotoCrop, type PhotoCrop } from '@presentation/three/photo-crop';
+import { removePhotoBackground } from '@infrastructure/photo/remove-background';
 import { ShapePreview } from '@presentation/components/shape-preview';
-import { MonumentViewer } from '@presentation/three/monument-viewer';
 import type {
   BaseDimensionsCm,
   MonumentDecoration,
@@ -145,11 +150,11 @@ const readAsDataUrl = (blob: Blob) =>
   });
 
 const fileToDataUrl = (file: File) => readAsDataUrl(file);
-const blobToDataUrl = (blob: Blob) => readAsDataUrl(blob);
 
 export const DesignerPage = ({ materials }: DesignerPageProps) => {
   const { user } = useAuth();
   const { t, language } = useTranslation();
+  const { formatFromByn } = useCurrency();
   const navigate = useNavigate();
 
   const [materialId, setMaterialId] = useState<string>('');
@@ -189,11 +194,13 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
   /** Live engraving adjustments for the on-stone portrait. Defaults match the shader's
    *  auto-tuned baseline; the user can fine-tune per material via sliders. */
   const [photoBrightness, setPhotoBrightness] = useState(0);
-  const [photoContrast, setPhotoContrast] = useState(1.1);
+  const [photoContrast, setPhotoContrast] = useState(1.3);
   /** 0 = opaque photo (max visible), 1 = strongly dissolves into the stone (seamless). */
-  const [photoBlend, setPhotoBlend] = useState(0.4);
+  const [photoBlend, setPhotoBlend] = useState(0.08);
+  const [photoCrop, setPhotoCrop] = useState<PhotoCrop>(() => getDefaultPhotoCrop('portrait'));
 
   const photoUrl = removeBg ? (cutoutPhotoUrl ?? originalPhotoUrl) : originalPhotoUrl;
+  const photoAspect = decoration === 'medallion' ? 'square' : 'portrait';
   const [layout, setLayout] = useState<MonumentLayout>('single');
   const [secondaryInscription, setSecondaryInscription] = useState<string>('');
   const [secondaryName, setSecondaryName] = useState<string>('');
@@ -223,6 +230,10 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
     setDates(t(preset.dates));
   }, [language, presetIndex, t]);
 
+  useEffect(() => {
+    setPhotoCrop(getDefaultPhotoCrop(photoAspect));
+  }, [decoration]);
+
   const selectedMaterial = useMemo(
     () => materials.find((m) => m.id === materialId) ?? materials[0],
     [materialId, materials]
@@ -230,7 +241,7 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
 
   const estimatedPrice = priceOf(selectedMaterial, dimensions);
 
-  const textureUrl = selectedMaterial?.imageUrl ?? '/images/black_granite_texture.jpg';
+  const textureUrl = selectedMaterial?.imageUrl ?? '/images/materials/gabbro-diabase.jpg';
 
   const updateDimension = (key: keyof typeof DEFAULT_DIMENSIONS) => (value: number) =>
     setDimensions((prev) => ({ ...prev, [key]: value }));
@@ -242,13 +253,7 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
     setIsProcessingPhoto(true);
     setPhotoError(null);
     try {
-      const mod = await import('@imgly/background-removal');
-      const removeBackground = mod.removeBackground ?? mod.default;
-      if (typeof removeBackground !== 'function') {
-        throw new Error('removeBackground export not found on @imgly/background-removal module');
-      }
-      const blob = await removeBackground(sourceUrl);
-      const cutoutUrl = await blobToDataUrl(blob);
+      const cutoutUrl = await removePhotoBackground(sourceUrl);
       setCutoutPhotoUrl(cutoutUrl);
     } catch {
       setCutoutPhotoUrl(null);
@@ -267,6 +272,7 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
     try {
       const dataUrl = await fileToDataUrl(file);
       setOriginalPhotoUrl(dataUrl);
+      setPhotoCrop(getDefaultPhotoCrop(photoAspect));
       if (removeBg) {
         void runBackgroundRemoval(dataUrl);
       }
@@ -286,6 +292,7 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
     setOriginalPhotoUrl(null);
     setCutoutPhotoUrl(null);
     setPhotoError(null);
+    setPhotoCrop(getDefaultPhotoCrop(photoAspect));
   };
 
   const handleSubmit = async () => {
@@ -325,7 +332,8 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
         </div>
 
         <div className="grid items-start gap-6 lg:grid-cols-[1.4fr_1fr]">
-          <MonumentViewer
+          <LazyMonumentViewer
+            label={t('designer.previewLoading')}
             textureUrl={textureUrl}
             materialName={selectedMaterial?.name}
             finish={finish}
@@ -343,6 +351,7 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
             decoration={decoration}
             nicheStyle={nicheStyle}
             photoUrl={photoUrl ?? undefined}
+            photoCrop={photoCrop}
             photoBrightness={photoBrightness}
             photoContrast={photoContrast}
             photoBlend={photoBlend}
@@ -442,13 +451,13 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
                     >
                       <img
                         src={m.imageUrl}
-                        alt={m.name}
+                        alt={materialLabel(m.name, t)}
                         className="h-16 w-full object-cover"
                       />
                       <div className="p-2">
-                        <p className="text-xs font-medium text-gray-100">{m.name}</p>
+                        <p className="text-xs font-medium text-gray-100">{materialLabel(m.name, t)}</p>
                         <p className="text-[10px] text-slate-400">
-                          {m.pricePerM2.toFixed(0)} {t('designer.pricePerM2Unit')}
+                          {formatFromByn(m.pricePerM2)} {t('designer.pricePerM2Unit')}
                         </p>
                       </div>
                     </button>
@@ -828,6 +837,17 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
                   </label>
 
                   {photoUrl && (
+                    <div className="mt-3">
+                      <PhotoCropEditor
+                        imageUrl={photoUrl}
+                        aspect={photoAspect}
+                        crop={photoCrop}
+                        onChange={setPhotoCrop}
+                      />
+                    </div>
+                  )}
+
+                  {photoUrl && (
                     <div className="mt-3 space-y-2 rounded-md border border-slate-700/60 bg-slate-950/40 p-3">
                       <div className="flex items-center justify-between">
                         <h4 className="text-[11px] uppercase tracking-wider text-slate-500">
@@ -1042,12 +1062,12 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
                     {t('designer.estimatedCost')}
                   </span>
                   <span className="block truncate text-[11px] text-slate-500">
-                    {selectedMaterial?.name ?? '—'} · {dimensions.heightCm}×{dimensions.widthCm}{' '}
+                    {materialLabel(selectedMaterial?.name, t, '—')} · {dimensions.heightCm}×{dimensions.widthCm}{' '}
                     {t('designer.units.cm')}
                   </span>
                 </div>
                 <span className="shrink-0 font-serif text-3xl text-amber-200">
-                  {estimatedPrice.toFixed(2)} {t('designer.priceUnit')}
+                  {formatFromByn(estimatedPrice, { digits: 2 })} {t('designer.priceUnit')}
                 </span>
               </div>
 

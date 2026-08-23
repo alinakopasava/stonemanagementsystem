@@ -16,17 +16,31 @@ import {
 
 const STORAGE_KEY = 'signature-stone.language';
 
+const isSupportedLanguage = (value: string | null | undefined): value is Language =>
+  SUPPORTED_LANGUAGES.includes(value as Language);
+
+/** `pl-PL`, `pl_PL`, `PL` → `pl`. Anything outside en/pl/ru → null. */
+const languageFromTag = (tag: string): Language | null => {
+  const primary = tag.trim().replace('_', '-').split('-')[0]?.toLowerCase();
+  return isSupportedLanguage(primary) ? primary : null;
+};
+
+/** First matching language from the OS/browser list; English if none of the three. */
+const detectBrowserLanguage = (): Language => {
+  if (typeof navigator === 'undefined') return 'en';
+  const candidates = [...(navigator.languages ?? []), navigator.language].filter(Boolean);
+  for (const tag of candidates) {
+    const match = languageFromTag(tag);
+    if (match) return match;
+  }
+  return 'en';
+};
+
 const detectInitialLanguage = (): Language => {
   if (typeof window === 'undefined') return 'en';
   const stored = window.localStorage.getItem(STORAGE_KEY);
-  if (stored && (SUPPORTED_LANGUAGES as string[]).includes(stored)) {
-    return stored as Language;
-  }
-  const browser = window.navigator.language?.slice(0, 2).toLowerCase();
-  if (browser && (SUPPORTED_LANGUAGES as string[]).includes(browser)) {
-    return browser as Language;
-  }
-  return 'en';
+  if (isSupportedLanguage(stored)) return stored;
+  return detectBrowserLanguage();
 };
 
 const interpolate = (template: string, params?: Record<string, string | number>) => {

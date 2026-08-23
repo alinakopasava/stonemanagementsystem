@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowRight, FileText, Trash2, X } from 'lucide-react';
 import { useTranslation } from '@application/i18n/i18n-context';
-import type { Language, TranslationKey } from '@application/i18n/translations';
+import { finishLabel, materialLabel } from '@application/i18n/catalog-labels';
+import { LANGUAGE_LOCALES, type TranslationKey } from '@application/i18n/translations';
 import {
   convertOrderCardToOrder,
   deleteAdminOrderCard,
@@ -60,17 +61,9 @@ const suggestPrice = (card: AdminOrderCard): string => {
   return Number.isFinite(price) ? price.toFixed(2) : '';
 };
 
-/** Maps the app language to a BCP-47 locale so dates follow the selected UI language
- *  instead of defaulting to the browser/OS locale. */
-const DATE_LOCALES: Record<Language, string> = {
-  en: 'en-GB',
-  pl: 'pl-PL',
-  ru: 'ru-RU'
-};
-
 export const AdminOrderCardsPage = () => {
   const { t, language } = useTranslation();
-  const dateLocale = DATE_LOCALES[language];
+  const dateLocale = LANGUAGE_LOCALES[language];
   const [cards, setCards] = useState<AdminOrderCard[]>([]);
   const [filter, setFilter] = useState<Filter>('pending');
   const [isLoading, setIsLoading] = useState(true);
@@ -269,13 +262,13 @@ export const AdminOrderCardsPage = () => {
                       className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 text-xs text-slate-300"
                     >
                       <p className="font-medium text-slate-100">
-                        {d.materials?.name ?? t('admin.orderCards.unknownMaterial')}
+                        {materialLabel(d.materials?.name, t, t('admin.orderCards.unknownMaterial'))}
                       </p>
                       <dl className="mt-1 grid grid-cols-[100px_1fr] gap-y-0.5">
                         <dt className="text-slate-500">{t('admin.orderCards.dimensions')}</dt>
                         <dd>{d.dimensions ?? '—'}</dd>
                         <dt className="text-slate-500">{t('admin.orderCards.finish')}</dt>
-                        <dd>{d.finish_type ?? '—'}</dd>
+                        <dd>{finishLabel(d.finish_type, t)}</dd>
                         <dt className="text-slate-500">{t('admin.orderCards.pricePerM2')}</dt>
                         <dd>
                           {d.materials?.price_per_m2 != null

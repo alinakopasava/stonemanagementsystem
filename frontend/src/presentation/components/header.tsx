@@ -1,5 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { Landmark, LogIn, LogOut, Shield, UserPlus, UserRound } from 'lucide-react';
+import {
+  ClipboardCheck,
+  Landmark,
+  LogIn,
+  LogOut,
+  Shield,
+  UserPlus,
+  UserRound
+} from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@application/auth/auth-context';
 import { useTranslation } from '@application/i18n/i18n-context';
@@ -10,9 +18,13 @@ export const Header = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   const isAdmin = user?.profile.role === 'admin';
+  const canAccessInstaller =
+    user?.profile.role === 'admin' || user?.profile.role === 'monter';
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -27,10 +39,15 @@ export const Header = () => {
 
   const handleSignOut = async () => {
     setMenuOpen(false);
+    setSignOutError(null);
+    setIsSigningOut(true);
     try {
       await signOut();
-    } finally {
       navigate('/', { replace: true });
+    } catch {
+      setSignOutError(t('header.signOutError'));
+    } finally {
+      setIsSigningOut(false);
     }
   };
 
@@ -76,6 +93,13 @@ export const Header = () => {
           ) : isAdmin ? (
             <>
               <Link
+                to="/installer"
+                className="inline-flex items-center gap-1.5 text-sky-300 transition hover:text-sky-200"
+              >
+                <ClipboardCheck className="h-4 w-4" />
+                {t('header.installer')}
+              </Link>
+              <Link
                 to="/admin"
                 className="inline-flex items-center gap-1.5 text-amber-300 transition hover:text-amber-200"
               >
@@ -104,6 +128,7 @@ export const Header = () => {
                     <button
                       type="button"
                       onClick={handleSignOut}
+                      disabled={isSigningOut}
                       className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
                     >
                       <LogOut className="h-4 w-4" />
@@ -114,17 +139,37 @@ export const Header = () => {
               </div>
             </>
           ) : (
-            <button
-              type="button"
-              onClick={handleSignOut}
-              className="inline-flex items-center gap-2 rounded-md border border-slate-600 px-3 py-2 transition hover:border-slate-400 hover:text-white"
-            >
-              <LogOut className="h-4 w-4" />
-              {t('header.signOut')}
-            </button>
+            <>
+              {canAccessInstaller ? (
+                <Link
+                  to="/installer"
+                  className="inline-flex items-center gap-1.5 text-sky-300 transition hover:text-sky-200"
+                >
+                  <ClipboardCheck className="h-4 w-4" />
+                  {t('header.installer')}
+                </Link>
+              ) : null}
+              <button
+                type="button"
+                onClick={handleSignOut}
+                disabled={isSigningOut}
+                className="inline-flex items-center gap-2 rounded-md border border-slate-600 px-3 py-2 transition hover:border-slate-400 hover:text-white"
+              >
+                <LogOut className="h-4 w-4" />
+                {t('header.signOut')}
+              </button>
+            </>
           )}
         </nav>
       </div>
+      {signOutError ? (
+        <p
+          role="alert"
+          className="border-t border-red-500/30 bg-red-500/10 px-6 py-2 text-center text-sm text-red-200"
+        >
+          {signOutError}
+        </p>
+      ) : null}
     </header>
   );
 };

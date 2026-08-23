@@ -1,26 +1,26 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@application/auth/auth-context';
+import {
+  PASSWORD_MAX_LENGTH,
+  passwordMeetsPolicy,
+  passwordRequirements
+} from '@application/auth/password-policy';
 import { useTranslation } from '@application/i18n/i18n-context';
-import type { TranslationKey } from '@application/i18n/translations';
+import { isRateLimited } from '@infrastructure/api/api-client';
 import { AuthShell } from '@presentation/components/auth-shell';
 
-const passwordRequirements: Array<{
-  id: string;
-  labelKey: TranslationKey;
-  test: (v: string) => boolean;
-}> = [
-  { id: 'length', labelKey: 'auth.req.length', test: (v) => v.length >= 8 },
-  { id: 'upper', labelKey: 'auth.req.upper', test: (v) => /[A-Z]/.test(v) },
-  { id: 'lower', labelKey: 'auth.req.lower', test: (v) => /[a-z]/.test(v) },
-  { id: 'digit', labelKey: 'auth.req.digit', test: (v) => /\d/.test(v) }
-];
-
 export const SignUpPage = () => {
-  const { signUp } = useAuth();
+  const { isLoading, user, signUp } = useAuth();
   const { t } = useTranslation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isLoading && user) {
+      navigate('/', { replace: true });
+    }
+  }, [isLoading, user, navigate]);
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -35,13 +35,14 @@ export const SignUpPage = () => {
     () => passwordRequirements.map((req) => ({ ...req, passed: req.test(password) })),
     [password]
   );
-  const passwordIsValid = checks.every((c) => c.passed);
+  const passwordIsValid = passwordMeetsPolicy(password);
   const passwordsMatch = password === passwordConfirm;
 
   const canSubmit =
     firstName.trim().length >= 2 &&
     lastName.trim().length >= 2 &&
-    /.+@.+\..+/.test(email) &&
+    email.length <= 254 &&
+    /.+@.+\..+/.test(email.trim()) &&
     passwordIsValid &&
     passwordsMatch &&
     !isSubmitting;
@@ -53,7 +54,7 @@ export const SignUpPage = () => {
     setIsSubmitting(true);
     try {
       const { requiresEmailConfirmation } = await signUp({
-        email,
+        email: email.trim(),
         password,
         firstName: firstName.trim(),
         lastName: lastName.trim(),
@@ -65,7 +66,7 @@ export const SignUpPage = () => {
         navigate('/', { replace: true });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('signUp.error'));
+      setError(isRateLimited(err) ? t('auth.tooManyAttempts') : t('signUp.error'));
     } finally {
       setIsSubmitting(false);
     }
@@ -92,6 +93,8 @@ export const SignUpPage = () => {
               type="text"
               autoComplete="given-name"
               required
+              minLength={2}
+              maxLength={80}
               className="w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-gray-100 focus:border-amber-300 focus:outline-none"
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
@@ -103,6 +106,8 @@ export const SignUpPage = () => {
               type="text"
               autoComplete="family-name"
               required
+              minLength={2}
+              maxLength={80}
               className="w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-gray-100 focus:border-amber-300 focus:outline-none"
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
@@ -115,6 +120,7 @@ export const SignUpPage = () => {
           <input
             type="tel"
             autoComplete="tel"
+            maxLength={32}
             className="w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-gray-100 focus:border-amber-300 focus:outline-none"
             value={phoneNumber}
             onChange={(e) => setPhoneNumber(e.target.value)}
@@ -127,6 +133,7 @@ export const SignUpPage = () => {
             type="email"
             autoComplete="email"
             required
+            maxLength={254}
             className="w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-gray-100 focus:border-amber-300 focus:outline-none"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -139,6 +146,8 @@ export const SignUpPage = () => {
             type="password"
             autoComplete="new-password"
             required
+            minLength={8}
+            maxLength={PASSWORD_MAX_LENGTH}
             className="w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-gray-100 focus:border-amber-300 focus:outline-none"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -159,6 +168,8 @@ export const SignUpPage = () => {
             type="password"
             autoComplete="new-password"
             required
+            minLength={8}
+            maxLength={PASSWORD_MAX_LENGTH}
             className="w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-gray-100 focus:border-amber-300 focus:outline-none"
             value={passwordConfirm}
             onChange={(e) => setPasswordConfirm(e.target.value)}

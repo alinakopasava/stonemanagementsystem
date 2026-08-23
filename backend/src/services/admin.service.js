@@ -1,4 +1,6 @@
 import { supabaseAdmin } from '../config/supabase.js';
+import { PublicError } from '../http/errors.js';
+import { writeAuditLog } from './audit.service.js';
 
 const ALLOWED_ROLES = new Set(['klient', 'monter', 'admin']);
 const ALLOWED_ORDER_STATUSES = new Set([
@@ -8,28 +10,56 @@ const ALLOWED_ORDER_STATUSES = new Set([
   'anulowane'
 ]);
 
-/**
- * Lists every profile, enriched with the email from auth.users.
- * Uses the service-role client because auth.users is not exposed via RLS.
- */
-export const listUsers = async () => {
-  const { data: profiles, error } = await supabaseAdmin
-    .from('profiles')
-    .select('id, first_name, last_name, phone_number, role, created_at')
-    .order('created_at', { ascending: false });
+const ORDER_SELECT = `
+  id,
+  status,
+  price,
+  installation_address,
+  contract_details,
+  deadline,
+  client_full_name,
+  passport_series,
+  passport_number,
+  created_at,
+  updated_at,
+  user_id,
+  order_card_id,
+  order_cards (
+    id,
+    user_id,
+    order_details (
+      id,
+      material_id,
+      dimensions,
+      inscription_text,
+      finish_type,
+      materials ( id, name, category )
+    )
+  )
+`;
 
-  if (error) {
-    throw new Error(`Failed to list profiles: ${error.message}`);
-  }
-
+const loadAuthEmails = async () => {
   const { data: usersData, error: listError } = await supabaseAdmin.auth.admin.listUsers({
     page: 1,
     perPage: 1000
   });
   if (listError) {
-    throw new Error(`Failed to list auth users: ${listError.message}`);
+    throw new Error('Failed to list auth users.');
   }
-  const emailById = new Map(usersData.users.map((u) => [u.id, u.email ?? null]));
+  return new Map(usersData.users.map((u) => [u.id, u.email ?? null]));
+};
+
+export const listUsers = async ({ supabase }) => {
+  const { data: profiles, error } = await supabase
+    .from('profiles')
+    .select('id, first_name, last_name, phone_number, role, created_at')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw new Error('Failed to list profiles.');
+  }
+
+  const emailById = await loadAuthEmails();
 
   return (profiles ?? []).map((p) => ({
     id: p.id,
@@ -42,16 +72,15 @@ export const listUsers = async () => {
   }));
 };
 
-export const updateUserRole = async ({ userId, role, actorUserId }) => {
+export const updateUserRole = async ({ supabase, userId, role, actorUserId, ip, userAgent }) => {
   if (!ALLOWED_ROLES.has(role)) {
-    throw new Error(`Invalid role: ${role}`);
+    throw new PublicError('Invalid role.');
   }
   if (userId === actorUserId && role !== 'admin') {
-    // Safety: an admin cannot demote themselves and lock everyone out.
-    throw new Error('Admins cannot remove their own admin role.');
+    throw new PublicError('Admins cannot remove their own admin role.');
   }
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await supabase
     .from('profiles')
     .update({ role })
     .eq('id', userId)
@@ -59,59 +88,40 @@ export const updateUserRole = async ({ userId, role, actorUserId }) => {
     .single();
 
   if (error) {
-    throw new Error(`Failed to update role: ${error.message}`);
+    throw new Error('Failed to update role.');
   }
+
+  await writeAuditLog({
+    actorId: actorUserId,
+    action: 'user.role_changed',
+    entity: 'profiles',
+    entityId: userId,
+    ip,
+    userAgent,
+    metadata: { role }
+  });
+
   return data;
 };
 
-export const listOrders = async () => {
-  // Service-role bypasses RLS so admins always see everything regardless of
-  // future policy tweaks. Returns flattened rows with nested card+details.
-  const { data, error } = await supabaseAdmin
+export const listOrders = async ({ supabase }) => {
+  const { data, error } = await supabase
     .from('orders')
-    .select(
-      `
-      id,
-      status,
-      price,
-      installation_address,
-      contract_details,
-      deadline,
-      client_full_name,
-      passport_series,
-      passport_number,
-      created_at,
-      updated_at,
-      user_id,
-      order_card_id,
-      order_cards (
-        id,
-        user_id,
-        order_details (
-          id,
-          material_id,
-          dimensions,
-          inscription_text,
-          finish_type,
-          materials ( id, name, category )
-        )
-      )
-    `
-    )
+    .select(ORDER_SELECT)
     .order('created_at', { ascending: false });
 
   if (error) {
-    throw new Error(`Failed to list orders: ${error.message}`);
+    throw new Error('Failed to list orders.');
   }
 
   return data ?? [];
 };
 
-export const updateOrderStatus = async ({ orderId, status }) => {
+export const updateOrderStatus = async ({ supabase, orderId, status, actorUserId, ip, userAgent }) => {
   if (!ALLOWED_ORDER_STATUSES.has(status)) {
-    throw new Error(`Invalid order status: ${status}`);
+    throw new PublicError('Invalid order status.');
   }
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await supabase
     .from('orders')
     .update({ status, updated_at: new Date().toISOString() })
     .eq('id', orderId)
@@ -119,18 +129,24 @@ export const updateOrderStatus = async ({ orderId, status }) => {
     .single();
 
   if (error) {
-    throw new Error(`Failed to update order status: ${error.message}`);
+    throw new Error('Failed to update order status.');
   }
+
+  await writeAuditLog({
+    actorId: actorUserId,
+    action: 'order.status_changed',
+    entity: 'orders',
+    entityId: orderId,
+    ip,
+    userAgent,
+    metadata: { status }
+  });
+
   return data;
 };
 
-/**
- * Lists every order_card with its details and (if any) the order it has
- * already been converted into. The admin uses this to triage drafts that
- * came in from the configurator and decide which ones become real orders.
- */
-export const listOrderCards = async ({ converted } = {}) => {
-  const { data: cards, error } = await supabaseAdmin
+export const listOrderCards = async ({ supabase, converted } = {}) => {
+  const { data: cards, error } = await supabase
     .from('order_cards')
     .select(
       `
@@ -149,38 +165,29 @@ export const listOrderCards = async ({ converted } = {}) => {
     .order('id', { ascending: false });
 
   if (error) {
-    throw new Error(`Failed to list order cards: ${error.message}`);
+    throw new Error('Failed to list order cards.');
   }
 
   const cardIds = (cards ?? []).map((c) => c.id);
 
   let ordersByCardId = new Map();
   if (cardIds.length > 0) {
-    const { data: relatedOrders, error: ordersError } = await supabaseAdmin
+    const { data: relatedOrders, error: ordersError } = await supabase
       .from('orders')
       .select('id, status, price, deadline, created_at, order_card_id')
       .in('order_card_id', cardIds);
 
     if (ordersError) {
-      throw new Error(`Failed to load related orders: ${ordersError.message}`);
+      throw new Error('Failed to load related orders.');
     }
 
-    ordersByCardId = new Map(
-      (relatedOrders ?? []).map((o) => [o.order_card_id, o])
-    );
+    ordersByCardId = new Map((relatedOrders ?? []).map((o) => [o.order_card_id, o]));
   }
 
-  let userEmailById = new Map();
   const userIds = [...new Set((cards ?? []).map((c) => c.user_id).filter(Boolean))];
+  let userEmailById = new Map();
   if (userIds.length > 0) {
-    const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers({
-      page: 1,
-      perPage: 1000
-    });
-    if (usersError) {
-      throw new Error(`Failed to load users: ${usersError.message}`);
-    }
-    userEmailById = new Map(usersData.users.map((u) => [u.id, u.email ?? null]));
+    userEmailById = await loadAuthEmails();
   }
 
   const enriched = (cards ?? []).map((card) => ({
@@ -198,43 +205,45 @@ export const listOrderCards = async ({ converted } = {}) => {
   return enriched;
 };
 
-/**
- * Promotes an order_card draft into a real `orders` row. The admin supplies
- * commercial data the client cannot set (price, address, contract details,
- * deadline). The order's user_id is copied from the card so RLS keeps
- * working for the client. Status defaults to "oczekujące".
- */
-export const convertOrderCardToOrder = async ({ orderCardId, payload }) => {
+export const convertOrderCardToOrder = async ({
+  supabase,
+  orderCardId,
+  payload,
+  actorUserId,
+  ip,
+  userAgent
+}) => {
   if (!orderCardId) {
-    throw new Error('Missing order card id.');
+    throw new PublicError('Missing order card id.');
   }
 
-  const { data: card, error: cardError } = await supabaseAdmin
+  const { data: card, error: cardError } = await supabase
     .from('order_cards')
     .select('id, user_id')
     .eq('id', orderCardId)
     .single();
   if (cardError || !card) {
-    throw new Error(`Order card not found: ${cardError?.message ?? orderCardId}`);
+    throw new PublicError('Order card not found.');
   }
 
-  const { data: existing, error: existingError } = await supabaseAdmin
+  const { data: existing, error: existingError } = await supabase
     .from('orders')
     .select('id')
     .eq('order_card_id', orderCardId)
     .maybeSingle();
   if (existingError) {
-    throw new Error(`Failed to check existing order: ${existingError.message}`);
+    throw new Error('Failed to check existing order.');
   }
   if (existing) {
-    throw new Error('This order card has already been converted into an order.');
+    throw new PublicError('This order card has already been converted into an order.', 409);
   }
 
-  const price = payload?.price === '' || payload?.price === null || payload?.price === undefined
-    ? null
-    : Number(payload.price);
+  const price =
+    payload?.price === '' || payload?.price === null || payload?.price === undefined
+      ? null
+      : Number(payload.price);
   if (price !== null && (!Number.isFinite(price) || price < 0)) {
-    throw new Error('Invalid price.');
+    throw new PublicError('Invalid price.');
   }
 
   const installationAddress =
@@ -261,7 +270,7 @@ export const convertOrderCardToOrder = async ({ orderCardId, payload }) => {
       ? payload.passport_number.trim() || null
       : null;
 
-  const { data: order, error: insertError } = await supabaseAdmin
+  const { data: order, error: insertError } = await supabase
     .from('orders')
     .insert({
       user_id: card.user_id,
@@ -281,59 +290,39 @@ export const convertOrderCardToOrder = async ({ orderCardId, payload }) => {
     .single();
 
   if (insertError) {
-    throw new Error(`Failed to create order: ${insertError.message}`);
+    throw new Error('Failed to create order.');
   }
+
+  await writeAuditLog({
+    actorId: actorUserId,
+    action: 'order_card.converted',
+    entity: 'order_cards',
+    entityId: orderCardId,
+    ip,
+    userAgent,
+    metadata: { orderId: order.id }
+  });
 
   return order;
 };
 
-export const deleteOrderCard = async ({ orderCardId }) => {
+export const deleteOrderCard = async ({ supabase, orderCardId, actorUserId, ip, userAgent }) => {
   if (!orderCardId) {
-    throw new Error('Missing order card id.');
+    throw new PublicError('Missing order card id.');
   }
-  const { error } = await supabaseAdmin
-    .from('order_cards')
-    .delete()
-    .eq('id', orderCardId);
+  const { error } = await supabase.from('order_cards').delete().eq('id', orderCardId);
   if (error) {
-    throw new Error(`Failed to delete order card: ${error.message}`);
+    throw new Error('Failed to delete order card.');
   }
+
+  await writeAuditLog({
+    actorId: actorUserId,
+    action: 'order_card.deleted',
+    entity: 'order_cards',
+    entityId: orderCardId,
+    ip,
+    userAgent
+  });
+
   return { id: orderCardId };
-};
-
-/**
- * Submits a new order using the service-role client. Used by clients placing
- * an order for themselves - RLS is bypassed on purpose because we already
- * authenticated the user in the middleware and we always set user_id from
- * req.user.id (never from the payload).
- *
- * Kept here so future order-management endpoints can live alongside the
- * admin ones.
- */
-export const submitOrderAsUser = async ({ userId, payload }) => {
-  const { data: card, error: cardErr } = await supabaseAdmin
-    .from('order_cards')
-    .insert({ user_id: userId })
-    .select('id, user_id')
-    .single();
-  if (cardErr) throw new Error(`Failed to insert order_cards: ${cardErr.message}`);
-
-  const { data: details, error: detailsErr } = await supabaseAdmin
-    .from('order_details')
-    .insert({
-      material_id: payload.materialId,
-      dimensions: payload.dimensions,
-      inscription_text: payload.inscriptionText,
-      finish_type: payload.finishType,
-      order_card_id: card.id
-    })
-    .select('id, material_id, dimensions, inscription_text, finish_type, order_card_id')
-    .single();
-
-  if (detailsErr) {
-    await supabaseAdmin.from('order_cards').delete().eq('id', card.id);
-    throw new Error(`Failed to insert order_details: ${detailsErr.message}`);
-  }
-
-  return { orderCard: card, orderDetails: details };
 };

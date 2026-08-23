@@ -1,8 +1,17 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import type { AuthUser, UserProfile, UserRole } from '@domain/entities/user-profile';
+import type { AuthUser } from '@domain/entities/user-profile';
 import { supabase } from '@infrastructure/auth/supabase-client';
+import {
+  establishSessionRequest,
+  fetchCurrentUser,
+  forgotPasswordRequest,
+  resetPasswordRequest,
+  signInRequest,
+  signOutRequest,
+  signUpRequest
+} from '@infrastructure/api/auth-api';
 
 export interface SignUpInput {
   email: string;
@@ -14,66 +23,17 @@ export interface SignUpInput {
 
 interface AuthContextValue {
   isLoading: boolean;
-  session: Session | null;
+  authHandoffError: boolean;
   user: AuthUser | null;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (input: SignUpInput) => Promise<{ requiresEmailConfirmation: boolean }>;
   signOut: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
+  resetPassword: (password: string) => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-
-interface ProfileRow {
-  id: string;
-  first_name: string | null;
-  last_name: string | null;
-  phone_number: string | null;
-  role: UserRole;
-}
-
-const profileFromRow = (row: ProfileRow): UserProfile => ({
-  id: row.id,
-  firstName: row.first_name,
-  lastName: row.last_name,
-  phoneNumber: row.phone_number,
-  role: row.role
-});
-
-const fallbackProfileFromSession = (nextSession: Session): UserProfile => {
-  const metadata = nextSession.user.user_metadata ?? {};
-  return {
-    id: nextSession.user.id,
-    firstName: typeof metadata.first_name === 'string' ? metadata.first_name : null,
-    lastName: typeof metadata.last_name === 'string' ? metadata.last_name : null,
-    phoneNumber: typeof metadata.phone_number === 'string' ? metadata.phone_number : null,
-    role: 'klient'
-  };
-};
-
-const loadProfile = async (userId: string): Promise<UserProfile | null> => {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, first_name, last_name, phone_number, role')
-    .eq('id', userId)
-    .maybeSingle<ProfileRow>();
-
-  if (error) {
-    console.error('[auth] Failed to load profile:', {
-      code: error.code,
-      message: error.message,
-      details: error.details,
-      hint: error.hint
-    });
-    return null;
-  }
-  if (!data) {
-    console.warn('[auth] No profile row for user', userId);
-    return null;
-  }
-  return profileFromRow(data);
-};
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -81,150 +41,160 @@ interface AuthProviderProps {
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [isLoading, setIsLoading] = useState(true);
-  const [session, setSession] = useState<Session | null>(null);
+  const [authHandoffError, setAuthHandoffError] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
+  const handoffInFlight = useRef<Promise<void> | null>(null);
 
-  // Track the currently-hydrated user id so we can skip redundant profile
-  // fetches when supabase fires events for the same user (TOKEN_REFRESHED,
-  // INITIAL_SESSION, USER_UPDATED). Using a ref avoids stale-closure issues
-  // inside async callbacks and prevents extra renders.
-  const currentUserIdRef = useRef<string | null>(null);
-
-  const hydrateFromSession = useCallback(async (nextSession: Session | null) => {
-    setSession(nextSession);
-
-    const nextUserId = nextSession?.user?.id ?? null;
-    if (!nextUserId) {
-      currentUserIdRef.current = null;
+  const loadMe = useCallback(async () => {
+    try {
+      const nextUser = await fetchCurrentUser();
+      setUser(nextUser);
+    } catch {
       setUser(null);
-      return;
+    }
+  }, []);
+
+  const handoffSupabaseSession = useCallback(async (providedSession?: Session | null) => {
+    if (handoffInFlight.current) {
+      return handoffInFlight.current;
     }
 
-    // Same user as before -> just refresh session metadata, keep the
-    // already-loaded profile. Avoids a DB round-trip on every token refresh.
-    if (nextUserId === currentUserIdRef.current) {
-      setUser((prev) =>
-        prev
-          ? { ...prev, email: nextSession?.user?.email ?? prev.email }
-          : prev
-      );
-      return;
-    }
+    const run = (async () => {
+      const session =
+        providedSession ?? (await supabase.auth.getSession()).data.session;
+      if (!session?.access_token || !session.refresh_token) {
+        return;
+      }
+      await establishSessionRequest(session.access_token, session.refresh_token);
+      // Do not call supabase.auth.signOut(): even "local" scope revokes the
+      // refresh-token family that was just moved into the httpOnly cookie.
+      // A one-time reload discards the non-persistent JS session without
+      // contacting Supabase; the next boot restores the user from the cookie.
+      window.location.replace(`${window.location.pathname}${window.location.search}`);
+    })();
 
-    const profile = await loadProfile(nextUserId);
-    if (!profile) {
-      currentUserIdRef.current = nextUserId;
-      setUser({
-        id: nextUserId,
-        email: nextSession?.user?.email ?? null,
-        profile: fallbackProfileFromSession(nextSession!)
-      });
-      return;
+    handoffInFlight.current = run;
+    try {
+      await run;
+    } finally {
+      handoffInFlight.current = null;
     }
-    currentUserIdRef.current = nextUserId;
-    setUser({
-      id: nextUserId,
-      email: nextSession?.user?.email ?? null,
-      profile
-    });
   }, []);
 
   useEffect(() => {
     let isMounted = true;
 
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!isMounted) return;
-      await hydrateFromSession(data.session);
-      if (isMounted) setIsLoading(false);
-    });
+    const boot = async () => {
+      try {
+        setAuthHandoffError(false);
+        await handoffSupabaseSession();
+        if (!isMounted) return;
+        await loadMe();
+      } catch {
+        if (isMounted) {
+          setUser(null);
+          setAuthHandoffError(true);
+        }
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
+    void boot();
+
+    const pendingTimers = new Set<number>();
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (!isMounted) return;
-      await hydrateFromSession(nextSession);
+      if ((event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY') && session) {
+        // Supabase holds an internal auth lock while invoking this callback.
+        // Calling another auth method synchronously here can deadlock, so hand the
+        // session to the API only after the callback has returned.
+        setIsLoading(true);
+        setAuthHandoffError(false);
+        const timer = window.setTimeout(() => {
+          pendingTimers.delete(timer);
+          if (!isMounted) return;
+          void handoffSupabaseSession(session)
+            .catch(() => {
+              if (isMounted) {
+                setUser(null);
+                setAuthHandoffError(true);
+              }
+            })
+            .finally(() => {
+              if (isMounted) setIsLoading(false);
+            });
+        }, 0);
+        pendingTimers.add(timer);
+      }
     });
 
     return () => {
       isMounted = false;
+      pendingTimers.forEach((timer) => window.clearTimeout(timer));
       sub.subscription.unsubscribe();
     };
-  }, [hydrateFromSession]);
+  }, [handoffSupabaseSession, loadMe]);
 
   const signIn = useCallback(
     async (email: string, password: string) => {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-      // Hydrate eagerly so the caller (sign-in page) can navigate to a
-      // protected route with the user already populated. Without this,
-      // the auth-state-change listener races with navigation and the page
-      // briefly renders as signed-out.
-      await hydrateFromSession(data.session);
+      await signInRequest(email, password);
+      await loadMe();
     },
-    [hydrateFromSession]
+    [loadMe]
   );
 
-  const signUp = useCallback(async (input: SignUpInput) => {
-    const { data, error } = await supabase.auth.signUp({
-      email: input.email,
-      password: input.password,
-      options: {
-        data: {
-          first_name: input.firstName,
-          last_name: input.lastName,
-          phone_number: input.phoneNumber ?? null
-        },
-        emailRedirectTo: `${window.location.origin}/auth/callback`
+  const signUp = useCallback(
+    async (input: SignUpInput) => {
+      const result = await signUpRequest(input);
+      if (!result.requiresEmailConfirmation) {
+        await loadMe();
       }
-    });
-    if (error) throw error;
-
-    const requiresEmailConfirmation = !data.session;
-    return { requiresEmailConfirmation };
-  }, []);
+      return { requiresEmailConfirmation: result.requiresEmailConfirmation };
+    },
+    [loadMe]
+  );
 
   const signOut = useCallback(async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    await signOutRequest();
+    setUser(null);
   }, []);
 
   const sendPasswordReset = useCallback(async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/reset-password`
-    });
-    if (error) throw error;
+    await forgotPasswordRequest(email);
+  }, []);
+
+  const resetPassword = useCallback(async (password: string) => {
+    await resetPasswordRequest(password);
   }, []);
 
   const refreshProfile = useCallback(async () => {
-    if (!session?.user) return;
-    const profile = await loadProfile(session.user.id);
-    if (!profile) {
-      currentUserIdRef.current = session.user.id;
-      setUser({
-        id: session.user.id,
-        email: session.user.email ?? null,
-        profile: fallbackProfileFromSession(session)
-      });
-      return;
-    }
-    currentUserIdRef.current = session.user.id;
-    setUser({
-      id: session.user.id,
-      email: session.user.email ?? null,
-      profile
-    });
-  }, [session]);
+    await loadMe();
+  }, [loadMe]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       isLoading,
-      session,
+      authHandoffError,
       user,
       signIn,
       signUp,
       signOut,
       sendPasswordReset,
+      resetPassword,
       refreshProfile
     }),
-    [isLoading, session, user, signIn, signUp, signOut, sendPasswordReset, refreshProfile]
+    [
+      isLoading,
+      authHandoffError,
+      user,
+      signIn,
+      signUp,
+      signOut,
+      sendPasswordReset,
+      resetPassword,
+      refreshProfile
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

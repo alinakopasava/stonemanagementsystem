@@ -1,5 +1,9 @@
 import type { Material } from '@domain/entities/material';
 import { apiFetch } from '@infrastructure/api/api-client';
+import {
+  DEFAULT_MATERIAL_IMAGE,
+  MATERIAL_IMAGE_BY_NAME
+} from '@presentation/three/stone-catalog';
 
 interface MaterialRowDto {
   id: string;
@@ -10,23 +14,16 @@ interface MaterialRowDto {
   image_url: string | null;
 }
 
-const materialImageByName: Record<string, string> = {
-  'Black Granite': '/images/black_granite_texture.jpg',
-  Marble: '/images/marble_texture.jpg',
-  'Grey Granite': '/images/grey_granite_texture.jpg',
-  'Labradorite Blue': '/images/blue_granite_texture.jpg'
-};
-
 const toMaterial = (row: MaterialRowDto): Material => ({
   id: row.id,
   name: row.name,
   category: row.category ?? 'Stone',
   pricePerM2: Number(row.price_per_m2 ?? 0),
   stockStatus: row.stock_status ?? true,
-  imageUrl: row.image_url ?? materialImageByName[row.name] ?? '/images/blue_granite_texture.jpg'
+  imageUrl: row.image_url ?? MATERIAL_IMAGE_BY_NAME[row.name] ?? DEFAULT_MATERIAL_IMAGE
 });
 
 export const fetchMaterials = async (): Promise<Material[]> => {
-  const payload = await apiFetch<{ data: MaterialRowDto[] }>('/api/materials', { auth: false });
+  const payload = await apiFetch<{ data: MaterialRowDto[] }>('/api/materials');
   return payload.data.map(toMaterial);
 };

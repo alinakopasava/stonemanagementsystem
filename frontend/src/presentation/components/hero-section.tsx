@@ -8,9 +8,6 @@ export const HeroSection = () => {
   return (
     <section className="mx-auto grid w-full max-w-6xl gap-10 px-6 pb-16 pt-14 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
       <div>
-        <p className="mb-4 text-sm uppercase tracking-[0.2em] text-slate-300">
-          {t('landing.hero.tag')}
-        </p>
         <h1 className="font-serif text-4xl leading-tight text-gray-100 md:text-5xl">
           {t('landing.hero.title')}
         </h1>

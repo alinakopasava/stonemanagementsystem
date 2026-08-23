@@ -1,77 +1,233 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import {
+  computeCoverDrawRect,
+  getDefaultPhotoCrop,
+  getPhotoTextureSize,
+  type PhotoCrop
+} from './photo-crop';
+
+export type { PhotoCrop } from './photo-crop';
+export { DEFAULT_PORTRAIT_CROP, DEFAULT_SQUARE_CROP, getDefaultPhotoCrop } from './photo-crop';
 
 /** Target aspect for the on-stone photo: square for medallions/discs, taller portrait
  *  rectangle for niche-style frames. */
 export type PhotoAspect = 'square' | 'portrait';
 
-const ASPECT_RATIOS: Record<PhotoAspect, number> = {
-  square: 1,
-  /** Matches the 1 : 1.25 niche/plaque geometry in `monument-model.tsx`. */
-  portrait: 1 / 1.25,
+/** `radial` — oval fade for medallion discs. `sides` — left/right dissolve into stone,
+ *  no oval, circle, blob, or hard rectangle. */
+export type PhotoEdgeFade = 'radial' | 'sides';
+
+const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+
+const smoothstep = (edge0: number, edge1: number, x: number) => {
+  const t = clamp((x - edge0) / (edge1 - edge0), 0, 1);
+  return t * t * (3 - 2 * t);
+};
+
+/** Deterministic 0..1 hash for subtle per-pixel edge breakup. */
+const hash2 = (x: number, y: number) => {
+  const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+  return s - Math.floor(s);
+};
+
+/** Portrait melts into the stone. No box, oval, or blob outline — warped metric +
+ *  dither so the falloff cannot be traced as a shape. Core (the person) stays opaque. */
+const sideDissolveMask = (x: number, y: number, w: number, h: number) => {
+  const u = x / w;
+  const v = y / h;
+  const nx = (u - 0.5) * 2;
+  const ny = (v - 0.5) * 2;
+
+  const n1 = hash2(x * 0.027, y * 0.031);
+  const n2 = hash2(x * 0.071 + 4.2, y * 0.063 + 1.8);
+  const n3 = hash2(x * 0.16 + 2.6, y * 0.14 + 7.3);
+  const n4 = hash2(x * 0.38 + 9.1, y * 0.41 + 3.4);
+  const n5 = hash2(x * 0.85 + 1.1, y * 0.77 + 5.9);
+  const fbm =
+    (n1 - 0.5) * 0.34 + (n2 - 0.5) * 0.2 + (n3 - 0.5) * 0.12 + (n4 - 0.5) * 0.06;
+
+  const wx =
+    nx +
+    0.3 * Math.sin(ny * Math.PI * 1.32 + n1 * 7) +
+    0.15 * Math.sin(ny * Math.PI * 3.8 + n2 * 4.2) +
+    0.08 * Math.sin((nx + ny) * Math.PI * 5.05 + n3 * 3) +
+    fbm * 0.6;
+  const wy =
+    ny +
+    0.26 * Math.sin(nx * Math.PI * 1.12 + n2 * 6.1) +
+    0.13 * Math.sin(nx * Math.PI * 4.35 + n3 * 3.8) +
+    0.07 * Math.sin((ny - nx) * Math.PI * 4.55 + n1 * 2.4) +
+    fbm * 0.48;
+
+  const d =
+    Math.pow(Math.abs(wx), 1.32) * 0.58 +
+    Math.pow(Math.abs(wy), 1.62) * 0.42 +
+    fbm * 0.24;
+
+  const inner = 0.58 + fbm * 0.22;
+  const outer = 0.86 + fbm * 0.16;
+  let a = 1 - smoothstep(inner, Math.max(inner + 0.12, outer), d);
+
+  const band = smoothstep(inner - 0.06, outer + 0.08, d);
+  a *= 1 - band * n5 * 0.62;
+
+  const corner = Math.abs(nx) * Math.abs(ny);
+  a *= 1 - smoothstep(0.18, 0.52, corner + fbm * 0.18);
+
+  const rim = Math.max(Math.abs(nx), Math.abs(ny));
+  a *= smoothstep(0.99, 0.84, rim + fbm * 0.05);
+
+  if (a > 0.42) a = 0.42 + (a - 0.42) * 1.55;
+  return clamp(a, 0, 1);
+};
+
+/** Oval mask for medallion discs. */
+const radialMedallionMask = (x: number, y: number, w: number, h: number) => {
+  const nx = (x - w / 2) / (w * 0.48);
+  const ny = (y - h / 2) / (h * 0.48);
+  const d = Math.sqrt(nx * nx + ny * ny);
+  return clamp(smoothstep(1.02, 0.42, d), 0, 1);
+};
+
+/** `transparent` tells a cutout from a full-frame photo; `partial` tells whether the
+ *  matte already carries a soft edge (pre-feathered PNG) or a crisp one. */
+const alphaProfile = (data: Uint8ClampedArray) => {
+  let transparent = 0;
+  let partial = 0;
+  const pixels = data.length / 4;
+  for (let i = 3; i < data.length; i += 4) {
+    const a = data[i];
+    if (a < 12) transparent += 1;
+    else if (a < 248) partial += 1;
+  }
+  return { transparent: transparent / pixels, partial: partial / pixels };
+};
+
+const blurAlpha = (alpha: Uint8Array, w: number, h: number, radius: number) => {
+  const dim = radius * 2 + 1;
+  const horiz = new Uint8Array(w * h);
+  for (let y = 0; y < h; y += 1) {
+    let sum = 0;
+    const row = y * w;
+    for (let k = -radius; k <= radius; k += 1) {
+      sum += alpha[row + clamp(k, 0, w - 1)];
+    }
+    for (let x = 0; x < w; x += 1) {
+      horiz[row + x] = Math.round(sum / dim);
+      sum +=
+        alpha[row + clamp(x + radius + 1, 0, w - 1)] -
+        alpha[row + clamp(x - radius, 0, w - 1)];
+    }
+  }
+  const out = new Uint8Array(w * h);
+  for (let x = 0; x < w; x += 1) {
+    let sum = 0;
+    for (let k = -radius; k <= radius; k += 1) {
+      sum += horiz[clamp(k, 0, h - 1) * w + x];
+    }
+    for (let y = 0; y < h; y += 1) {
+      out[y * w + x] = Math.round(sum / dim);
+      sum +=
+        horiz[clamp(y + radius + 1, 0, h - 1) * w + x] -
+        horiz[clamp(y - radius, 0, h - 1) * w + x];
+    }
+  }
+  return out;
+};
+
+/** Wherever the subject runs past the crop, this bleeds it out instead of leaving a
+ *  straight cut. It only bites in the last few percent, so it draws no frame of its own. */
+const borderVanish = (x: number, y: number, w: number, h: number) => {
+  const band = 0.09;
+  return Math.min(
+    smoothstep(0, band, x / w),
+    smoothstep(0, band, 1 - x / w),
+    smoothstep(0, band, y / h),
+    smoothstep(0, band, 1 - y / h)
+  );
+};
+
+/** Soften only the person silhouette — no rectangle, oval, or blob frame. */
+const featherSilhouette = (imageData: ImageData, radius = 18) => {
+  const { data, width, height } = imageData;
+  const alpha = new Uint8Array(width * height);
+  for (let p = 0, i = 3; i < data.length; p += 1, i += 4) {
+    alpha[p] = data[i];
+  }
+  const soft = blurAlpha(alpha, width, height, radius);
+  for (let p = 0, i = 3; i < data.length; p += 1, i += 4) {
+    if (alpha[p] < 2) {
+      data[i] = 0;
+      continue;
+    }
+    const edge = borderVanish(p % width, (p / width) | 0, width, height);
+    data[i] = Math.round(Math.min(alpha[p], soft[p]) * edge);
+  }
+};
+
+const applyEdgeFade = (
+  imageData: ImageData,
+  width: number,
+  height: number,
+  edgeFade: PhotoEdgeFade
+) => {
+  if (edgeFade !== 'radial') {
+    const { transparent, partial } = alphaProfile(imageData.data);
+    if (transparent > 0.04) {
+      // A pre-feathered matte only needs the hard-pixel safety pass; feathering it
+      // again with the full radius would eat into the person.
+      featherSilhouette(imageData, partial > 0.05 ? 5 : 18);
+      return;
+    }
+  }
+
+  const data = imageData.data;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const idx = (y * width + x) * 4 + 3;
+      const mask =
+        edgeFade === 'radial'
+          ? radialMedallionMask(x, y, width, height)
+          : sideDissolveMask(x, y, width, height);
+      data[idx] = Math.round(data[idx] * mask);
+    }
+  }
 };
 
 /**
  * Pre-processes a portrait image so its texture already carries:
  *  – a centred cover-crop to the target aspect (no need for shader-side `repeat`/`offset`),
- *  – a soft circular/oval vignette in the alpha channel (no hard rectangle border when the
- *    texture is laid onto a flat plane in 3D),
+ *  – a silhouette fade when the source is a cutout (gravestone portrait, no frame),
+ *    otherwise a shapeless dissolve for full-frame photos,
  *  – an RGBA backing surface (so even JPG sources get a working alpha channel).
- *
- * The vignette lives on the canvas instead of in a custom GLSL shader because the
- * shader-side approach required a custom UV varying that, depending on the three.js
- * version, could fail to compile silently and make the photo disappear entirely. A canvas
- * mask is robust across renderer versions.
  */
-function buildVignettedTexture(img: HTMLImageElement, aspect: PhotoAspect): THREE.CanvasTexture {
-  /** Power-of-two width keeps GPU sampling cheap while preserving facial detail; height
-   *  derives from the chosen aspect so the canvas already matches the 3D plane shape. */
-  const W = 1024;
-  const H = Math.round(W / ASPECT_RATIOS[aspect]);
+function buildVignettedTexture(
+  img: HTMLImageElement,
+  aspect: PhotoAspect,
+  edgeFade: PhotoEdgeFade,
+  crop: PhotoCrop
+): THREE.CanvasTexture {
+  const { width: W, height: H } = getPhotoTextureSize(aspect);
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext('2d');
 
   if (ctx) {
-    /** Cover-fit: scale the photo so it fills the target rectangle, cropping the longer
-     *  axis symmetrically. Faces are biased slightly upward (factor < 0.5 means more is
-     *  cropped from the bottom than from the top) so subjects stay centred in frame. */
-    const srcAspect = img.width / img.height;
-    const dstAspect = W / H;
-    let drawW: number;
-    let drawH: number;
-    if (srcAspect > dstAspect) {
-      drawH = H;
-      drawW = drawH * srcAspect;
-    } else {
-      drawW = W;
-      drawH = drawW / srcAspect;
-    }
-    const dx = (W - drawW) / 2;
-    const dy = (H - drawH) * 0.35;
-    ctx.drawImage(img, dx, dy, drawW, drawH);
+    ctx.clearRect(0, 0, W, H);
+    const { drawX, drawY, drawW, drawH } = computeCoverDrawRect(
+      img.width,
+      img.height,
+      W,
+      H,
+      crop
+    );
+    ctx.drawImage(img, drawX, drawY, drawW, drawH);
 
-    /** Soft elliptical vignette punched into the alpha channel so the photo fades into the
-     *  stone with no visible rectangular boundary.
-     *
-     *  Worked in NORMALISED space: we scale the context by (W/2, H/2) so a unit circle maps
-     *  exactly onto the ellipse that touches all four edge midpoints. A radial gradient with
-     *  outer radius 1.0 therefore reaches the left/right AND top/bottom edges regardless of
-     *  aspect ratio — the previous `min(W,H)` radius left the long-axis sides opaque, which
-     *  is what produced the hard vertical border on tall portraits. */
-    ctx.save();
-    ctx.globalCompositeOperation = 'destination-in';
-    ctx.translate(W / 2, H / 2);
-    ctx.scale(W / 2, H / 2);
-    const grad = ctx.createRadialGradient(0, 0, 0.45, 0, 0, 1.0);
-    grad.addColorStop(0.0, 'rgba(0,0,0,1)');
-    grad.addColorStop(0.5, 'rgba(0,0,0,1)');
-    grad.addColorStop(0.78, 'rgba(0,0,0,0.45)');
-    grad.addColorStop(1.0, 'rgba(0,0,0,0)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(-1, -1, 2, 2);
-    ctx.restore();
+    const imageData = ctx.getImageData(0, 0, W, H);
+    applyEdgeFade(imageData, W, H, edgeFade);
+    ctx.putImageData(imageData, 0, 0);
   }
 
   const tex = new THREE.CanvasTexture(canvas);
@@ -88,8 +244,11 @@ function buildVignettedTexture(img: HTMLImageElement, aspect: PhotoAspect): THRE
  */
 export function usePhotoTexture(
   photoUrl: string | undefined,
-  aspect: PhotoAspect = 'portrait'
+  aspect: PhotoAspect = 'portrait',
+  edgeFade: PhotoEdgeFade = aspect === 'square' ? 'radial' : 'sides',
+  photoCrop?: PhotoCrop
 ): THREE.Texture | null {
+  const crop = photoCrop ?? getDefaultPhotoCrop(aspect);
   const [texture, setTexture] = useState<THREE.Texture | null>(null);
   const ownedTextureRef = useRef<THREE.Texture | null>(null);
 
@@ -108,10 +267,6 @@ export function usePhotoTexture(
 
     let cancelled = false;
     const img = new Image();
-    /** crossOrigin must NOT be set for data: URLs — Chrome/Edge treat the combination as
-     *  invalid and silently fail to load the image (no onload, no onerror, just nothing).
-     *  Only opt-in to CORS for genuinely remote http(s) URLs where the canvas would
-     *  otherwise be tainted. */
     const isDataUrl = url.startsWith('data:');
     if (!isDataUrl) {
       img.crossOrigin = 'anonymous';
@@ -119,7 +274,7 @@ export function usePhotoTexture(
     img.onload = () => {
       if (cancelled) return;
       try {
-        const tex = buildVignettedTexture(img, aspect);
+        const tex = buildVignettedTexture(img, aspect, edgeFade, crop);
         disposeOwned();
         ownedTextureRef.current = tex;
         setTexture(tex);
@@ -138,7 +293,7 @@ export function usePhotoTexture(
     return () => {
       cancelled = true;
     };
-  }, [photoUrl, aspect]);
+  }, [photoUrl, aspect, edgeFade, crop.centerX, crop.centerY, crop.scale]);
 
   useEffect(
     () => () => {

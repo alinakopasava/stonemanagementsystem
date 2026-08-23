@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from '@application/i18n/i18n-context';
-import type { TranslationKey } from '@application/i18n/translations';
+import { LANGUAGE_LOCALES, type TranslationKey } from '@application/i18n/translations';
 import type { UserRole } from '@domain/entities/user-profile';
 import {
   fetchAdminUsers,
@@ -15,7 +15,8 @@ const ROLES: Array<{ id: UserRole; labelKey: TranslationKey }> = [
 ];
 
 export const AdminUsersPage = () => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const dateLocale = LANGUAGE_LOCALES[language];
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -106,7 +107,7 @@ export const AdminUsersPage = () => {
                     <td className="px-4 py-3 text-slate-300">{u.email ?? '—'}</td>
                     <td className="px-4 py-3 text-slate-400">{u.phoneNumber ?? '—'}</td>
                     <td className="px-4 py-3 text-slate-400">
-                      {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}
+                      {u.createdAt ? new Date(u.createdAt).toLocaleDateString(dateLocale) : '—'}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <select

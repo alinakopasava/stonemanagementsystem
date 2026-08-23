@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Mail, Phone, Send, User } from 'lucide-react';
 import { useTranslation } from '@application/i18n/i18n-context';
 import { submitContactMessage } from '@infrastructure/api/contact-api';
+import { isRateLimited } from '@infrastructure/api/api-client';
 
 type Status = 'idle' | 'submitting' | 'success' | 'error';
 
@@ -44,7 +45,7 @@ export const ContactForm = () => {
       setForm(initialForm);
     } catch (error) {
       setStatus('error');
-      setFeedback(error instanceof Error ? error.message : t('contact.error'));
+      setFeedback(isRateLimited(error) ? t('auth.tooManyAttempts') : t('contact.error'));
     }
   };
 

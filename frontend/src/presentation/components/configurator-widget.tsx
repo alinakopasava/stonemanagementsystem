@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import type { FinishType } from '@domain/entities/order-card';
 import type { Material } from '@domain/entities/material';
 import type { Product } from '@domain/entities/product';
 import { useAuth } from '@application/auth/auth-context';
 import { useTranslation } from '@application/i18n/i18n-context';
+import { useCurrency } from '@application/currency/currency-context';
+import { materialLabel } from '@application/i18n/catalog-labels';
 import type { TranslationKey } from '@application/i18n/translations';
 import { submitOrderRequest } from '@infrastructure/api/order-api';
+import { isRateLimited } from '@infrastructure/api/api-client';
 
 interface ConfiguratorWidgetProps {
   materials: Material[];
@@ -22,7 +25,9 @@ const finishOptions: { id: FinishType; labelKey: TranslationKey }[] = [
 export const ConfiguratorWidget = ({ materials, product: _product }: ConfiguratorWidgetProps) => {
   const { user } = useAuth();
   const { t } = useTranslation();
+  const { formatFromByn } = useCurrency();
   const navigate = useNavigate();
+  const location = useLocation();
   const isAuthenticated = Boolean(user);
 
   const [materialId, setMaterialId] = useState<string>('');
@@ -45,7 +50,9 @@ export const ConfiguratorWidget = ({ materials, product: _product }: Configurato
 
   const handleCreateOrder = async () => {
     if (!isAuthenticated) {
-      navigate('/sign-in', { state: { from: '/' } });
+      navigate('/sign-in', {
+        state: { from: location.pathname + location.search + location.hash }
+      });
       return;
     }
     if (!selectedMaterial) return;
@@ -64,8 +71,7 @@ export const ConfiguratorWidget = ({ materials, product: _product }: Configurato
       console.log('Submitted order:', response);
       setSubmitMessage(t('configurator.success'));
     } catch (error) {
-      const message = error instanceof Error ? error.message : t('configurator.error');
-      setSubmitMessage(message);
+      setSubmitMessage(isRateLimited(error) ? t('auth.tooManyAttempts') : t('configurator.error'));
     } finally {
       setIsSubmitting(false);
     }
@@ -88,7 +94,7 @@ export const ConfiguratorWidget = ({ materials, product: _product }: Configurato
             >
               {materials.map((material) => (
                 <option key={material.id} value={material.id}>
-                  {material.name} ({material.pricePerM2.toFixed(2)} {t('designer.pricePerM2Unit')})
+                  {materialLabel(material.name, t)} ({formatFromByn(material.pricePerM2, { digits: 2 })} {t('designer.pricePerM2Unit')})
                 </option>
               ))}
             </select>

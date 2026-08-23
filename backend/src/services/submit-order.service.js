@@ -1,6 +1,8 @@
+import { PublicError } from '../http/errors.js';
+
 const ensureRequired = (value, fieldName) => {
   if (value === undefined || value === null || value === '') {
-    throw new Error(`Missing required field: ${fieldName}`);
+    throw new PublicError(`Missing required field: ${fieldName}.`);
   }
 };
 
@@ -13,6 +15,9 @@ const ensureRequired = (value, fieldName) => {
  * @param {object} args.payload request body
  */
 export const submitOrder = async ({ supabase, userId, payload }) => {
+  if (!payload || typeof payload !== 'object') {
+    throw new PublicError('Missing required field: materialId.');
+  }
   ensureRequired(payload.materialId, 'materialId');
   ensureRequired(payload.dimensions, 'dimensions');
   ensureRequired(payload.inscriptionText, 'inscriptionText');
@@ -25,7 +30,7 @@ export const submitOrder = async ({ supabase, userId, payload }) => {
     .single();
 
   if (orderCardError) {
-    throw new Error(`Failed to insert order_cards: ${orderCardError.message}`);
+    throw new PublicError('Could not submit the order.');
   }
 
   const { data: insertedOrderDetails, error: orderDetailsError } = await supabase
@@ -42,7 +47,7 @@ export const submitOrder = async ({ supabase, userId, payload }) => {
 
   if (orderDetailsError) {
     await supabase.from('order_cards').delete().eq('id', insertedOrderCard.id);
-    throw new Error(`Failed to insert order_details: ${orderDetailsError.message}`);
+    throw new PublicError('Could not submit the order.');
   }
 
   return {

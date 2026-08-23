@@ -30,10 +30,20 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
+const frontendOrigin = (process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173').replace(/\/$/, '');
+const cookieSameSite = process.env.COOKIE_SAMESITE ?? 'lax';
+const cookieSecure =
+  process.env.COOKIE_SECURE === 'true' ||
+  frontendOrigin.startsWith('https://') ||
+  cookieSameSite === 'none';
+
 export const env = {
   port: Number(process.env.PORT ?? 4000),
-  frontendOrigin: process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173',
+  frontendOrigin,
   supabaseUrl: process.env.SUPABASE_URL,
   supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
-  supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY
+  supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  cookieSecure,
+  cookieSameSite,
+  trustProxy: process.env.TRUST_PROXY === 'true'
 };

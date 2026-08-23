@@ -1,11 +1,14 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { Material } from '@domain/entities/material';
 import type { ProductItem } from '@infrastructure/api/product-api';
 import type { TranslationKey } from '@application/i18n/translations';
 import { useTranslation } from '@application/i18n/i18n-context';
+import { useCurrency } from '@application/currency/currency-context';
+import { materialLabel } from '@application/i18n/catalog-labels';
 import { Header } from '@presentation/components/header';
-import { MonumentViewer } from '@presentation/three/monument-viewer';
+import { LazyMonumentViewer } from '@presentation/components/lazy-monument-viewer';
+import { DEFAULT_PORTRAIT_CROP, SAMPLE_PORTRAIT_URL } from '@presentation/three/photo-crop';
 import type { MonumentShape } from '@presentation/three/monument-model';
 
 interface CatalogPageProps {
@@ -13,13 +16,6 @@ interface CatalogPageProps {
   /** Kept for API compatibility; the catalog is now driven by the full shape range. */
   products?: ProductItem[];
 }
-
-/** Portrait used in the live previews, matching the configurator's portrait niche. */
-const CATALOG_PORTRAIT_URL = '/images/portrait-sample.png';
-
-/** Sample engraving so the previews read like a real, finished monument. */
-const SAMPLE_NAME = 'Anna Kowalska';
-const SAMPLE_DATES = '1938 – 2021';
 
 const CATALOG_WIDTH_CM = 90;
 
@@ -31,56 +27,24 @@ const CATALOG_SHAPES: {
   aspect: number;
   basePrice: number;
 }[] = [
-  { shape: 'classic', labelKey: 'designer.shape.classic', aspect: 2.0, basePrice: 2200 },
-  { shape: 'rounded', labelKey: 'designer.shape.rounded', aspect: 2.0, basePrice: 2300 },
-  { shape: 'stele', labelKey: 'designer.shape.stele', aspect: 2.2, basePrice: 2600 },
-  { shape: 'concave', labelKey: 'designer.shape.concave', aspect: 2.0, basePrice: 2500 },
-  { shape: 'asymmetric', labelKey: 'designer.shape.asymmetric', aspect: 2.6, basePrice: 2900 },
-  { shape: 'wave-steep', labelKey: 'designer.shape.waveSteep', aspect: 2.1, basePrice: 2700 },
-  { shape: 'curvy', labelKey: 'designer.shape.curvy', aspect: 2.2, basePrice: 3100 },
-  { shape: 'dome', labelKey: 'designer.shape.dome', aspect: 2.6, basePrice: 3000 },
-  { shape: 'arc', labelKey: 'designer.shape.arc', aspect: 2.25, basePrice: 2800 },
-  { shape: 'cross-top', labelKey: 'designer.shape.crossTop', aspect: 2.6, basePrice: 3200 },
-  { shape: 'gothic', labelKey: 'designer.shape.gothic', aspect: 2.3, basePrice: 2900 },
-  { shape: 'cross', labelKey: 'designer.shape.cross', aspect: 2.4, basePrice: 3300 },
-  { shape: 'heart', labelKey: 'designer.shape.heart', aspect: 1.7, basePrice: 2600 }
+  { shape: 'classic', labelKey: 'designer.shape.classic', aspect: 2.0, basePrice: 80 },
+  { shape: 'rounded', labelKey: 'designer.shape.rounded', aspect: 2.0, basePrice: 100 },
+  { shape: 'stele', labelKey: 'designer.shape.stele', aspect: 2.2, basePrice: 150 },
+  { shape: 'concave', labelKey: 'designer.shape.concave', aspect: 2.0, basePrice: 130 },
+  { shape: 'asymmetric', labelKey: 'designer.shape.asymmetric', aspect: 2.6, basePrice: 210 },
+  { shape: 'wave-steep', labelKey: 'designer.shape.waveSteep', aspect: 2.1, basePrice: 160 },
+  { shape: 'curvy', labelKey: 'designer.shape.curvy', aspect: 2.2, basePrice: 240 },
+  { shape: 'dome', labelKey: 'designer.shape.dome', aspect: 2.6, basePrice: 230 },
+  { shape: 'arc', labelKey: 'designer.shape.arc', aspect: 2.25, basePrice: 180 },
+  { shape: 'cross-top', labelKey: 'designer.shape.crossTop', aspect: 2.6, basePrice: 270 },
+  { shape: 'gothic', labelKey: 'designer.shape.gothic', aspect: 2.3, basePrice: 190 },
+  { shape: 'cross', labelKey: 'designer.shape.cross', aspect: 2.4, basePrice: 290 },
+  { shape: 'heart', labelKey: 'designer.shape.heart', aspect: 1.7, basePrice: 170 }
 ];
-
-/** Mounts its children only once they scroll near the viewport, so the grid never spins up
- *  all WebGL contexts at once. Stays mounted afterwards to avoid re-init flicker. */
-const LazyMount = ({ heightClassName, children }: { heightClassName: string; children: ReactNode }) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || visible) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          setVisible(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: '250px' }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [visible]);
-
-  return (
-    <div ref={ref} className={`${heightClassName} w-full`}>
-      {visible ? (
-        children
-      ) : (
-        <div className={`${heightClassName} w-full animate-pulse rounded-2xl bg-[#eceae8]`} />
-      )}
-    </div>
-  );
-};
 
 export const CatalogPage = ({ materials }: CatalogPageProps) => {
   const { t } = useTranslation();
+  const { formatFromByn } = useCurrency();
   const [selectedMaterialId, setSelectedMaterialId] = useState<string>(materials[0]?.id ?? '');
 
   const selectedMaterial = materials.find((m) => m.id === selectedMaterialId) ?? materials[0];
@@ -122,12 +86,14 @@ export const CatalogPage = ({ materials }: CatalogPageProps) => {
                   >
                     <img
                       src={m.imageUrl}
-                      alt={m.name}
+                      alt={materialLabel(m.name, t)}
+                      loading="lazy"
+                      decoding="async"
                       className="h-5 w-5 rounded-sm object-cover"
                     />
-                    <span>{m.name}</span>
+                    <span>{materialLabel(m.name, t)}</span>
                     <span className={active ? 'text-amber-300/80' : 'text-slate-500'}>
-                      {t('catalog.priceFrom', { price: m.pricePerM2.toFixed(0) })}
+                      {t('catalog.priceFrom', { price: formatFromByn(m.pricePerM2) })}
                     </span>
                   </button>
                 );
@@ -159,28 +125,39 @@ export const CatalogPage = ({ materials }: CatalogPageProps) => {
                 >
                   <div className="relative">
                     {/* Live configurator render — reacts to the selected material. */}
-                    <LazyMount heightClassName="h-72">
-                      <MonumentViewer
-                        heightClassName="h-72"
-                        frameloop="demand"
-                        textureUrl={selectedMaterial?.imageUrl}
-                        materialName={selectedMaterial?.name}
-                        finish="Polished"
-                        dimensions={dimensions}
-                        inscription=""
-                        name={SAMPLE_NAME}
-                        dates={SAMPLE_DATES}
-                        shape={shape}
-                        decoration="portrait"
-                        nicheStyle="recessed"
-                        photoUrl={CATALOG_PORTRAIT_URL}
-                      />
-                    </LazyMount>
+                    <LazyMonumentViewer
+                      variant="compact"
+                      deferUntilVisible
+                      rootMargin="-80px 0px"
+                      heightClassName="h-72"
+                      frameloop="demand"
+                      layout="single"
+                      label={t('catalog.previewLoading')}
+                      textureUrl={selectedMaterial?.imageUrl}
+                      materialName={selectedMaterial?.name}
+                      finish="Polished"
+                      dimensions={dimensions}
+                      inscription=""
+                      name={t('designer.presets.classic.name')}
+                      dates={t('designer.presets.classic.dates')}
+                      shape={shape}
+                      decoration="portrait"
+                      nicheStyle="recessed"
+                      photoUrl={SAMPLE_PORTRAIT_URL}
+                      photoCrop={DEFAULT_PORTRAIT_CROP}
+                      photoBlend={0.08}
+                      photoBrightness={0}
+                      photoContrast={1.3}
+                    />
                     {selectedMaterial && (
-                      <div className="pointer-events-none absolute bottom-2 left-2 rounded-md bg-slate-950/75 px-3 py-1.5 backdrop-blur-sm">
-                        <p className="text-[11px] text-slate-300">{selectedMaterial.name}</p>
+                      <div className="pointer-events-none absolute bottom-2 left-2 z-[2] rounded-md bg-slate-950/75 px-3 py-1.5 backdrop-blur-sm">
+                        <p className="text-[11px] text-slate-300">
+                          {materialLabel(selectedMaterial.name, t)}
+                        </p>
                         <p className="font-serif text-base text-amber-200">
-                          {t('catalog.basePriceFrom', { price: materialPrice.toLocaleString('pl-PL') })}
+                          {t('catalog.basePriceFrom', {
+                            price: formatFromByn(materialPrice)
+                          })}
                         </p>
                       </div>
                     )}

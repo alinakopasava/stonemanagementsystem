@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from '@application/i18n/i18n-context';
-import type { TranslationKey } from '@application/i18n/translations';
+import { finishLabel, materialLabel } from '@application/i18n/catalog-labels';
+import { LANGUAGE_LOCALES, type TranslationKey } from '@application/i18n/translations';
 import {
   fetchAdminOrders,
   updateOrderStatus,
@@ -25,7 +26,8 @@ const statusBadge: Record<string, string> = {
 };
 
 export const AdminOrdersPage = () => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const dateLocale = LANGUAGE_LOCALES[language];
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -118,7 +120,7 @@ export const AdminOrdersPage = () => {
                     <p className="mt-1 text-xs text-slate-400">
                       {t('admin.orders.created')}{' '}
                       {o.created_at
-                        ? new Date(o.created_at).toLocaleString()
+                        ? new Date(o.created_at).toLocaleString(dateLocale)
                         : t('admin.common.unknown')}
                     </p>
                     <p className="text-xs text-slate-400">
@@ -159,13 +161,13 @@ export const AdminOrdersPage = () => {
                         className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 text-xs text-slate-300"
                       >
                         <p className="font-medium text-slate-100">
-                          {d.materials?.name ?? t('admin.orders.unknownMaterial')}
+                          {materialLabel(d.materials?.name, t, t('admin.orders.unknownMaterial'))}
                         </p>
                         <dl className="mt-1 grid grid-cols-[90px_1fr] gap-y-0.5">
                           <dt className="text-slate-500">{t('admin.orders.dimensions')}</dt>
                           <dd>{d.dimensions ?? '—'}</dd>
                           <dt className="text-slate-500">{t('admin.orders.finish')}</dt>
-                          <dd>{d.finish_type ?? '—'}</dd>
+                          <dd>{finishLabel(d.finish_type, t)}</dd>
                           <dt className="text-slate-500">{t('admin.orders.inscription')}</dt>
                           <dd className="italic text-slate-200">
                             {d.inscription_text ?? '—'}
