@@ -42,3 +42,4 @@ export const signUpLimiter = createRateLimiter({ windowMs: 60_000, max: 3 });
 export const passwordLimiter = createRateLimiter({ windowMs: 60_000, max: 3 });
 export const sessionLimiter = createRateLimiter({ windowMs: 60_000, max: 10 });
 export const contactLimiter = createRateLimiter({ windowMs: 60_000, max: 3 });
+export const orderSubmitLimiter = createRateLimiter({ windowMs: 60_000, max: 8 });

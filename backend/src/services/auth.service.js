@@ -190,7 +190,7 @@ export const revokeSession = async ({ accessToken, actorId, ip, userAgent }) => 
     try {
       const { data } = await supabaseAdmin.auth.getUser(accessToken);
       resolvedActor = data.user?.id ?? resolvedActor;
-      await supabaseAdmin.auth.admin.signOut(accessToken, 'local');
+      await supabaseAdmin.auth.admin.signOut(accessToken, 'global');
     } catch (error) {
       console.error('[auth] Failed to revoke session:', error);
     }

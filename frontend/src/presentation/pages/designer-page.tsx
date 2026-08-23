@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@application/auth/auth-context';
 import { useTranslation } from '@application/i18n/i18n-context';
@@ -8,6 +8,7 @@ import type { TranslationKey } from '@application/i18n/translations';
 import type { FinishType } from '@domain/entities/order-card';
 import type { Material } from '@domain/entities/material';
 import { submitOrderRequest } from '@infrastructure/api/order-api';
+import { monumentPriceByn } from '@application/pricing/monument-price';
 import { Header } from '@presentation/components/header';
 import {
   DEFAULT_INSCRIPTION_STYLE_ID,
@@ -97,6 +98,10 @@ const DEFAULT_DIMENSIONS = { heightCm: 180, widthCm: 90, thicknessCm: 15 };
 const DEFAULT_BASE_DIMENSIONS: BaseDimensionsCm = { heightCm: 14, widthCm: 130, depthCm: 40 };
 /** Default 0 = the two stelas are flush against each other ("glued"), forming a single block. */
 const DEFAULT_DOUBLE_GAP_CM = 0;
+const DEFAULT_PHOTO_BRIGHTNESS = 0;
+const DEFAULT_PHOTO_CONTRAST = 1.3;
+const DEFAULT_PHOTO_BLEND = 0.08;
+const PHOTO_PROCESS_TIMEOUT_MS = 45_000;
 
 interface PresetKeys {
   label: TranslationKey;
@@ -135,11 +140,8 @@ const INSCRIPTION_PRESETS: PresetKeys[] = [
 const serializeDimensions = (d: { heightCm: number; widthCm: number }) =>
   `${d.heightCm}x${d.widthCm}`;
 
-const priceOf = (m: Material | undefined, d: { heightCm: number; widthCm: number }) => {
-  if (!m) return 0;
-  const areaM2 = (d.heightCm * d.widthCm) / 10000;
-  return Math.round(areaM2 * m.pricePerM2 * 100) / 100;
-};
+const memorialInscriptionText = (inscription: string, name: string, dates: string) =>
+  [inscription, name, dates].map((part) => part.trim()).filter(Boolean).join('\n');
 
 const readAsDataUrl = (blob: Blob) =>
   new Promise<string>((resolve, reject) => {
@@ -193,11 +195,12 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
   const [photoError, setPhotoError] = useState<string | null>(null);
   /** Live engraving adjustments for the on-stone portrait. Defaults match the shader's
    *  auto-tuned baseline; the user can fine-tune per material via sliders. */
-  const [photoBrightness, setPhotoBrightness] = useState(0);
-  const [photoContrast, setPhotoContrast] = useState(1.3);
+  const [photoBrightness, setPhotoBrightness] = useState(DEFAULT_PHOTO_BRIGHTNESS);
+  const [photoContrast, setPhotoContrast] = useState(DEFAULT_PHOTO_CONTRAST);
   /** 0 = opaque photo (max visible), 1 = strongly dissolves into the stone (seamless). */
-  const [photoBlend, setPhotoBlend] = useState(0.08);
+  const [photoBlend, setPhotoBlend] = useState(DEFAULT_PHOTO_BLEND);
   const [photoCrop, setPhotoCrop] = useState<PhotoCrop>(() => getDefaultPhotoCrop('portrait'));
+  const photoJobId = useRef(0);
 
   const photoUrl = removeBg ? (cutoutPhotoUrl ?? originalPhotoUrl) : originalPhotoUrl;
   const photoAspect = decoration === 'medallion' ? 'square' : 'portrait';
@@ -239,7 +242,9 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
     [materialId, materials]
   );
 
-  const estimatedPrice = priceOf(selectedMaterial, dimensions);
+  const estimatedPrice = selectedMaterial
+    ? monumentPriceByn(selectedMaterial.pricePerM2, dimensions, shape)
+    : 0;
 
   const textureUrl = selectedMaterial?.imageUrl ?? '/images/materials/gabbro-diabase.jpg';
 
@@ -250,16 +255,21 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
     setBaseDimensions((prev) => ({ ...prev, [key]: value }));
 
   const runBackgroundRemoval = async (sourceUrl: string) => {
+    const jobId = ++photoJobId.current;
     setIsProcessingPhoto(true);
     setPhotoError(null);
     try {
-      const cutoutUrl = await removePhotoBackground(sourceUrl);
+      const cutoutUrl = await removePhotoBackground(sourceUrl, PHOTO_PROCESS_TIMEOUT_MS);
+      if (jobId !== photoJobId.current) return;
       setCutoutPhotoUrl(cutoutUrl);
     } catch {
+      if (jobId !== photoJobId.current) return;
       setCutoutPhotoUrl(null);
       setPhotoError(t('designer.photo.processError'));
     } finally {
-      setIsProcessingPhoto(false);
+      if (jobId === photoJobId.current) {
+        setIsProcessingPhoto(false);
+      }
     }
   };
 
@@ -267,8 +277,10 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
+    photoJobId.current += 1;
     setCutoutPhotoUrl(null);
     setPhotoError(null);
+    setIsProcessingPhoto(false);
     try {
       const dataUrl = await fileToDataUrl(file);
       setOriginalPhotoUrl(dataUrl);
@@ -289,9 +301,11 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
   };
 
   const handleRemovePhoto = () => {
+    photoJobId.current += 1;
     setOriginalPhotoUrl(null);
     setCutoutPhotoUrl(null);
     setPhotoError(null);
+    setIsProcessingPhoto(false);
     setPhotoCrop(getDefaultPhotoCrop(photoAspect));
   };
 
@@ -308,7 +322,7 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
       await submitOrderRequest({
         materialId: selectedMaterial.id,
         dimensions: serializeDimensions(dimensions),
-        inscriptionText: inscription,
+        inscriptionText: memorialInscriptionText(inscription, name, dates),
         finishType: finish
       });
       setSubmitMessage(t('designer.success'));
@@ -856,9 +870,9 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
                         <button
                           type="button"
                           onClick={() => {
-                            setPhotoBrightness(0);
-                            setPhotoContrast(1.1);
-                            setPhotoBlend(0.4);
+                            setPhotoBrightness(DEFAULT_PHOTO_BRIGHTNESS);
+                            setPhotoContrast(DEFAULT_PHOTO_CONTRAST);
+                            setPhotoBlend(DEFAULT_PHOTO_BLEND);
                           }}
                           className="text-[10px] text-slate-400 underline-offset-2 hover:text-amber-200 hover:underline"
                         >

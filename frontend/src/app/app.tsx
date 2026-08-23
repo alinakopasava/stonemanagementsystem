@@ -1,11 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import type { Material } from '@domain/entities/material';
 import { AuthProvider } from '@application/auth/auth-context';
 import { I18nProvider, useTranslation } from '@application/i18n/i18n-context';
 import { CurrencyProvider } from '@application/currency/currency-context';
 import { fetchMaterials } from '@infrastructure/api/material-api';
-import { fetchProducts, type ProductItem } from '@infrastructure/api/product-api';
 import { ProtectedRoute } from '@presentation/components/protected-route';
 import { AdminLayout } from '@presentation/pages/admin-layout';
 import { AdminMessagesPage } from '@presentation/pages/admin-messages-page';
@@ -25,10 +24,12 @@ import { SignUpPage } from '@presentation/pages/sign-up-page';
 
 const AppBootScreen = ({
   isLoading,
-  materialsError
+  materialsError,
+  onRetry
 }: {
   isLoading: boolean;
   materialsError: string | null;
+  onRetry: () => void;
 }) => {
   const { t } = useTranslation();
 
@@ -41,36 +42,54 @@ const AppBootScreen = ({
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-900 text-red-300">
-      {t('app.materialsError', { message: materialsError ?? t('admin.common.unknown') })}
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-900 px-6 text-red-300">
+      <p>{t('app.materialsError', { message: materialsError ?? t('admin.common.unknown') })}</p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="rounded-md bg-gray-100 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-white"
+      >
+        {t('app.retry')}
+      </button>
     </div>
   );
 };
 
 export const App = () => {
   const [materials, setMaterials] = useState<Material[]>([]);
-  const [products, setProducts] = useState<ProductItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [materialsError, setMaterialsError] = useState<string | null>(null);
+  const [loadGeneration, setLoadGeneration] = useState(0);
+
+  const retryLoad = useCallback(() => {
+    setIsLoading(true);
+    setMaterialsError(null);
+    setLoadGeneration((n) => n + 1);
+  }, []);
 
   useEffect(() => {
+    let cancelled = false;
     const load = async () => {
       try {
-        const [loadedMaterials, loadedProducts] = await Promise.all([
-          fetchMaterials(),
-          fetchProducts()
-        ]);
+        const loadedMaterials = await fetchMaterials();
+        if (cancelled) return;
         setMaterials(loadedMaterials);
-        setProducts(loadedProducts);
+        setMaterialsError(null);
       } catch (error) {
+        if (cancelled) return;
         const message = error instanceof Error ? error.message : 'Unknown error';
         setMaterialsError(message);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     };
-    load();
-  }, []);
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadGeneration]);
+
+  const storefrontBlocked = isLoading || Boolean(materialsError);
 
   return (
     <BrowserRouter>
@@ -92,36 +111,60 @@ export const App = () => {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<Navigate to="users" replace />} />
+              <Route path="users" element={<AdminUsersPage />} />
+              <Route path="order-cards" element={<AdminOrderCardsPage />} />
+              <Route path="orders" element={<AdminOrdersPage />} />
+              <Route path="messages" element={<AdminMessagesPage />} />
+            </Route>
 
-            {isLoading || materialsError ? (
-              <Route
-                path="*"
-                element={<AppBootScreen isLoading={isLoading} materialsError={materialsError} />}
-              />
+            {storefrontBlocked ? (
+              <>
+                <Route
+                  path="/"
+                  element={
+                    <AppBootScreen
+                      isLoading={isLoading}
+                      materialsError={materialsError}
+                      onRetry={retryLoad}
+                    />
+                  }
+                />
+                <Route
+                  path="/catalog"
+                  element={
+                    <AppBootScreen
+                      isLoading={isLoading}
+                      materialsError={materialsError}
+                      onRetry={retryLoad}
+                    />
+                  }
+                />
+                <Route
+                  path="/design"
+                  element={
+                    <AppBootScreen
+                      isLoading={isLoading}
+                      materialsError={materialsError}
+                      onRetry={retryLoad}
+                    />
+                  }
+                />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </>
             ) : (
               <>
                 <Route path="/" element={<LandingPage materials={materials} />} />
-                <Route
-                  path="/catalog"
-                  element={<CatalogPage materials={materials} products={products} />}
-                />
+                <Route path="/catalog" element={<CatalogPage materials={materials} />} />
                 <Route path="/design" element={<DesignerPage materials={materials} />} />
-
-                <Route
-                  path="/admin"
-                  element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                      <AdminLayout />
-                    </ProtectedRoute>
-                  }
-                >
-                  <Route index element={<Navigate to="users" replace />} />
-                  <Route path="users" element={<AdminUsersPage />} />
-                  <Route path="order-cards" element={<AdminOrderCardsPage />} />
-                  <Route path="orders" element={<AdminOrdersPage />} />
-                  <Route path="messages" element={<AdminMessagesPage />} />
-                </Route>
-
                 <Route path="*" element={<Navigate to="/" replace />} />
               </>
             )}

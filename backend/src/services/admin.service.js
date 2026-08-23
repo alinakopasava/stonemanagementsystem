@@ -33,20 +33,29 @@ const ORDER_SELECT = `
       dimensions,
       inscription_text,
       finish_type,
-      materials ( id, name, category )
+      materials ( id, name, category, price_per_m2 )
     )
   )
 `;
 
 const loadAuthEmails = async () => {
-  const { data: usersData, error: listError } = await supabaseAdmin.auth.admin.listUsers({
-    page: 1,
-    perPage: 1000
-  });
-  if (listError) {
-    throw new Error('Failed to list auth users.');
+  const emailById = new Map();
+  const perPage = 1000;
+  for (let page = 1; page <= 50; page += 1) {
+    const { data: usersData, error: listError } = await supabaseAdmin.auth.admin.listUsers({
+      page,
+      perPage
+    });
+    if (listError) {
+      throw new Error('Failed to list auth users.');
+    }
+    const users = usersData?.users ?? [];
+    for (const user of users) {
+      emailById.set(user.id, user.email ?? null);
+    }
+    if (users.length < perPage) break;
   }
-  return new Map(usersData.users.map((u) => [u.id, u.email ?? null]));
+  return emailById;
 };
 
 export const listUsers = async ({ supabase }) => {

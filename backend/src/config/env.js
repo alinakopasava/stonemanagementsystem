@@ -31,7 +31,13 @@ if (missing.length > 0) {
 }
 
 const frontendOrigin = (process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173').replace(/\/$/, '');
-const cookieSameSite = process.env.COOKIE_SAMESITE ?? 'lax';
+const cookieSameSiteRaw = (process.env.COOKIE_SAMESITE ?? 'lax').toLowerCase();
+const allowedSameSite = new Set(['strict', 'lax', 'none']);
+if (!allowedSameSite.has(cookieSameSiteRaw)) {
+  console.error(`COOKIE_SAMESITE must be one of: strict, lax, none. Got "${process.env.COOKIE_SAMESITE}".`);
+  process.exit(1);
+}
+const cookieSameSite = cookieSameSiteRaw;
 const cookieSecure =
   process.env.COOKIE_SECURE === 'true' ||
   frontendOrigin.startsWith('https://') ||

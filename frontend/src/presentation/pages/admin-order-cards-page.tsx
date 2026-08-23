@@ -3,6 +3,8 @@ import { ArrowRight, FileText, Trash2, X } from 'lucide-react';
 import { useTranslation } from '@application/i18n/i18n-context';
 import { finishLabel, materialLabel } from '@application/i18n/catalog-labels';
 import { LANGUAGE_LOCALES, type TranslationKey } from '@application/i18n/translations';
+import { useCurrency } from '@application/currency/currency-context';
+import { parseDimensionPair, monumentPriceByn } from '@application/pricing/monument-price';
 import {
   convertOrderCardToOrder,
   deleteAdminOrderCard,
@@ -22,13 +24,6 @@ const filterToConverted = (filter: Filter): boolean | undefined => {
   if (filter === 'pending') return false;
   if (filter === 'converted') return true;
   return undefined;
-};
-
-const formatPrice = (value: number | string | null | undefined) => {
-  if (value === null || value === undefined || value === '') return null;
-  const num = typeof value === 'string' ? Number(value) : value;
-  if (!Number.isFinite(num)) return null;
-  return num.toFixed(2);
 };
 
 interface ConvertFormState {
@@ -54,15 +49,15 @@ const emptyForm: ConvertFormState = {
 const suggestPrice = (card: AdminOrderCard): string => {
   const detail = card.order_details[0];
   if (!detail || !detail.materials?.price_per_m2 || !detail.dimensions) return '';
-  const [a, b] = detail.dimensions.toLowerCase().split('x').map((v) => Number(v.trim()));
-  if (!Number.isFinite(a) || !Number.isFinite(b)) return '';
-  const areaM2 = (a / 100) * (b / 100);
-  const price = areaM2 * Number(detail.materials.price_per_m2);
+  const dimensions = parseDimensionPair(detail.dimensions);
+  if (!dimensions) return '';
+  const price = monumentPriceByn(Number(detail.materials.price_per_m2), dimensions);
   return Number.isFinite(price) ? price.toFixed(2) : '';
 };
 
 export const AdminOrderCardsPage = () => {
   const { t, language } = useTranslation();
+  const { formatFromByn } = useCurrency();
   const dateLocale = LANGUAGE_LOCALES[language];
   const [cards, setCards] = useState<AdminOrderCard[]>([]);
   const [filter, setFilter] = useState<Filter>('pending');
@@ -272,7 +267,7 @@ export const AdminOrderCardsPage = () => {
                         <dt className="text-slate-500">{t('admin.orderCards.pricePerM2')}</dt>
                         <dd>
                           {d.materials?.price_per_m2 != null
-                            ? `${Number(d.materials.price_per_m2).toFixed(2)} ${t('designer.priceUnit')}`
+                            ? `${formatFromByn(Number(d.materials.price_per_m2), { digits: 2 })} ${t('designer.priceUnit')}`
                             : '—'}
                         </dd>
                         <dt className="text-slate-500">{t('admin.orderCards.inscription')}</dt>
@@ -289,7 +284,7 @@ export const AdminOrderCardsPage = () => {
                 {card.converted_order ? (
                   <span className="text-xs text-slate-400">
                     {card.converted_order.price != null
-                      ? `${formatPrice(card.converted_order.price)} ${t('designer.priceUnit')}`
+                      ? `${formatFromByn(Number(card.converted_order.price), { digits: 2 })} ${t('designer.priceUnit')}`
                       : t('admin.orderCards.noPrice')}
                     {card.converted_order.deadline
                       ? ` · ${t('admin.orderCards.dueLabel', {

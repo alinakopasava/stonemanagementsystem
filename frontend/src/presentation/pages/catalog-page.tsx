@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { Material } from '@domain/entities/material';
-import type { ProductItem } from '@infrastructure/api/product-api';
 import type { TranslationKey } from '@application/i18n/translations';
 import { useTranslation } from '@application/i18n/i18n-context';
 import { useCurrency } from '@application/currency/currency-context';
@@ -10,36 +9,34 @@ import { Header } from '@presentation/components/header';
 import { LazyMonumentViewer } from '@presentation/components/lazy-monument-viewer';
 import { DEFAULT_PORTRAIT_CROP, SAMPLE_PORTRAIT_URL } from '@presentation/three/photo-crop';
 import type { MonumentShape } from '@presentation/three/monument-model';
+import { monumentPriceByn, SHAPE_BASE_PRICE_BYN } from '@application/pricing/monument-price';
 
 interface CatalogPageProps {
   materials: Material[];
-  /** Kept for API compatibility; the catalog is now driven by the full shape range. */
-  products?: ProductItem[];
 }
 
 const CATALOG_WIDTH_CM = 90;
 
 /** Every existing monument silhouette gets its own card. `aspect` = intended H/W ratio
- *  (mirrors the designer's tuning); `basePrice` is the starting price before material. */
+ *  (mirrors the designer's tuning). Price uses the shared catalog/designer formula. */
 const CATALOG_SHAPES: {
   shape: MonumentShape;
   labelKey: TranslationKey;
   aspect: number;
-  basePrice: number;
 }[] = [
-  { shape: 'classic', labelKey: 'designer.shape.classic', aspect: 2.0, basePrice: 80 },
-  { shape: 'rounded', labelKey: 'designer.shape.rounded', aspect: 2.0, basePrice: 100 },
-  { shape: 'stele', labelKey: 'designer.shape.stele', aspect: 2.2, basePrice: 150 },
-  { shape: 'concave', labelKey: 'designer.shape.concave', aspect: 2.0, basePrice: 130 },
-  { shape: 'asymmetric', labelKey: 'designer.shape.asymmetric', aspect: 2.6, basePrice: 210 },
-  { shape: 'wave-steep', labelKey: 'designer.shape.waveSteep', aspect: 2.1, basePrice: 160 },
-  { shape: 'curvy', labelKey: 'designer.shape.curvy', aspect: 2.2, basePrice: 240 },
-  { shape: 'dome', labelKey: 'designer.shape.dome', aspect: 2.6, basePrice: 230 },
-  { shape: 'arc', labelKey: 'designer.shape.arc', aspect: 2.25, basePrice: 180 },
-  { shape: 'cross-top', labelKey: 'designer.shape.crossTop', aspect: 2.6, basePrice: 270 },
-  { shape: 'gothic', labelKey: 'designer.shape.gothic', aspect: 2.3, basePrice: 190 },
-  { shape: 'cross', labelKey: 'designer.shape.cross', aspect: 2.4, basePrice: 290 },
-  { shape: 'heart', labelKey: 'designer.shape.heart', aspect: 1.7, basePrice: 170 }
+  { shape: 'classic', labelKey: 'designer.shape.classic', aspect: 2.0 },
+  { shape: 'rounded', labelKey: 'designer.shape.rounded', aspect: 2.0 },
+  { shape: 'stele', labelKey: 'designer.shape.stele', aspect: 2.2 },
+  { shape: 'concave', labelKey: 'designer.shape.concave', aspect: 2.0 },
+  { shape: 'asymmetric', labelKey: 'designer.shape.asymmetric', aspect: 2.6 },
+  { shape: 'wave-steep', labelKey: 'designer.shape.waveSteep', aspect: 2.1 },
+  { shape: 'curvy', labelKey: 'designer.shape.curvy', aspect: 2.2 },
+  { shape: 'dome', labelKey: 'designer.shape.dome', aspect: 2.6 },
+  { shape: 'arc', labelKey: 'designer.shape.arc', aspect: 2.25 },
+  { shape: 'cross-top', labelKey: 'designer.shape.crossTop', aspect: 2.6 },
+  { shape: 'gothic', labelKey: 'designer.shape.gothic', aspect: 2.3 },
+  { shape: 'cross', labelKey: 'designer.shape.cross', aspect: 2.4 },
+  { shape: 'heart', labelKey: 'designer.shape.heart', aspect: 1.7 }
 ];
 
 export const CatalogPage = ({ materials }: CatalogPageProps) => {
@@ -107,16 +104,15 @@ export const CatalogPage = ({ materials }: CatalogPageProps) => {
           <p className="py-20 text-center text-slate-400">{t('catalog.loading')}</p>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {CATALOG_SHAPES.map(({ shape, labelKey, aspect, basePrice }) => {
+            {CATALOG_SHAPES.map(({ shape, labelKey, aspect }) => {
               const dimensions = {
                 widthCm: CATALOG_WIDTH_CM,
                 heightCm: Math.round(CATALOG_WIDTH_CM * aspect),
                 thicknessCm: 15
               };
-              const areaM2 = (dimensions.widthCm / 100) * (dimensions.heightCm / 100);
               const materialPrice = selectedMaterial
-                ? Math.round(basePrice + areaM2 * selectedMaterial.pricePerM2)
-                : basePrice;
+                ? monumentPriceByn(selectedMaterial.pricePerM2, dimensions, shape)
+                : SHAPE_BASE_PRICE_BYN[shape];
 
               return (
                 <article
@@ -156,7 +152,7 @@ export const CatalogPage = ({ materials }: CatalogPageProps) => {
                         </p>
                         <p className="font-serif text-base text-amber-200">
                           {t('catalog.basePriceFrom', {
-                            price: formatFromByn(materialPrice)
+                            price: formatFromByn(materialPrice, { digits: 2 })
                           })}
                         </p>
                       </div>

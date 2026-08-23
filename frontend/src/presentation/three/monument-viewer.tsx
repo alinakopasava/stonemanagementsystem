@@ -2,7 +2,11 @@ import { Suspense, useEffect } from 'react';
 import * as THREE from 'three';
 import { Canvas, useThree } from '@react-three/fiber';
 import { Environment, OrbitControls } from '@react-three/drei';
-import { ClassicMonumentModel } from './classic-monument-model';
+import {
+  ClassicMonumentModel,
+  ROUNDED_MODEL_URL,
+  STELE_MODEL_URL
+} from './classic-monument-model';
 import { MonumentModel } from './monument-model';
 import type {
   BaseDimensionsCm,
@@ -90,9 +94,9 @@ export const MonumentViewer = ({
     layout !== 'double';
   const detailedModelUrl =
     props.shape === 'rounded'
-      ? '/models/rounded-monument.glb'
+      ? ROUNDED_MODEL_URL
       : props.shape === 'stele'
-        ? '/models/modern-stele-monument.glb'
+        ? STELE_MODEL_URL
       : '/models/classic-monument.glb';
   const presentation = getStonePresentationProfile(props.materialName);
 
@@ -174,11 +178,18 @@ export const MonumentViewer = ({
               finish={props.finish}
               stoneContrast={props.stoneContrast}
               decoration={props.decoration}
+              nicheStyle={props.nicheStyle}
               photoUrl={props.photoUrl}
               photoCrop={props.photoCrop}
               photoBrightness={props.photoBrightness}
               photoContrast={props.photoContrast}
               photoBlend={props.photoBlend}
+              inscription={props.inscription}
+              name={props.name}
+              dates={props.dates}
+              inscriptionStyle={props.inscriptionStyle}
+              showCross={props.showCross}
+              showFlowerbed={props.showFlowerbed}
             />
           ) : (
             <MonumentModel {...props} layout={layout} />

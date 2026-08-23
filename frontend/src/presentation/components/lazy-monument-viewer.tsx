@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from '@application/i18n/i18n-context';
 import { SceneLoader } from '@presentation/components/scene-loader';
 import type { MonumentViewerProps } from '@presentation/three/monument-viewer';
 
@@ -27,12 +28,15 @@ export const LazyMonumentViewer = ({
   onSceneReady,
   ...viewerProps
 }: LazyMonumentViewerProps) => {
+  const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(!deferUntilVisible);
   const [sceneReady, setSceneReady] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
 
   const handleSceneReady = useCallback(() => {
     setSceneReady(true);
+    setTimedOut(false);
     onSceneReady?.();
   }, [onSceneReady]);
 
@@ -47,7 +51,10 @@ export const LazyMonumentViewer = ({
       (entries) => {
         const visible = entries.some((entry) => entry.isIntersecting);
         setInView(visible);
-        if (!visible) setSceneReady(false);
+        if (!visible) {
+          setSceneReady(false);
+          setTimedOut(false);
+        }
       },
       { rootMargin }
     );
@@ -57,7 +64,7 @@ export const LazyMonumentViewer = ({
 
   useEffect(() => {
     if (!inView || sceneReady) return;
-    const id = window.setTimeout(() => setSceneReady(true), 8000);
+    const id = window.setTimeout(() => setTimedOut(true), 15000);
     return () => window.clearTimeout(id);
   }, [inView, sceneReady]);
 
@@ -73,7 +80,11 @@ export const LazyMonumentViewer = ({
           />
         </Suspense>
       ) : null}
-      <SceneLoader visible={!sceneReady} label={label} variant={variant} />
+      <SceneLoader
+        visible={!sceneReady}
+        label={timedOut ? t('catalog.previewError') : label}
+        variant={variant}
+      />
     </div>
   );
 };

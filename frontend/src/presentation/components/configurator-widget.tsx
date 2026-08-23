@@ -61,14 +61,13 @@ export const ConfiguratorWidget = ({ materials, product: _product }: Configurato
       setIsSubmitting(true);
       setSubmitMessage(null);
 
-      const response = await submitOrderRequest({
+      await submitOrderRequest({
         materialId: selectedMaterial.id,
         dimensions,
         inscriptionText,
         finishType
       });
 
-      console.log('Submitted order:', response);
       setSubmitMessage(t('configurator.success'));
     } catch (error) {
       setSubmitMessage(isRateLimited(error) ? t('auth.tooManyAttempts') : t('configurator.error'));

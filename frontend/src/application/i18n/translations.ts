@@ -35,6 +35,7 @@ export type TranslationKey =
   | 'header.language'
   | 'app.loading'
   | 'app.materialsError'
+  | 'app.retry'
   | 'material.africa'
   | 'material.amadeus'
   | 'material.aurora'
@@ -169,6 +170,7 @@ export type TranslationKey =
   | 'catalog.basePriceFrom'
   | 'catalog.loading'
   | 'catalog.previewLoading'
+  | 'catalog.previewError'
   | 'catalog.shapeTagline'
   | 'designer.shape'
   | 'designer.shape.classic'
@@ -406,6 +408,7 @@ const en: Dictionary = {
 
   'app.loading': 'Loading...',
   'app.materialsError': 'Failed to load materials: {message}',
+  'app.retry': 'Try again',
   'material.africa': 'Africa granite',
   'material.amadeus': 'Amadeus granite',
   'material.aurora': 'Aurora granite',
@@ -561,6 +564,7 @@ const en: Dictionary = {
   'catalog.basePriceFrom': 'from {price} PLN',
   'catalog.loading': 'Loading catalog…',
   'catalog.previewLoading': 'Loading 3D preview…',
+  'catalog.previewError': 'Preview is taking too long. Scroll away and back to retry.',
   'catalog.shapeTagline': 'Available in every stone and finish. Fully customizable in 3D.',
 
   'designer.shape': 'Shape',
@@ -815,6 +819,7 @@ const pl: Dictionary = {
 
   'app.loading': 'Wczytywanie...',
   'app.materialsError': 'Nie udało się wczytać materiałów: {message}',
+  'app.retry': 'Spróbuj ponownie',
   'material.africa': 'Granit Africa',
   'material.amadeus': 'Granit Amadeus',
   'material.aurora': 'Granit Aurora',
@@ -973,6 +978,7 @@ const pl: Dictionary = {
   'catalog.basePriceFrom': 'od {price} PLN',
   'catalog.loading': 'Ładowanie katalogu…',
   'catalog.previewLoading': 'Wczytywanie podglądu 3D…',
+  'catalog.previewError': 'Podgląd ładuje się zbyt długo. Przewiń kartę poza ekran i z powrotem, żeby spróbować ponownie.',
   'catalog.shapeTagline': 'Dostępny w każdym kamieniu i wykończeniu. W pełni konfigurowalny w 3D.',
 
   'designer.shape': 'Kształt',
@@ -1234,6 +1240,7 @@ const ru: Dictionary = {
 
   'app.loading': 'Загрузка...',
   'app.materialsError': 'Не удалось загрузить материалы: {message}',
+  'app.retry': 'Повторить',
   'material.africa': 'Гранит Africa',
   'material.amadeus': 'Гранит Amadeus',
   'material.aurora': 'Гранит Aurora',
@@ -1391,6 +1398,7 @@ const ru: Dictionary = {
   'catalog.basePriceFrom': 'от {price} BYN',
   'catalog.loading': 'Загрузка каталога…',
   'catalog.previewLoading': 'Загрузка 3D-модели…',
+  'catalog.previewError': 'Предпросмотр загружается слишком долго. Прокрутите карточку вне экрана и обратно, чтобы повторить.',
   'catalog.shapeTagline': 'Доступен в любом камне и отделке. Полностью настраивается в 3D.',
 
   'designer.shape': 'Форма',
