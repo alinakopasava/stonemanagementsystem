@@ -6,12 +6,21 @@
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
-    "seed:example-user": "node scripts/create-example-user.js"
+    "seed:example-user": "node scripts/create-example-user.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:rls": "vitest run --config vitest.rls.config.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^2.1.9",
+    "supertest": "^7.0.0",
+    "vitest": "^2.1.9"
   }
 }

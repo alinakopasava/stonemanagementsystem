@@ -1,11 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-import { env } from '../config/env.js';
-
-// Public, anonymous client. Materials/products have a public SELECT policy,
-// so we deliberately do NOT use the service role here.
-const supabasePublic = createClient(env.supabaseUrl, env.supabaseAnonKey, {
-  auth: { autoRefreshToken: false, persistSession: false }
-});
+import { supabasePublic } from '../config/supabase.js';
 
 export const getMaterials = async () => {
   const { data, error } = await supabasePublic

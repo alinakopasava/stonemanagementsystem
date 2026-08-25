@@ -28,6 +28,21 @@ export const createSupabaseAuthClient = () =>
   });
 
 /**
+ * Anonymous client for the public catalogue (`materials`, `products`), which
+ * have a public SELECT policy. Deliberately not the service role: these reads
+ * must stay subject to RLS like any other anonymous request.
+ *
+ * Shared rather than created per service, so every public read goes through one
+ * configured client.
+ */
+export const supabasePublic = createClient(env.supabaseUrl, env.supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+});
+
+/**
  * Per-request client bound to the caller's JWT.
  * All queries run with that user's identity, so Row Level Security applies.
  * This is the only client that should touch business tables on behalf of a user.

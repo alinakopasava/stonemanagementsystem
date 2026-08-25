@@ -1,5 +1,11 @@
-.env 
+.env
 /backend/.env
 /frontend/.env
 /backend/node_modules/
 /frontend/node_modules/
+
+# test artifacts
+/frontend/test-results/
+/frontend/playwright-report/
+/frontend/coverage/
+/backend/coverage/
