@@ -4,17 +4,21 @@ import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Object3D } from 'three';
 import type { FinishType } from '@domain/entities/order-card';
-import type {
-  BaseDimensionsCm,
-  InscriptionStyleHints,
-  MonumentDecoration,
-  MonumentDimensionsCm,
-  NicheStyle
+import {
+  DEFAULT_INSCRIPTION_STYLE,
+  wordAwareLineCount,
+  type BaseDimensionsCm,
+  type InscriptionStyleHints,
+  type MonumentDecoration,
+  type MonumentDimensionsCm,
+  type NicheStyle,
+  type TombstoneSlabVariant
 } from './monument-model';
 import { useStoneAlbedoTexture } from './use-stone-albedo-texture';
 import { usePhotoTexture, type PhotoCrop } from './use-photo-texture';
 import {
   applyStoneAlbedoGrade,
+  finishToSurface,
   getInscriptionColors,
   getStonePresentationProfile,
   isDarkStone,
@@ -57,10 +61,6 @@ const BAKED_NAME_Y = 0.72;
 const BAKED_DATES_Y = 0.53;
 const TEXT_BLOCK_GAP = 0.028;
 
-const DEFAULT_INSCRIPTION_STYLE: InscriptionStyleHints = {
-  letterSpacing: 0,
-  transform: 'none'
-};
 
 /** Photo above stone face; live text sits above baked meshes. */
 const RENDER_ORDER_PHOTO = 3;
@@ -86,37 +86,10 @@ interface ClassicMonumentModelProps {
   inscriptionStyle?: InscriptionStyleHints;
   showCross?: boolean;
   showFlowerbed?: boolean;
+  tombstoneSlab?: TombstoneSlabVariant;
+  slabThicknessCm?: number;
 }
 
-const finishToSurface = (finish: FinishType) => {
-  switch (finish) {
-    case 'Polished':
-      return {
-        roughness: 0.04,
-        metalness: 0.22,
-        clearcoat: 1,
-        clearcoatRoughness: 0.03,
-        envMapIntensity: 1.45
-      };
-    case 'Honed':
-      return {
-        roughness: 0.42,
-        metalness: 0.08,
-        clearcoat: 0.2,
-        clearcoatRoughness: 0.36,
-        envMapIntensity: 0.72
-      };
-    case 'Matte':
-    default:
-      return {
-        roughness: 0.92,
-        metalness: 0.02,
-        clearcoat: 0,
-        clearcoatRoughness: 1,
-        envMapIntensity: 0.32
-      };
-  }
-};
 
 const isMesh = (object: Object3D): object is THREE.Mesh =>
   'isMesh' in object && (object as THREE.Mesh).isMesh === true;
@@ -124,32 +97,10 @@ const isMesh = (object: Object3D): object is THREE.Mesh =>
 const isStoneMesh = (mesh: THREE.Mesh) => !NON_STONE_NAME.test(mesh.name);
 const isLetterMesh = (mesh: THREE.Mesh) => LETTER_NAME.test(mesh.name);
 
-const countTextLines = (
-  text: string,
-  fontSize: number,
-  charFactor: number,
-  maxWidth: number
-) => {
+const countTextLines = (text: string, fontSize: number, charFactor: number, maxWidth: number) => {
   if (!text || fontSize <= 0) return 0;
   const charsPerLine = Math.max(1, Math.floor(maxWidth / (fontSize * charFactor)));
-  let total = 0;
-  for (const rawLine of text.split('\n')) {
-    const words = rawLine.trim().split(/\s+/).filter(Boolean);
-    if (words.length === 0) continue;
-    let lines = 1;
-    let used = 0;
-    for (const word of words) {
-      const need = used === 0 ? word.length : used + 1 + word.length;
-      if (need <= charsPerLine) {
-        used = need;
-      } else {
-        lines += 1;
-        used = word.length;
-      }
-    }
-    total += lines;
-  }
-  return total;
+  return wordAwareLineCount(text, charsPerLine);
 };
 
 const isPhotoMesh = (mesh: THREE.Mesh) => /medalion_zdjecie/i.test(mesh.name);
@@ -198,7 +149,9 @@ export const ClassicMonumentModel = ({
   dates = '',
   inscriptionStyle = DEFAULT_INSCRIPTION_STYLE,
   showCross = false,
-  showFlowerbed = true
+  showFlowerbed = true,
+  tombstoneSlab = 'full',
+  slabThicknessCm = 5
 }: ClassicMonumentModelProps) => {
   const invalidate = useThree((state) => state.invalidate);
   const { scene } = useGLTF(modelUrl);
@@ -216,7 +169,6 @@ export const ClassicMonumentModel = ({
   const showEngravedPhoto = decoration === 'portrait';
   const showFaceCross = decoration === 'cross';
   const stoneSurface = finishToSurface(finish);
-  const presentation = getStonePresentationProfile(materialName);
   const darkStone = isDarkStone(materialName);
   const [stoneLuma, setStoneLuma] = useState(darkStone ? 0.08 : 0.6);
   const [stoneTextureStats, setStoneTextureStats] = useState<StoneTextureStats | undefined>();
@@ -279,23 +231,20 @@ export const ClassicMonumentModel = ({
   const inscriptionColors = getInscriptionColors(materialName, stoneTextureStats);
 
   const stoneMaterial = useMemo(() => {
+    const surface = finishToSurface(finish);
+    const pres = getStonePresentationProfile(materialName);
     const mat = new THREE.MeshPhysicalMaterial({
       color: 0xffffff,
       map: albedoMap,
-      roughness: stoneSurface.roughness,
-      metalness: stoneSurface.metalness,
-      clearcoat: stoneSurface.clearcoat,
-      clearcoatRoughness: stoneSurface.clearcoatRoughness,
-      envMapIntensity: stoneSurface.envMapIntensity
+      roughness: surface.roughness,
+      metalness: surface.metalness,
+      clearcoat: surface.clearcoat,
+      clearcoatRoughness: surface.clearcoatRoughness,
+      envMapIntensity: surface.envMapIntensity
     });
-    applyStoneAlbedoGrade(
-      mat,
-      presentation.stoneContrast,
-      presentation.albedoSaturation,
-      presentation.albedoDarken
-    );
+    applyStoneAlbedoGrade(mat, pres.stoneContrast, pres.albedoSaturation, pres.albedoDarken);
     return mat;
-  }, [albedoMap, stoneSurface, presentation]);
+  }, [albedoMap, finish, materialName]);
 
   useEffect(() => () => stoneMaterial.dispose(), [stoneMaterial]);
   useEffect(() => () => medallionPhotoMaterial?.dispose(), [medallionPhotoMaterial]);
@@ -376,9 +325,10 @@ export const ClassicMonumentModel = ({
     return Math.min(desired, worldTextMaxWidth / (longest * charFactor));
   };
 
-  const headerSize = autoFit(inscriptionTrimmed, 0.042 * textScale);
-  const nameSize = autoFit(nameTrimmed, 0.055 * textScale);
-  const datesSize = autoFit(datesTrimmed, 0.038 * textScale);
+  const fontScale = inscriptionStyle.fontScale ?? 1;
+  const headerSize = autoFit(inscriptionTrimmed, 0.042 * textScale * fontScale);
+  const nameSize = autoFit(nameTrimmed, 0.055 * textScale * fontScale);
+  const datesSize = autoFit(datesTrimmed, 0.038 * textScale * fontScale);
   const headerHeight =
     countTextLines(inscriptionTrimmed, headerSize, charFactor, worldTextMaxWidth) *
     headerSize *
@@ -449,7 +399,8 @@ export const ClassicMonumentModel = ({
   const commonTextProps = {
     color: inscriptionColors.fill,
     outlineColor: inscriptionColors.outline,
-    outlineOpacity: 0.85,
+    /** A firm opposite-colour outline keeps lettering legible on veins and speckled granite. */
+    outlineOpacity: 1,
     anchorX: 'center' as const,
     anchorY: 'middle' as const,
     textAlign: 'center' as const,
@@ -464,9 +415,21 @@ export const ClassicMonumentModel = ({
   const baseWidthM = Math.max(0.2, baseDimensions.widthCm / 100);
   const baseHeightM = Math.max(0.06, baseDimensions.heightCm / 100);
   const baseDepthM = Math.max(0.08, baseDimensions.depthCm / 100);
+  const hasTombstoneSlab = tombstoneSlab !== 'none';
+  const tombstoneSlabHeightM = Math.max(0.03, slabThicknessCm / 100);
+  const tombstoneSlabWidthM = Math.max(baseWidthM * 1.25, worldWidth * 1.5);
+  const tombstoneSlabDepthM =
+    tombstoneSlab === 'half' ? Math.max(baseDepthM * 1.15, slabDepth * scaleZ * 2.8) : Math.max(baseDepthM * 2, slabDepth * scaleZ * 5.5);
+  const tombstoneSlabOffsetZ =
+    tombstoneSlab === 'half' ? tombstoneSlabDepthM * 0.32 : tombstoneSlabDepthM * 0.18;
+  const monumentOffsetY = hasTombstoneSlab ? tombstoneSlabHeightM : 0;
   const slabOffsetY = baseHeightM - slabMinY * scaleY;
-  const flowerDepth = Math.max(0.1, baseDepthM * 0.7);
+  const flowerDepth = Math.max(0.12, baseDepthM * 0.7);
   const flowerHeight = Math.max(0.06, baseHeightM * 0.4);
+  const flowerbedWidth = baseWidthM * 0.92;
+  const flowerbedWall = Math.max(0.025, flowerDepth * 0.2);
+  const flowerbedInnerWidth = Math.max(0.02, flowerbedWidth - flowerbedWall * 2.8);
+  const flowerbedInnerDepth = Math.max(0.02, flowerDepth - flowerbedWall * 2);
   const faceCrossW = SOURCE_HEADSTONE_WIDTH_M * 0.34 * scaleY;
   const faceCrossH = faceCrossW * 1.7;
   const faceCrossBeam = faceCrossW * 0.26;
@@ -476,7 +439,18 @@ export const ClassicMonumentModel = ({
   const frameThickness = 0.012;
 
   return (
-    <group>
+    <>
+      {hasTombstoneSlab ? (
+        <mesh
+          position={[0, tombstoneSlabHeightM / 2, tombstoneSlabOffsetZ]}
+          material={stoneMaterial}
+          castShadow
+          receiveShadow
+        >
+          <boxGeometry args={[tombstoneSlabWidthM, tombstoneSlabHeightM, tombstoneSlabDepthM]} />
+        </mesh>
+      ) : null}
+      <group position={[0, monumentOffsetY, 0]}>
       <mesh
         position={[0, baseHeightM / 2, 0]}
         material={stoneMaterial}
@@ -486,14 +460,47 @@ export const ClassicMonumentModel = ({
         <boxGeometry args={[baseWidthM, baseHeightM, baseDepthM]} />
       </mesh>
       {showFlowerbed ? (
-        <mesh
-          position={[0, flowerHeight / 2, baseDepthM / 2 + flowerDepth / 2]}
-          material={stoneMaterial}
-          castShadow
-          receiveShadow
-        >
-          <boxGeometry args={[baseWidthM * 0.92, flowerHeight, flowerDepth]} />
-        </mesh>
+        <group position={[0, 0, baseDepthM / 2 + flowerDepth / 2]}>
+          <mesh position={[0, 0.01, 0]} material={stoneMaterial} castShadow receiveShadow>
+            <boxGeometry args={[flowerbedWidth, 0.02, flowerDepth]} />
+          </mesh>
+          <mesh
+            position={[0, 0.02 + flowerHeight / 2, -flowerDepth / 2 + flowerbedWall / 2]}
+            material={stoneMaterial}
+            castShadow
+            receiveShadow
+          >
+            <boxGeometry args={[flowerbedWidth, flowerHeight, flowerbedWall]} />
+          </mesh>
+          <mesh
+            position={[0, 0.02 + flowerHeight / 2, flowerDepth / 2 - flowerbedWall / 2]}
+            material={stoneMaterial}
+            castShadow
+            receiveShadow
+          >
+            <boxGeometry args={[flowerbedWidth, flowerHeight, flowerbedWall]} />
+          </mesh>
+          <mesh
+            position={[-flowerbedWidth / 2 + flowerbedWall / 2, 0.02 + flowerHeight / 2, 0]}
+            material={stoneMaterial}
+            castShadow
+            receiveShadow
+          >
+            <boxGeometry args={[flowerbedWall, flowerHeight, flowerbedInnerDepth]} />
+          </mesh>
+          <mesh
+            position={[flowerbedWidth / 2 - flowerbedWall / 2, 0.02 + flowerHeight / 2, 0]}
+            material={stoneMaterial}
+            castShadow
+            receiveShadow
+          >
+            <boxGeometry args={[flowerbedWall, flowerHeight, flowerbedInnerDepth]} />
+          </mesh>
+          <mesh position={[0, 0.02 + flowerHeight * 0.68, 0]} receiveShadow>
+            <boxGeometry args={[flowerbedInnerWidth, 0.01, flowerbedInnerDepth]} />
+            <meshStandardMaterial color="#2a1d10" roughness={0.95} />
+          </mesh>
+        </group>
       ) : null}
       <group position={[0, slabOffsetY, 0]} scale={[scaleX, scaleY, scaleZ]}>
         <primitive object={model} dispose={null} />
@@ -567,7 +574,7 @@ export const ClassicMonumentModel = ({
             {...commonTextProps}
             position={[0, headerY, textZ]}
             fontSize={headerSize}
-            outlineWidth={headerSize * 0.05}
+            outlineWidth={headerSize * 0.11}
             lineHeight={TEXT_LINE_HEIGHT}
           >
             {inscriptionTrimmed}
@@ -578,7 +585,7 @@ export const ClassicMonumentModel = ({
             {...commonTextProps}
             position={[0, nameY, textZ]}
             fontSize={nameSize}
-            outlineWidth={nameSize * 0.06}
+            outlineWidth={nameSize * 0.12}
             lineHeight={TEXT_LINE_HEIGHT}
           >
             {nameTrimmed}
@@ -589,7 +596,7 @@ export const ClassicMonumentModel = ({
             {...commonTextProps}
             position={[0, datesY, textZ]}
             fontSize={datesSize}
-            outlineWidth={datesSize * 0.05}
+            outlineWidth={datesSize * 0.11}
             lineHeight={TEXT_LINE_HEIGHT}
           >
             {datesTrimmed}
@@ -597,7 +604,8 @@ export const ClassicMonumentModel = ({
         ) : null}
       </Suspense>
       </group>
-    </group>
+      </group>
+    </>
   );
 };
 

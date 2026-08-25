@@ -5,7 +5,7 @@ import {
   clearSessionCookies,
   setSessionCookies
 } from '../http/cookies.js';
-import { refreshAccessToken } from '../services/auth.service.js';
+import { ensureProfileExists, refreshAccessToken } from '../services/auth.service.js';
 
 const extractBearerToken = (authorizationHeader) => {
   if (!authorizationHeader || typeof authorizationHeader !== 'string') {
@@ -82,19 +82,9 @@ export const requireAuth = async (req, res, next) => {
     }
 
     if (!profile) {
-      const metadata = data.user.user_metadata ?? {};
-      const { error: upsertError } = await supabaseAdmin.from('profiles').upsert(
-        {
-          id: data.user.id,
-          first_name: typeof metadata.first_name === 'string' ? metadata.first_name : '',
-          last_name: typeof metadata.last_name === 'string' ? metadata.last_name : '',
-          phone_number: typeof metadata.phone_number === 'string' ? metadata.phone_number : null,
-          role: 'klient'
-        },
-        { onConflict: 'id' }
-      );
-
-      if (upsertError) {
+      try {
+        await ensureProfileExists({ userId: data.user.id, metadata: data.user.user_metadata ?? {} });
+      } catch {
         return res.status(500).json({ message: 'Failed to initialize user profile.' });
       }
 

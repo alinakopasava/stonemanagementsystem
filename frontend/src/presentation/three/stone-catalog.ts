@@ -1,7 +1,9 @@
 /** Canonical English names stored in `materials.name`. Keep these stable. */
 import * as THREE from 'three';
+import type { FinishType } from '@domain/entities/order-card';
+import { canonicalMaterialName } from '@domain/entities/material';
 
-export const MATERIAL_IMAGE_BY_NAME: Record<string, string> = {
+const MATERIAL_IMAGES: Record<string, string> = {
   'Africa Granite': '/images/materials/africa.jpg',
   'Amadeus Granite': '/images/materials/amadeus.jpg',
   'Aurora Granite': '/images/materials/aurora.jpg',
@@ -14,14 +16,14 @@ export const MATERIAL_IMAGE_BY_NAME: Record<string, string> = {
   Marble: '/images/materials/marble.jpg',
   'Maslovsky Granite': '/images/materials/maslovsky.jpg',
   'Silk Granite': '/images/materials/silk.jpg',
-  'Tiffany Granite': '/images/materials/tiffany.jpg',
-  /** Legacy DB names from the previous 4-stone catalog. */
-  'Black Granite': '/images/materials/gabbro-diabase.jpg',
-  'Grey Granite': '/images/materials/gandhi.jpg',
-  'Labradorite Blue': '/images/materials/labradorite.jpg'
+  'Tiffany Granite': '/images/materials/tiffany.jpg'
 };
 
-export const DEFAULT_MATERIAL_IMAGE = MATERIAL_IMAGE_BY_NAME['Gabbro-Diabase'];
+export const DEFAULT_MATERIAL_IMAGE = MATERIAL_IMAGES['Gabbro-Diabase'];
+
+/** Slab image for a material name, legacy names included. */
+export const materialImageUrl = (materialName: string | null | undefined) =>
+  MATERIAL_IMAGES[canonicalMaterialName(materialName)] ?? DEFAULT_MATERIAL_IMAGE;
 
 /** Dark stones (avg luma < ~0.42): used for photo-engraving polarity seeding. */
 const DARK_STONE_MATERIALS = new Set([
@@ -32,9 +34,7 @@ const DARK_STONE_MATERIALS = new Set([
   'Africa Granite',
   'Aurora Granite',
   'Baltic Granite',
-  'Leznikovsky Granite',
-  'Black Granite',
-  'Labradorite Blue'
+  'Leznikovsky Granite'
 ]);
 
 export type InscriptionColors = {
@@ -105,24 +105,8 @@ const INSCRIPTION_BY_MATERIAL: Record<string, InscriptionColors> = {
     emissive: '#c9a050',
     emissiveIntensity: 0.22
   },
-  'Black Granite': {
-    fill: '#ecc57a',
-    outline: '#0a0804',
-    metalness: 0.58,
-    roughness: 0.26,
-    emissive: '#c9a050',
-    emissiveIntensity: 0.22
-  },
   /** Dark navy + iridescent blue — gold, not silver (silver fights the flash). */
   'Labradorite Granite': {
-    fill: '#e0b85a',
-    outline: '#071018',
-    metalness: 0.54,
-    roughness: 0.28,
-    emissive: '#c4a04a',
-    emissiveIntensity: 0.2
-  },
-  'Labradorite Blue': {
     fill: '#e0b85a',
     outline: '#071018',
     metalness: 0.54,
@@ -186,12 +170,6 @@ const INSCRIPTION_BY_MATERIAL: Record<string, InscriptionColors> = {
   },
   /** Light-mid salt-and-pepper grey — charcoal. */
   'Gandhi Granite': {
-    fill: '#161410',
-    outline: '#eeeae4',
-    metalness: 0.06,
-    roughness: 0.46
-  },
-  'Grey Granite': {
     fill: '#161410',
     outline: '#eeeae4',
     metalness: 0.06,
@@ -273,8 +251,9 @@ export const getInscriptionColors = (
   materialName: string | undefined,
   stats?: StoneTextureStats
 ): InscriptionColors => {
-  if (materialName && INSCRIPTION_BY_MATERIAL[materialName]) {
-    return INSCRIPTION_BY_MATERIAL[materialName];
+  const preset = INSCRIPTION_BY_MATERIAL[canonicalMaterialName(materialName)];
+  if (preset) {
+    return preset;
   }
   if (stats) return pickInscriptionColorsFromStats(stats);
   return isDarkStone(materialName) ? WARM_GOLD_ON_DARK : DARK_ON_LIGHT;
@@ -325,7 +304,7 @@ const LIGHT_STONE_PRESENTATION: StonePresentationProfile = {
 export const getStonePresentationProfile = (
   materialName: string | undefined
 ): StonePresentationProfile => {
-  if (materialName === 'Africa Granite') return AFRICA_PRESENTATION;
+  if (canonicalMaterialName(materialName) === 'Africa Granite') return AFRICA_PRESENTATION;
   if (isDarkStone(materialName)) return DARK_STONE_PRESENTATION;
   return LIGHT_STONE_PRESENTATION;
 };
@@ -370,12 +349,42 @@ const SEAMLESS_MATERIALS = new Set([
   'Juparana Granite',
   'Aurora Granite',
   'Tiffany Granite',
-  'Labradorite Granite',
-  'Labradorite Blue'
+  'Labradorite Granite'
 ]);
 
 export const isDarkStone = (materialName: string | undefined) =>
-  Boolean(materialName && DARK_STONE_MATERIALS.has(materialName));
+  DARK_STONE_MATERIALS.has(canonicalMaterialName(materialName));
 
 export const isSeamlessStone = (materialName: string | undefined) =>
-  Boolean(materialName && SEAMLESS_MATERIALS.has(materialName));
+  SEAMLESS_MATERIALS.has(canonicalMaterialName(materialName));
+
+/** Maps a finish type to the PBR surface parameters used by MeshPhysicalMaterial. */
+export const finishToSurface = (finish: FinishType) => {
+  switch (finish) {
+    case 'Polished':
+      return {
+        roughness: 0.04,
+        metalness: 0.22,
+        clearcoat: 1,
+        clearcoatRoughness: 0.03,
+        envMapIntensity: 1.45
+      };
+    case 'Honed':
+      return {
+        roughness: 0.42,
+        metalness: 0.08,
+        clearcoat: 0.2,
+        clearcoatRoughness: 0.36,
+        envMapIntensity: 0.72
+      };
+    case 'Matte':
+    default:
+      return {
+        roughness: 0.92,
+        metalness: 0.02,
+        clearcoat: 0,
+        clearcoatRoughness: 1,
+        envMapIntensity: 0.32
+      };
+  }
+};

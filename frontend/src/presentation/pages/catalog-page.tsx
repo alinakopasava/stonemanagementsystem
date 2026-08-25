@@ -4,7 +4,7 @@ import type { Material } from '@domain/entities/material';
 import type { TranslationKey } from '@application/i18n/translations';
 import { useTranslation } from '@application/i18n/i18n-context';
 import { useCurrency } from '@application/currency/currency-context';
-import { materialLabel } from '@application/i18n/catalog-labels';
+import { materialLabel, shapeLabelKey } from '@application/i18n/catalog-labels';
 import { Header } from '@presentation/components/header';
 import { LazyMonumentViewer } from '@presentation/components/lazy-monument-viewer';
 import {
@@ -12,7 +12,10 @@ import {
   getInscriptionStyle
 } from '@presentation/components/inscription-styles';
 import { DEFAULT_PORTRAIT_CROP, SAMPLE_PORTRAIT_URL } from '@presentation/three/photo-crop';
-import type { MonumentShape } from '@presentation/three/monument-model';
+import {
+  SELECTABLE_MONUMENT_SHAPES,
+  type MonumentShape
+} from '@domain/entities/monument';
 import { monumentPriceByn, SHAPE_BASE_PRICE_BYN } from '@application/pricing/monument-price';
 
 interface CatalogPageProps {
@@ -22,15 +25,16 @@ interface CatalogPageProps {
 const CATALOG_STELA = { heightCm: 100, widthCm: 60, thicknessCm: 10 };
 const CATALOG_BASE = { heightCm: 20, widthCm: 60, depthCm: 15 };
 
-/** The three product silhouettes. Preview uses the default standard size. */
+/** One card per purchasable silhouette. Preview uses the default standard size.
+ *  Derived from the same list the designer validates `?shape=` against, so every
+ *  card here is guaranteed to survive the jump into the configurator. */
 const CATALOG_SHAPES: {
   shape: MonumentShape;
   labelKey: TranslationKey;
-}[] = [
-  { shape: 'classic', labelKey: 'designer.shape.classic' },
-  { shape: 'rounded', labelKey: 'designer.shape.rounded' },
-  { shape: 'stele', labelKey: 'designer.shape.stele' }
-];
+}[] = SELECTABLE_MONUMENT_SHAPES.map((shape) => ({
+  shape,
+  labelKey: shapeLabelKey(shape)
+}));
 
 export const CatalogPage = ({ materials }: CatalogPageProps) => {
   const { t } = useTranslation();

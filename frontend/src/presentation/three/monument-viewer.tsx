@@ -14,10 +14,10 @@ import type {
   MonumentDecoration,
   MonumentDimensionsCm,
   MonumentLayout,
-  MonumentShape,
   NicheStyle,
   TombstoneSlabVariant
 } from './monument-model';
+import type { MonumentShape } from '@domain/entities/monument';
 import type { FinishType } from '@domain/entities/order-card';
 import { getStonePresentationProfile } from './stone-catalog';
 
@@ -247,6 +247,8 @@ export const MonumentViewer = ({
               inscriptionStyle={props.inscriptionStyle}
               showCross={props.showCross}
               showFlowerbed={props.showFlowerbed}
+              tombstoneSlab={props.tombstoneSlab}
+              slabThicknessCm={props.slabThicknessCm}
               baseDimensions={props.baseDimensions}
             />
           ) : (

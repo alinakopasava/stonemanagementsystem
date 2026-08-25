@@ -8,9 +8,6 @@ revoke all on function public.handle_new_user() from public;
 revoke all on function public.handle_new_user() from anon, authenticated;
 grant execute on function public.handle_new_user() to postgres, supabase_auth_admin;
 
-revoke all on function public.rls_auto_enable() from public;
-revoke all on function public.rls_auto_enable() from anon, authenticated;
-
 revoke all on function public.current_user_role() from public;
 revoke all on function public.current_user_role() from anon;
 grant execute on function public.current_user_role() to authenticated;

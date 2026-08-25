@@ -1,14 +1,14 @@
-import { CROSS_TOP_GEOMETRY, CURVY_GEOMETRY, type MonumentShape } from '@presentation/three/monument-model';
+import { CROSS_TOP_GEOMETRY, CURVY_GEOMETRY } from '@presentation/three/monument-model';
+import type { MonumentShape } from '@domain/entities/monument';
 
-/** Width of every preview SVG. Height is derived per shape from its `previewAspect`
+/** Width of every preview SVG. Height is derived per shape from `PREVIEW_ASPECT`
  *  so the thumbnail keeps the silhouette's true proportions instead of squishing
  *  everything to a single rectangle. */
 const W = 60;
 
-/** Visual aspect ratio (H / W) used when drawing each silhouette's thumbnail. Matches
- *  the `recommendedAspect` declared in `designer-page.tsx` for shapes that have one,
- *  defaults to 2 for the rest. The actual user-set headstone height is independent
- *  of this — this aspect is purely a *display* choice for the thumbnail. */
+/** Visual aspect ratio (H / W) used when drawing each silhouette's thumbnail. The
+ *  actual user-set headstone height is independent of this — this aspect is purely
+ *  a *display* choice for the thumbnail. */
 const PREVIEW_ASPECT: Record<MonumentShape, number> = {
   classic: 2.0,
   rounded: 2.0,

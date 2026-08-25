@@ -27,8 +27,10 @@ Key ideas:
 - Session cookies are `httpOnly`, `SameSite=lax`, and `Secure` on HTTPS. The browser does not keep JWTs in `localStorage`.
 - supabase-js on the frontend is used only to finish server-initiated email confirmation / recovery links. Supabase clears callback tokens from the URL immediately; the app validates and rotates them through `POST /api/auth/session`, then keeps the session only in httpOnly cookies.
 - In development, Vite proxies `/api` to the backend so cookies are first-party. Leave `VITE_API_URL` unset.
+- `requireAuth` also accepts an `Authorization: Bearer <token>` header as a fallback for non-browser API clients (e.g. scripts using the backend directly). Bearer requests without a cookie bypass the CSRF origin check intentionally — they are stateless and carry no SameSite cookie. Do not use this path from browser code.
 - Express `requireAuth` verifies the JWT with Supabase, loads `profiles.role`, and creates a per-request client bound to that JWT. **Row Level Security is the last line of defense.**
-- Admin table operations use that user-scoped client (RLS). The service role is only for JWT verification, `auth.users` emails, contact-form inserts, and audit logs.
+- Admin table operations use that user-scoped client (RLS). The service role is only for JWT verification, `auth.users` emails, contact-form inserts, audit logs, and the `profiles` backfill described below.
+- `ensureProfileExists` uses the service role to insert a missing `profiles` row when the sign-up trigger did not fire (e.g. an `auth.users` row that predates the trigger). `profiles` intentionally has no client INSERT policy, so this path cannot go through the user-scoped client. It hardcodes `role: 'klient'` and is idempotent — it never accepts a caller-supplied role.
 - The service role key never ships to the browser.
 
 ## Roles
@@ -36,7 +38,11 @@ Key ideas:
 Enum `public.user_role`: `klient` (client), `monter` (installer), `admin`.
 
 - Self sign-up always creates a `klient`. The DB trigger ignores any requested role.
-- Promoting someone to `monter` or `admin` is a manual operation: update `public.profiles.role` in the Supabase SQL editor.
+- Promoting someone to `monter` or `admin` is an admin-only operation. Two ways to do it:
+  - `PATCH /api/admin/users/:id/role` from the admin UI — behind `requireAuth` + `requireRole('admin')`, and audit-logged.
+  - Directly in the Supabase SQL editor (see below) — needed to create the *first* admin, since the endpoint requires an existing one.
+
+  There is no self-service path: a `klient` cannot reach either.
 
 ## One-time setup
 
@@ -85,7 +91,18 @@ cd frontend && npm install --legacy-peer-deps && npm run dev
 
 See `supabase/migrations/` for the exact policies.
 
+> **Known gap — `monter` update scope.** The table above says installers may only
+> *update status* on `order_cards` / `orders`. The controllers enforce that, but the
+> RLS policies `order_cards_update_staff` and `orders_update_staff`
+> (`0001_auth_and_rls.sql`) grant `monter` an unrestricted `UPDATE` on every column.
+> Since RLS is meant to be the last line of defense, an installer calling Supabase
+> directly with their own JWT can currently rewrite price, client name, passport
+> fields and deadlines. Tightening this is a DB change — see the migration note in
+> the project README/handover before relying on RLS alone here.
+
 ## Promoting an admin / installer
+
+Bootstrapping the first admin (no admin exists yet, so the API route is unusable):
 
 ```sql
 update public.profiles

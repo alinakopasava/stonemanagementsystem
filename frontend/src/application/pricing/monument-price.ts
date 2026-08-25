@@ -1,4 +1,4 @@
-import type { MonumentShape } from '@presentation/three/monument-model';
+import type { MonumentShape } from '@domain/entities/monument';
 
 /** Per-shape starting price in BYN, before stone area. Shared by catalog and designer. */
 export const SHAPE_BASE_PRICE_BYN: Record<MonumentShape, number> = {

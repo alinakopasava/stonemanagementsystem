@@ -21,13 +21,12 @@ export interface InscriptionStyle {
     fontUrl: string;
     letterSpacing: number;
     transform: 'none' | 'uppercase';
+    fontScale: number;
   };
 }
 
-/** jsdelivr `gh/google/fonts` rzuca 404 dla większości plików `static/…` (brak takiego folderu w repo);
- *  działają tylko URL-e bez podfolderu. Stabilniej brać te same fonty z @fontsource przez jsdelivr
- *  — troika-three-text obsługuje .woff (a my chcemy maksymalnie bold weighty). */
-const FS = 'https://cdn.jsdelivr.net/npm/@fontsource';
+/** Local font files keep the 3D engraving independent from CDN availability. */
+const FONT_PATH = '/fonts';
 
 export const INSCRIPTION_STYLES: InscriptionStyle[] = [
   {
@@ -41,9 +40,10 @@ export const INSCRIPTION_STYLES: InscriptionStyle[] = [
       textTransform: 'uppercase'
     },
     three: {
-      fontUrl: `${FS}/cinzel/files/cinzel-latin-900-normal.woff`,
+      fontUrl: `${FONT_PATH}/cinzel-900.woff`,
       letterSpacing: 0.16,
-      transform: 'uppercase'
+      transform: 'uppercase',
+      fontScale: 1
     }
   },
   {
@@ -56,9 +56,10 @@ export const INSCRIPTION_STYLES: InscriptionStyle[] = [
       letterSpacing: '0.04em'
     },
     three: {
-      fontUrl: `${FS}/playfair-display/files/playfair-display-latin-800-normal.woff`,
+      fontUrl: `${FONT_PATH}/playfair-display-800.woff`,
       letterSpacing: 0.04,
-      transform: 'none'
+      transform: 'none',
+      fontScale: 1
     }
   },
   {
@@ -72,9 +73,10 @@ export const INSCRIPTION_STYLES: InscriptionStyle[] = [
       letterSpacing: '0.02em'
     },
     three: {
-      fontUrl: `${FS}/cormorant-garamond/files/cormorant-garamond-latin-700-italic.woff`,
+      fontUrl: `${FONT_PATH}/cormorant-garamond-700-italic.woff`,
       letterSpacing: 0.02,
-      transform: 'none'
+      transform: 'none',
+      fontScale: 1.22
     }
   },
   {
@@ -87,9 +89,10 @@ export const INSCRIPTION_STYLES: InscriptionStyle[] = [
       letterSpacing: '0.01em'
     },
     three: {
-      fontUrl: `${FS}/great-vibes/files/great-vibes-latin-400-normal.woff`,
+      fontUrl: `${FONT_PATH}/great-vibes-400.woff`,
       letterSpacing: 0.01,
-      transform: 'none'
+      transform: 'none',
+      fontScale: 1.45
     }
   },
   {
@@ -102,9 +105,10 @@ export const INSCRIPTION_STYLES: InscriptionStyle[] = [
       letterSpacing: '0.04em'
     },
     three: {
-      fontUrl: `${FS}/unifrakturmaguntia/files/unifrakturmaguntia-latin-400-normal.woff`,
+      fontUrl: `${FONT_PATH}/unifrakturmaguntia-400.woff`,
       letterSpacing: 0.04,
-      transform: 'none'
+      transform: 'none',
+      fontScale: 1.28
     }
   }
 ];

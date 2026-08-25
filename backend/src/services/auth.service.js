@@ -137,7 +137,12 @@ export const requestPasswordReset = async ({ email, ip, userAgent }) => {
   });
 };
 
-export const establishSessionFromTokens = async ({ accessToken, refreshToken }) => {
+export const establishSessionFromTokens = async ({
+  accessToken,
+  refreshToken,
+  ip,
+  userAgent
+}) => {
   if (
     typeof accessToken !== 'string' ||
     typeof refreshToken !== 'string' ||
@@ -146,12 +151,22 @@ export const establishSessionFromTokens = async ({ accessToken, refreshToken }) 
     accessToken.length > 8192 ||
     refreshToken.length > 8192
   ) {
+    await writeAuditLog({
+      action: 'auth.session_established_failed',
+      ip,
+      userAgent
+    });
     throw new PublicError('Invalid or expired session.', 401);
   }
 
   const { data: accessData, error: accessError } =
     await supabaseAdmin.auth.getUser(accessToken);
   if (accessError || !accessData?.user) {
+    await writeAuditLog({
+      action: 'auth.session_established_failed',
+      ip,
+      userAgent
+    });
     throw new PublicError('Invalid or expired session.', 401);
   }
 
@@ -166,22 +181,54 @@ export const establishSessionFromTokens = async ({ accessToken, refreshToken }) 
     !refreshData.user ||
     refreshData.user.id !== accessData.user.id
   ) {
+    await writeAuditLog({
+      actorId: accessData.user.id,
+      action: 'auth.session_established_failed',
+      ip,
+      userAgent
+    });
     throw new PublicError('Invalid or expired session.', 401);
   }
+
+  await writeAuditLog({
+    actorId: refreshData.user.id,
+    action: 'auth.session_established',
+    ip,
+    userAgent
+  });
 
   return refreshData.session;
 };
 
-export const updatePassword = async ({ accessToken, password }) => {
+export const updatePassword = async ({ accessToken, password, actorId, ip, userAgent }) => {
   if (!passwordIsStrong(password)) {
+    await writeAuditLog({
+      actorId: actorId ?? null,
+      action: 'auth.password_reset_failed',
+      ip,
+      userAgent
+    });
     throw new PublicError('Password does not meet the requirements.', 400);
   }
 
   const userClient = supabaseForUser(accessToken);
-  const { error } = await userClient.auth.updateUser({ password });
+  const { data, error } = await userClient.auth.updateUser({ password });
   if (error) {
+    await writeAuditLog({
+      actorId: actorId ?? null,
+      action: 'auth.password_reset_failed',
+      ip,
+      userAgent
+    });
     throw new PublicError('Could not update password.', 400);
   }
+
+  await writeAuditLog({
+    actorId: data.user?.id ?? actorId ?? null,
+    action: 'auth.password_reset',
+    ip,
+    userAgent
+  });
 };
 
 export const revokeSession = async ({ accessToken, actorId, ip, userAgent }) => {
@@ -216,4 +263,27 @@ export const refreshAccessToken = async (refreshToken) => {
     return null;
   }
   return data.session;
+};
+
+/**
+ * Ensures a profile row exists for a newly-authenticated user whose
+ * Supabase trigger did not fire (e.g. first login on a pre-existing
+ * auth.users row without a corresponding profiles row).
+ *
+ * Uses the service-role client ONLY for the INSERT because the
+ * `profiles` table intentionally has no client INSERT policy — inserts
+ * are reserved for the trigger and this fallback path. The operation is
+ * idempotent: a conflict on `id` is silently ignored.
+ */
+export const ensureProfileExists = async ({ userId, metadata }) => {
+  const { error } = await supabaseAdmin.from('profiles').insert({
+    id: userId,
+    first_name: typeof metadata?.first_name === 'string' ? metadata.first_name : '',
+    last_name: typeof metadata?.last_name === 'string' ? metadata.last_name : '',
+    phone_number: typeof metadata?.phone_number === 'string' ? metadata.phone_number : null,
+    role: 'klient'
+  });
+  if (error && error.code !== '23505') {
+    throw error;
+  }
 };

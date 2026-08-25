@@ -1,10 +1,5 @@
 import { getClientIp, getUserAgent } from '../http/client-ip.js';
-import {
-  clearSessionCookies,
-  setSessionCookies,
-  ACCESS_COOKIE,
-  REFRESH_COOKIE
-} from '../http/cookies.js';
+import { clearSessionCookies, setSessionCookies, ACCESS_COOKIE } from '../http/cookies.js';
 import { sendError } from '../http/errors.js';
 import {
   establishSessionFromTokens,
@@ -55,9 +50,10 @@ export const signUpController = async (req, res) => {
 
 export const signOutController = async (req, res) => {
   try {
+    // No refresh token needed: admin.signOut(accessToken, 'global') revokes the
+    // whole session family, refresh tokens included.
     await revokeSession({
       accessToken: req.cookies?.[ACCESS_COOKIE] || req.accessToken,
-      refreshToken: req.cookies?.[REFRESH_COOKIE],
       actorId: req.user?.id ?? null,
       ip: getClientIp(req),
       userAgent: getUserAgent(req)

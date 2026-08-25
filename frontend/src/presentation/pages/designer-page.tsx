@@ -3,10 +3,15 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@application/auth/auth-context';
 import { useTranslation } from '@application/i18n/i18n-context';
 import { useCurrency } from '@application/currency/currency-context';
-import { materialLabel } from '@application/i18n/catalog-labels';
+import { materialLabel, shapeLabelKey } from '@application/i18n/catalog-labels';
 import type { TranslationKey } from '@application/i18n/translations';
 import type { FinishType } from '@domain/entities/order-card';
 import type { Material } from '@domain/entities/material';
+import {
+  SELECTABLE_MONUMENT_SHAPES,
+  isSelectableMonumentShape,
+  type MonumentShape
+} from '@domain/entities/monument';
 import { submitOrderRequest } from '@infrastructure/api/order-api';
 import { monumentPriceByn } from '@application/pricing/monument-price';
 import { Header } from '@presentation/components/header';
@@ -25,7 +30,6 @@ import type {
   BaseDimensionsCm,
   MonumentDecoration,
   MonumentLayout,
-  MonumentShape,
   NicheStyle,
   TombstoneSlabVariant
 } from '@presentation/three/monument-model';
@@ -40,15 +44,10 @@ const FINISH_OPTIONS: { id: FinishType; labelKey: TranslationKey }[] = [
   { id: 'Matte', labelKey: 'designer.finish.matte' }
 ];
 
-/** `recommendedAspect` = intended H/W ratio for this silhouette. When the user picks a shape
- *  whose ratio differs noticeably from the current dimensions, the height is auto-adjusted so
- *  the rendered headstone matches the design profile the shape was tuned for. The user can
- *  still override the height afterwards via the slider. */
-const SHAPE_OPTIONS: { id: MonumentShape; labelKey: TranslationKey }[] = [
-  { id: 'classic', labelKey: 'designer.shape.classic' },
-  { id: 'rounded', labelKey: 'designer.shape.rounded' },
-  { id: 'stele', labelKey: 'designer.shape.stele' }
-];
+/** Derived from the one storefront shape list so the picker and the catalog cards
+ *  can never drift apart. See `SELECTABLE_MONUMENT_SHAPES`. */
+const SHAPE_OPTIONS: { id: MonumentShape; labelKey: TranslationKey }[] =
+  SELECTABLE_MONUMENT_SHAPES.map((id) => ({ id, labelKey: shapeLabelKey(id) }));
 
 const DECORATION_OPTIONS: { id: MonumentDecoration; labelKey: TranslationKey }[] = [
   { id: 'none', labelKey: 'designer.decoration.none' },
@@ -178,10 +177,9 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
   const [baseDimensions, setBaseDimensions] = useState<BaseDimensionsCm>(DEFAULT_BASE_DIMENSIONS);
   const [searchParams] = useSearchParams();
   const shapeFromCatalog = searchParams.get('shape');
-  const initialShape =
-    SHAPE_OPTIONS.some((option) => option.id === shapeFromCatalog)
-      ? (shapeFromCatalog as MonumentShape)
-      : 'classic';
+  const initialShape: MonumentShape = isSelectableMonumentShape(shapeFromCatalog)
+    ? shapeFromCatalog
+    : 'classic';
   const [shape, setShape] = useState<MonumentShape>(initialShape);
   const [showCross, setShowCross] = useState<boolean>(false);
   const [showFlowerbed, setShowFlowerbed] = useState<boolean>(true);
@@ -611,15 +609,6 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
                   onChange={updateDimension('heightCm')}
                 />
                 <SliderRow
-                  label={t('designer.dimensions.width')}
-                  value={dimensions.widthCm}
-                  min={40}
-                  max={100}
-                  step={5}
-                  unit={t('designer.units.cm')}
-                  onChange={updateDimension('widthCm')}
-                />
-                <SliderRow
                   label={t('designer.dimensions.thickness')}
                   value={dimensions.thicknessCm}
                   min={5}
@@ -644,15 +633,6 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
                   step={5}
                   unit={t('designer.units.cm')}
                   onChange={updateBaseDimension('widthCm')}
-                />
-                <SliderRow
-                  label={t('designer.baseSize.depth')}
-                  value={baseDimensions.depthCm}
-                  min={10}
-                  max={40}
-                  step={5}
-                  unit={t('designer.units.cm')}
-                  onChange={updateBaseDimension('depthCm')}
                 />
                 <SliderRow
                   label={t('designer.baseSize.height')}
@@ -977,6 +957,7 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
                   setPresetIndex(null);
                 }}
                 placeholder={t('designer.inscriptionPlaceholder')}
+                aria-label={t('designer.inscription')}
                 maxLength={140}
               />
               <p className="mt-1 text-right text-[10px] text-slate-500">
