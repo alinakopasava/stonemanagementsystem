@@ -77,8 +77,6 @@ export type TranslationKey =
   | 'designer.previewLoading'
   | 'designer.material'
   | 'designer.finish'
-  | 'designer.stoneContrast'
-  | 'designer.stoneContrast.hint'
   | 'designer.finish.polished'
   | 'designer.finish.honed'
   | 'designer.finish.matte'
@@ -188,6 +186,11 @@ export type TranslationKey =
   | 'designer.shape.arc'
   | 'designer.shape.showCross'
   | 'designer.stelaSize'
+  | 'designer.size.standards'
+  | 'designer.size.standard1'
+  | 'designer.size.standard1.detail'
+  | 'designer.size.standard2'
+  | 'designer.size.standard2.detail'
   | 'designer.baseSize'
   | 'designer.baseSize.height'
   | 'designer.baseSize.width'
@@ -457,9 +460,6 @@ const en: Dictionary = {
   'designer.previewLoading': 'Preparing the 3D scene…',
   'designer.material': 'Material',
   'designer.finish': 'Finish',
-  'designer.stoneContrast': 'Stone contrast',
-  'designer.stoneContrast.hint':
-    'If the stone looks harsh, lower this to soften the texture. Raise it for more grain.',
   'designer.finish.polished': 'Polished',
   'designer.finish.honed': 'Honed',
   'designer.finish.matte': 'Matte',
@@ -584,6 +584,11 @@ const en: Dictionary = {
   'designer.shape.showCross': 'Cross on top',
 
   'designer.stelaSize': 'Headstone size',
+  'designer.size.standards': 'Standard sizes',
+  'designer.size.standard1': 'Standard 1',
+  'designer.size.standard1.detail': 'Stele 100×60×10 cm · base 60×15×20 cm',
+  'designer.size.standard2': 'Standard 2',
+  'designer.size.standard2.detail': 'Stele 100×50×10 cm · base 50×15×20 cm',
   'designer.baseSize': 'Base size',
   'designer.baseSize.height': 'Height',
   'designer.baseSize.width': 'Width',
@@ -642,7 +647,7 @@ const en: Dictionary = {
   'designer.presets.title': 'Ready-made texts',
   'designer.presets.classic.label': 'Classic',
   'designer.presets.classic.inscription': 'Forever in our hearts',
-  'designer.presets.classic.name': 'John Smith',
+  'designer.presets.classic.name': 'Maria Nowacka',
   'designer.presets.classic.dates': '1948 — 2022',
   'designer.presets.short.label': 'Short',
   'designer.presets.short.inscription': 'Rest in peace',
@@ -868,9 +873,6 @@ const pl: Dictionary = {
   'designer.previewLoading': 'Przygotowywanie sceny 3D…',
   'designer.material': 'Materiał',
   'designer.finish': 'Wykończenie',
-  'designer.stoneContrast': 'Kontrast kamienia',
-  'designer.stoneContrast.hint':
-    'Jeśli kamień wygląda zbyt ostro, zmniejsz kontrast, aby złagodzić teksturę. Zwiększ, aby wydobyć ziarnistość.',
   'designer.finish.polished': 'Polerowane',
   'designer.finish.honed': 'Szlifowane',
   'designer.finish.matte': 'Matowe',
@@ -998,6 +1000,11 @@ const pl: Dictionary = {
   'designer.shape.showCross': 'Krzyż na szczycie',
 
   'designer.stelaSize': 'Rozmiar steli',
+  'designer.size.standards': 'Wymiary standardowe',
+  'designer.size.standard1': 'Standard 1',
+  'designer.size.standard1.detail': 'Stela 100×60×10 cm · podstawa 60×15×20 cm',
+  'designer.size.standard2': 'Standard 2',
+  'designer.size.standard2.detail': 'Stela 100×50×10 cm · podstawa 50×15×20 cm',
   'designer.baseSize': 'Rozmiar podstawy',
   'designer.baseSize.height': 'Wysokość',
   'designer.baseSize.width': 'Szerokość',
@@ -1056,7 +1063,7 @@ const pl: Dictionary = {
   'designer.presets.title': 'Gotowe teksty',
   'designer.presets.classic.label': 'Klasyczny',
   'designer.presets.classic.inscription': 'Na zawsze w naszych sercach',
-  'designer.presets.classic.name': 'Jan Kowalski',
+  'designer.presets.classic.name': 'Maria Nowacka',
   'designer.presets.classic.dates': '1948 — 2022',
   'designer.presets.short.label': 'Krótki',
   'designer.presets.short.inscription': 'Spoczywaj w pokoju',
@@ -1289,9 +1296,6 @@ const ru: Dictionary = {
   'designer.previewLoading': 'Подготовка 3D-сцены…',
   'designer.material': 'Материал',
   'designer.finish': 'Отделка',
-  'designer.stoneContrast': 'Контраст камня',
-  'designer.stoneContrast.hint':
-    'Если камень выглядит слишком резко, уменьшите контраст, чтобы смягчить текстуру. Увеличьте, чтобы сильнее проступило зерно.',
   'designer.finish.polished': 'Полированная',
   'designer.finish.honed': 'Шлифованная',
   'designer.finish.matte': 'Матовая',
@@ -1418,6 +1422,11 @@ const ru: Dictionary = {
   'designer.shape.showCross': 'Крест на вершине',
 
   'designer.stelaSize': 'Размер стелы',
+  'designer.size.standards': 'Стандартные размеры',
+  'designer.size.standard1': 'Стандарт 1',
+  'designer.size.standard1.detail': 'Стела 100×60×10 см · постамент 60×15×20 см',
+  'designer.size.standard2': 'Стандарт 2',
+  'designer.size.standard2.detail': 'Стела 100×50×10 см · постамент 50×15×20 см',
   'designer.baseSize': 'Размер постамента',
   'designer.baseSize.height': 'Высота',
   'designer.baseSize.width': 'Ширина',
@@ -1476,7 +1485,7 @@ const ru: Dictionary = {
   'designer.presets.title': 'Готовые тексты',
   'designer.presets.classic.label': 'Классический',
   'designer.presets.classic.inscription': 'Навсегда в наших сердцах',
-  'designer.presets.classic.name': 'Иван Иванов',
+  'designer.presets.classic.name': 'Мария Новацкая',
   'designer.presets.classic.dates': '1948 — 2022',
   'designer.presets.short.label': 'Короткий',
   'designer.presets.short.inscription': 'Покойся с миром',

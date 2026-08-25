@@ -24,7 +24,7 @@ export const LazyMonumentViewer = ({
   variant = 'full',
   deferUntilVisible = false,
   rootMargin = '250px',
-  heightClassName = 'h-[540px]',
+  heightClassName = 'h-[640px]',
   onSceneReady,
   ...viewerProps
 }: LazyMonumentViewerProps) => {

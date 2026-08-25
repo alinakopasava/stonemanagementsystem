@@ -44,20 +44,10 @@ const FINISH_OPTIONS: { id: FinishType; labelKey: TranslationKey }[] = [
  *  whose ratio differs noticeably from the current dimensions, the height is auto-adjusted so
  *  the rendered headstone matches the design profile the shape was tuned for. The user can
  *  still override the height afterwards via the slider. */
-const SHAPE_OPTIONS: { id: MonumentShape; labelKey: TranslationKey; recommendedAspect?: number }[] = [
+const SHAPE_OPTIONS: { id: MonumentShape; labelKey: TranslationKey }[] = [
   { id: 'classic', labelKey: 'designer.shape.classic' },
-  { id: 'stele', labelKey: 'designer.shape.stele' },
-  { id: 'asymmetric', labelKey: 'designer.shape.asymmetric', recommendedAspect: 2.6 },
-  { id: 'cross-top', labelKey: 'designer.shape.crossTop', recommendedAspect: 2.6 },
-  { id: 'curvy', labelKey: 'designer.shape.curvy', recommendedAspect: 2.2 },
-  { id: 'dome', labelKey: 'designer.shape.dome', recommendedAspect: 2.6 },
-  { id: 'arc', labelKey: 'designer.shape.arc', recommendedAspect: 2.25 },
-  { id: 'wave-steep', labelKey: 'designer.shape.waveSteep' },
-  { id: 'concave', labelKey: 'designer.shape.concave' },
   { id: 'rounded', labelKey: 'designer.shape.rounded' },
-  { id: 'gothic', labelKey: 'designer.shape.gothic' },
-  { id: 'cross', labelKey: 'designer.shape.cross' },
-  { id: 'heart', labelKey: 'designer.shape.heart' }
+  { id: 'stele', labelKey: 'designer.shape.stele' }
 ];
 
 const DECORATION_OPTIONS: { id: MonumentDecoration; labelKey: TranslationKey }[] = [
@@ -94,8 +84,21 @@ const TABS: { id: ConfiguratorTab; labelKey: TranslationKey }[] = [
   { id: 'inscription', labelKey: 'designer.tab.inscription' }
 ];
 
-const DEFAULT_DIMENSIONS = { heightCm: 180, widthCm: 90, thicknessCm: 15 };
-const DEFAULT_BASE_DIMENSIONS: BaseDimensionsCm = { heightCm: 14, widthCm: 130, depthCm: 40 };
+const SIZE_STANDARDS = [
+  {
+    id: 's1' as const,
+    stele: { heightCm: 100, widthCm: 60, thicknessCm: 10 },
+    base: { heightCm: 20, widthCm: 60, depthCm: 15 }
+  },
+  {
+    id: 's2' as const,
+    stele: { heightCm: 100, widthCm: 50, thicknessCm: 10 },
+    base: { heightCm: 20, widthCm: 50, depthCm: 15 }
+  }
+];
+
+const DEFAULT_DIMENSIONS = { ...SIZE_STANDARDS[0].stele };
+const DEFAULT_BASE_DIMENSIONS: BaseDimensionsCm = { ...SIZE_STANDARDS[0].base };
 /** Default 0 = the two stelas are flush against each other ("glued"), forming a single block. */
 const DEFAULT_DOUBLE_GAP_CM = 0;
 const DEFAULT_PHOTO_BRIGHTNESS = 0;
@@ -161,8 +164,6 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
 
   const [materialId, setMaterialId] = useState<string>('');
   const [finish, setFinish] = useState<FinishType>('Polished');
-  /** Stone texture contrast: 1 = original image, lower flattens harsh-looking materials. */
-  const [stoneContrast, setStoneContrast] = useState(1);
   /** Index of the currently active preset, or `null` when user typed custom text. */
   const [presetIndex, setPresetIndex] = useState<number | null>(0);
   const [inscription, setInscription] = useState<string>(() =>
@@ -369,7 +370,6 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
             photoBrightness={photoBrightness}
             photoContrast={photoContrast}
             photoBlend={photoBlend}
-            stoneContrast={stoneContrast}
             layout={layout}
             secondaryInscription={secondaryInscription}
             secondaryName={secondaryName}
@@ -504,25 +504,13 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
                   );
                 })}
               </div>
-              <div className="mt-3">
-                <SliderRow
-                  label={t('designer.stoneContrast')}
-                  value={stoneContrast}
-                  min={0.4}
-                  max={1.4}
-                  step={0.05}
-                  unit=""
-                  onChange={setStoneContrast}
-                />
-                <p className="mt-1 text-[11px] text-slate-500">{t('designer.stoneContrast.hint')}</p>
-              </div>
             </section>
 
             <section>
               <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
                 {t('designer.shape')}
               </h2>
-              <div className="mt-3 grid grid-cols-4 gap-2">
+              <div className="mt-3 grid grid-cols-3 gap-2">
                 {SHAPE_OPTIONS.map((option) => {
                   const active = option.id === shape;
                   return (
@@ -530,24 +518,7 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
                       key={option.id}
                       type="button"
                       title={t(option.labelKey)}
-                      onClick={() => {
-                        setShape(option.id);
-                        /** Auto-adjust height to match the shape's intended H/W ratio when one
-                         *  is declared and the current geometry is off by more than 10 %. The
-                         *  user keeps full manual control via the height slider afterwards. */
-                        if (option.recommendedAspect) {
-                          setDimensions((prev) => {
-                            const currentAspect = prev.heightCm / Math.max(1, prev.widthCm);
-                            if (Math.abs(currentAspect - option.recommendedAspect!) > 0.1) {
-                              return {
-                                ...prev,
-                                heightCm: Math.round(prev.widthCm * option.recommendedAspect!)
-                              };
-                            }
-                            return prev;
-                          });
-                        }
-                      }}
+                      onClick={() => setShape(option.id)}
                       className={[
                         'group relative flex aspect-square items-center justify-center rounded-md border bg-slate-950 p-2 transition',
                         active
@@ -579,14 +550,62 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
                 <>
             <section>
               <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
+                {t('designer.size.standards')}
+              </h2>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {SIZE_STANDARDS.map((standard) => {
+                  const active =
+                    dimensions.heightCm === standard.stele.heightCm &&
+                    dimensions.widthCm === standard.stele.widthCm &&
+                    dimensions.thicknessCm === standard.stele.thicknessCm &&
+                    baseDimensions.heightCm === standard.base.heightCm &&
+                    baseDimensions.widthCm === standard.base.widthCm &&
+                    baseDimensions.depthCm === standard.base.depthCm;
+                  return (
+                    <button
+                      key={standard.id}
+                      type="button"
+                      onClick={() => {
+                        setDimensions({ ...standard.stele });
+                        setBaseDimensions({ ...standard.base });
+                      }}
+                      className={[
+                        'rounded-md border px-3 py-2 text-left text-sm transition',
+                        active
+                          ? 'border-amber-300 bg-amber-300/10 text-amber-100'
+                          : 'border-slate-700 text-slate-300 hover:border-slate-500'
+                      ].join(' ')}
+                    >
+                      <span className="block font-medium">
+                        {t(
+                          standard.id === 's1'
+                            ? 'designer.size.standard1'
+                            : 'designer.size.standard2'
+                        )}
+                      </span>
+                      <span className="mt-1 block text-[11px] text-slate-400">
+                        {t(
+                          standard.id === 's1'
+                            ? 'designer.size.standard1.detail'
+                            : 'designer.size.standard2.detail'
+                        )}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section>
+              <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
                 {t('designer.stelaSize')}
               </h2>
               <div className="mt-3 space-y-3">
                 <SliderRow
                   label={t('designer.dimensions.height')}
                   value={dimensions.heightCm}
-                  min={90}
-                  max={240}
+                  min={70}
+                  max={160}
                   step={5}
                   unit={t('designer.units.cm')}
                   onChange={updateDimension('heightCm')}
@@ -595,7 +614,7 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
                   label={t('designer.dimensions.width')}
                   value={dimensions.widthCm}
                   min={40}
-                  max={140}
+                  max={100}
                   step={5}
                   unit={t('designer.units.cm')}
                   onChange={updateDimension('widthCm')}
@@ -603,8 +622,8 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
                 <SliderRow
                   label={t('designer.dimensions.thickness')}
                   value={dimensions.thicknessCm}
-                  min={8}
-                  max={30}
+                  min={5}
+                  max={12}
                   step={1}
                   unit={t('designer.units.cm')}
                   onChange={updateDimension('thicknessCm')}
@@ -620,8 +639,8 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
                 <SliderRow
                   label={t('designer.baseSize.width')}
                   value={baseDimensions.widthCm}
-                  min={80}
-                  max={200}
+                  min={40}
+                  max={120}
                   step={5}
                   unit={t('designer.units.cm')}
                   onChange={updateBaseDimension('widthCm')}
@@ -629,8 +648,8 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
                 <SliderRow
                   label={t('designer.baseSize.depth')}
                   value={baseDimensions.depthCm}
-                  min={25}
-                  max={80}
+                  min={10}
+                  max={40}
                   step={5}
                   unit={t('designer.units.cm')}
                   onChange={updateBaseDimension('depthCm')}
@@ -638,7 +657,7 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
                 <SliderRow
                   label={t('designer.baseSize.height')}
                   value={baseDimensions.heightCm}
-                  min={6}
+                  min={10}
                   max={30}
                   step={1}
                   unit={t('designer.units.cm')}

@@ -1,4 +1,4 @@
-import { Suspense, useEffect } from 'react';
+import { Suspense, useEffect, useLayoutEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { Canvas, useThree } from '@react-three/fiber';
 import { Environment, OrbitControls } from '@react-three/drei';
@@ -45,7 +45,6 @@ export interface MonumentViewerProps {
   photoBrightness?: number;
   photoContrast?: number;
   photoBlend?: number;
-  stoneContrast?: number;
   layout?: MonumentLayout;
   secondaryInscription?: string;
   secondaryName?: string;
@@ -66,18 +65,45 @@ const SceneReadyNotifier = ({ onReady }: { onReady?: () => void }) => {
   const invalidate = useThree((state) => state.invalidate);
 
   useEffect(() => {
-    /** frameloop="demand" (catalog grid) does not paint until invalidate() — GLB looked missing. */
+    /** frameloop="demand" (catalog grid) does not paint until invalidate() — GLB looked missing.
+     *  Troika text fonts resolve in a nested Suspense after the first frame, so keep
+     *  requesting draws until the inscription has had a chance to sync. */
     invalidate();
-    if (!onReady) return;
-    const id = requestAnimationFrame(() => onReady());
-    return () => cancelAnimationFrame(id);
+    const retries = [80, 250, 700].map((ms) => window.setTimeout(() => invalidate(), ms));
+    const readyId = onReady ? requestAnimationFrame(() => onReady()) : 0;
+    return () => {
+      retries.forEach((id) => window.clearTimeout(id));
+      if (readyId) cancelAnimationFrame(readyId);
+    };
   }, [invalidate, onReady]);
 
   return null;
 };
 
+/** Frames the current stele + base so the monument fills the view without clipping. */
+const FrameCamera = ({
+  position,
+  fov
+}: {
+  position: [number, number, number];
+  fov: number;
+}) => {
+  const camera = useThree((state) => state.camera);
+  const invalidate = useThree((state) => state.invalidate);
+
+  useLayoutEffect(() => {
+    const cam = camera as THREE.PerspectiveCamera;
+    cam.position.set(position[0], position[1], position[2]);
+    cam.fov = fov;
+    cam.updateProjectionMatrix();
+    invalidate();
+  }, [camera, fov, invalidate, position]);
+
+  return null;
+};
+
 export const MonumentViewer = ({
-  heightClassName = 'h-[540px]',
+  heightClassName = 'h-[640px]',
   frameloop = 'always',
   quality = 'full',
   onSceneReady,
@@ -99,6 +125,36 @@ export const MonumentViewer = ({
         ? STELE_MODEL_URL
       : '/models/classic-monument.glb';
   const presentation = getStonePresentationProfile(props.materialName);
+  const fov = isCatalogQuality ? 26 : 28;
+  const framing = useMemo(() => {
+    const steleH = props.dimensions.heightCm / 100;
+    const steleW = props.dimensions.widthCm / 100;
+    const baseH = (props.baseDimensions?.heightCm ?? 20) / 100;
+    const baseW = (props.baseDimensions?.widthCm ?? props.dimensions.widthCm) / 100;
+    const totalH = steleH + baseH;
+    const totalW = Math.max(steleW, baseW);
+    const aspect = isCatalogQuality ? 1.2 : 1.35;
+    const vHalf = Math.tan((fov * Math.PI) / 360);
+    const hHalf = vHalf * aspect;
+    const distForHeight = (totalH * 0.72) / vHalf;
+    const distForWidth = (totalW * 1.28) / hHalf;
+    const distance = (distForWidth * 0.55 + distForHeight * 0.45) * 1.08;
+    const side = isDetailedGlb ? 0.18 : -0.22;
+    return {
+      position: [distance * side, totalH * 0.5, distance] as [number, number, number],
+      target: [0, totalH * 0.45, 0] as [number, number, number],
+      minDistance: Math.max(0.8, distance * 0.6),
+      maxDistance: Math.max(4, distance * 2.6)
+    };
+  }, [
+    fov,
+    isCatalogQuality,
+    isDetailedGlb,
+    props.baseDimensions?.heightCm,
+    props.baseDimensions?.widthCm,
+    props.dimensions.heightCm,
+    props.dimensions.widthCm
+  ]);
 
   return (
     <div className={`${heightClassName} w-full overflow-hidden rounded-2xl border border-slate-200/30 bg-[#eceae8]`}>
@@ -110,8 +166,10 @@ export const MonumentViewer = ({
         }}
         dpr={isCatalogQuality ? 1 : [1, 2]}
         camera={{
-          position: isDetailedGlb ? [1.7, 1.35, 3.6] : [-1.6, 1.7, 3.1],
-          fov: 34
+          position: framing.position,
+          fov,
+          near: 0.05,
+          far: 40
         }}
         gl={{
           antialias: !isCatalogQuality,
@@ -176,7 +234,6 @@ export const MonumentViewer = ({
               textureUrl={props.textureUrl}
               materialName={props.materialName}
               finish={props.finish}
-              stoneContrast={props.stoneContrast}
               decoration={props.decoration}
               nicheStyle={props.nicheStyle}
               photoUrl={props.photoUrl}
@@ -190,21 +247,23 @@ export const MonumentViewer = ({
               inscriptionStyle={props.inscriptionStyle}
               showCross={props.showCross}
               showFlowerbed={props.showFlowerbed}
+              baseDimensions={props.baseDimensions}
             />
           ) : (
             <MonumentModel {...props} layout={layout} />
           )}
 
           <SceneReadyNotifier onReady={onSceneReady} />
+          <FrameCamera position={framing.position} fov={fov} />
         </Suspense>
 
         <OrbitControls
           enablePan={false}
-          minDistance={1.4}
-          maxDistance={6}
+          minDistance={framing.minDistance}
+          maxDistance={framing.maxDistance}
           minPolarAngle={Math.PI / 6}
-          maxPolarAngle={Math.PI / 2.1}
-          target={isDetailedGlb ? [0, 0.95, 0] : [0, 0.6, 0]}
+          maxPolarAngle={Math.PI / 2.05}
+          target={framing.target}
           makeDefault
         />
       </Canvas>

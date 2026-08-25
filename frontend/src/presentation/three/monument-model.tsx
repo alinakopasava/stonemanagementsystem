@@ -134,9 +134,6 @@ interface MonumentModelProps {
   photoBrightness?: number;
   photoContrast?: number;
   photoBlend?: number;
-  /** Stone texture contrast: 1 = original image, <1 flattens (softer, less harsh), >1 boosts.
-   *  Compresses the albedo luminance toward the material's mean while keeping its color. */
-  stoneContrast?: number;
   /** Single stela (default) or a double monument with two stelas side by side. */
   layout?: MonumentLayout;
   /** Text on the right-hand stela when layout='double'. Ignored otherwise. */
@@ -211,14 +208,30 @@ const wordAwareLineCount = (value: string, charsPerLine: number) => {
 const finishToSurface = (finish: FinishType) => {
   switch (finish) {
     case 'Polished':
-      // Near-mirror polish: very low roughness, high clearcoat → crisp edge highlights on bevels
-      return { roughness: 0.04, metalness: 0.42, clearcoat: 1.0, clearcoatRoughness: 0.04 };
+      return {
+        roughness: 0.04,
+        metalness: 0.22,
+        clearcoat: 1,
+        clearcoatRoughness: 0.03,
+        envMapIntensity: 1.45
+      };
     case 'Honed':
-      // Satin/brushed: visible directionality, muted sheen
-      return { roughness: 0.38, metalness: 0.14, clearcoat: 0.22, clearcoatRoughness: 0.28 };
+      return {
+        roughness: 0.42,
+        metalness: 0.08,
+        clearcoat: 0.2,
+        clearcoatRoughness: 0.36,
+        envMapIntensity: 0.72
+      };
     case 'Matte':
     default:
-      return { roughness: 0.88, metalness: 0.04, clearcoat: 0, clearcoatRoughness: 0 };
+      return {
+        roughness: 0.92,
+        metalness: 0.02,
+        clearcoat: 0,
+        clearcoatRoughness: 1,
+        envMapIntensity: 0.32
+      };
   }
 };
 
@@ -654,7 +667,6 @@ export const MonumentModel = ({
   photoBrightness = 0,
   photoContrast = 1.1,
   photoBlend = 0.08,
-  stoneContrast = 1,
   layout = 'single',
   secondaryInscription = '',
   secondaryName = '',
@@ -820,32 +832,16 @@ export const MonumentModel = ({
 
   const stoneMaterial = useMemo(() => {
     const surface = finishToSurface(finish);
-    const mat = new THREE.MeshPhysicalMaterial({
+    return new THREE.MeshPhysicalMaterial({
       color: 0xffffff,
       map: albedoMap,
       roughness: surface.roughness,
       metalness: surface.metalness,
       clearcoat: surface.clearcoat,
-      clearcoatRoughness: surface.clearcoatRoughness
+      clearcoatRoughness: surface.clearcoatRoughness,
+      envMapIntensity: surface.envMapIntensity
     });
-    // Optional user contrast control: compress the albedo luminance toward the material's
-    // mean (stoneLuma) while preserving color, so "too harsh" stones can be softened.
-    if (Math.abs(stoneContrast - 1) > 0.001) {
-      const f = (v: number) => v.toFixed(3);
-      mat.onBeforeCompile = (shader) => {
-        shader.fragmentShader = shader.fragmentShader.replace(
-          '#include <map_fragment>',
-          `#include <map_fragment>
-          {
-            float _l = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
-            float _target = mix(${f(stoneLuma)}, _l, ${f(stoneContrast)});
-            diffuseColor.rgb *= _target / max(_l, 0.001);
-          }`
-        );
-      };
-    }
-    return mat;
-  }, [albedoMap, finish, stoneContrast, stoneLuma]);
+  }, [albedoMap, finish]);
 
   useEffect(() => () => stoneMaterial.dispose(), [stoneMaterial]);
 
@@ -982,7 +978,8 @@ export const MonumentModel = ({
     font: inscriptionStyle.fontUrl,
     /** Text always above stone and engraved photo (photo renderOrder = 3). */
     renderOrder: 5,
-    depthOffset: -1
+    depthOffset: -4,
+    frustumCulled: false
   };
 
   const linesFor = (text: string, fontSize: number) => {

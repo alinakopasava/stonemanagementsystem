@@ -7,6 +7,10 @@ import { useCurrency } from '@application/currency/currency-context';
 import { materialLabel } from '@application/i18n/catalog-labels';
 import { Header } from '@presentation/components/header';
 import { LazyMonumentViewer } from '@presentation/components/lazy-monument-viewer';
+import {
+  DEFAULT_INSCRIPTION_STYLE_ID,
+  getInscriptionStyle
+} from '@presentation/components/inscription-styles';
 import { DEFAULT_PORTRAIT_CROP, SAMPLE_PORTRAIT_URL } from '@presentation/three/photo-crop';
 import type { MonumentShape } from '@presentation/three/monument-model';
 import { monumentPriceByn, SHAPE_BASE_PRICE_BYN } from '@application/pricing/monument-price';
@@ -15,28 +19,17 @@ interface CatalogPageProps {
   materials: Material[];
 }
 
-const CATALOG_WIDTH_CM = 90;
+const CATALOG_STELA = { heightCm: 100, widthCm: 60, thicknessCm: 10 };
+const CATALOG_BASE = { heightCm: 20, widthCm: 60, depthCm: 15 };
 
-/** Every existing monument silhouette gets its own card. `aspect` = intended H/W ratio
- *  (mirrors the designer's tuning). Price uses the shared catalog/designer formula. */
+/** The three product silhouettes. Preview uses the default standard size. */
 const CATALOG_SHAPES: {
   shape: MonumentShape;
   labelKey: TranslationKey;
-  aspect: number;
 }[] = [
-  { shape: 'classic', labelKey: 'designer.shape.classic', aspect: 2.0 },
-  { shape: 'rounded', labelKey: 'designer.shape.rounded', aspect: 2.0 },
-  { shape: 'stele', labelKey: 'designer.shape.stele', aspect: 2.2 },
-  { shape: 'concave', labelKey: 'designer.shape.concave', aspect: 2.0 },
-  { shape: 'asymmetric', labelKey: 'designer.shape.asymmetric', aspect: 2.6 },
-  { shape: 'wave-steep', labelKey: 'designer.shape.waveSteep', aspect: 2.1 },
-  { shape: 'curvy', labelKey: 'designer.shape.curvy', aspect: 2.2 },
-  { shape: 'dome', labelKey: 'designer.shape.dome', aspect: 2.6 },
-  { shape: 'arc', labelKey: 'designer.shape.arc', aspect: 2.25 },
-  { shape: 'cross-top', labelKey: 'designer.shape.crossTop', aspect: 2.6 },
-  { shape: 'gothic', labelKey: 'designer.shape.gothic', aspect: 2.3 },
-  { shape: 'cross', labelKey: 'designer.shape.cross', aspect: 2.4 },
-  { shape: 'heart', labelKey: 'designer.shape.heart', aspect: 1.7 }
+  { shape: 'classic', labelKey: 'designer.shape.classic' },
+  { shape: 'rounded', labelKey: 'designer.shape.rounded' },
+  { shape: 'stele', labelKey: 'designer.shape.stele' }
 ];
 
 export const CatalogPage = ({ materials }: CatalogPageProps) => {
@@ -104,12 +97,8 @@ export const CatalogPage = ({ materials }: CatalogPageProps) => {
           <p className="py-20 text-center text-slate-400">{t('catalog.loading')}</p>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {CATALOG_SHAPES.map(({ shape, labelKey, aspect }) => {
-              const dimensions = {
-                widthCm: CATALOG_WIDTH_CM,
-                heightCm: Math.round(CATALOG_WIDTH_CM * aspect),
-                thicknessCm: 15
-              };
+            {CATALOG_SHAPES.map(({ shape, labelKey }) => {
+              const dimensions = CATALOG_STELA;
               const materialPrice = selectedMaterial
                 ? monumentPriceByn(selectedMaterial.pricePerM2, dimensions, shape)
                 : SHAPE_BASE_PRICE_BYN[shape];
@@ -125,7 +114,7 @@ export const CatalogPage = ({ materials }: CatalogPageProps) => {
                       variant="compact"
                       deferUntilVisible
                       rootMargin="-80px 0px"
-                      heightClassName="h-72"
+                      heightClassName="h-80"
                       frameloop="demand"
                       layout="single"
                       label={t('catalog.previewLoading')}
@@ -133,9 +122,11 @@ export const CatalogPage = ({ materials }: CatalogPageProps) => {
                       materialName={selectedMaterial?.name}
                       finish="Polished"
                       dimensions={dimensions}
-                      inscription=""
+                      baseDimensions={CATALOG_BASE}
+                      inscription={t('designer.presets.classic.inscription')}
                       name={t('designer.presets.classic.name')}
                       dates={t('designer.presets.classic.dates')}
+                      inscriptionStyle={getInscriptionStyle(DEFAULT_INSCRIPTION_STYLE_ID).three}
                       shape={shape}
                       decoration="portrait"
                       nicheStyle="recessed"

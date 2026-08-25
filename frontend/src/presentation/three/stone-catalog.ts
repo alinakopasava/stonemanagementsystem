@@ -289,13 +289,6 @@ export type StonePresentationProfile = {
   albedoSaturation: number;
   albedoDarken: number;
   rimLightIntensity: number;
-  /** When set, replaces finish-based PBR (Africa red granite). */
-  surfaceOverride?: {
-    clearcoat: number;
-    metalness: number;
-    roughness: number;
-    clearcoatRoughness: number;
-  };
 };
 
 const AFRICA_PRESENTATION: StonePresentationProfile = {
@@ -306,13 +299,7 @@ const AFRICA_PRESENTATION: StonePresentationProfile = {
   stoneContrast: 1.34,
   albedoSaturation: 1.28,
   albedoDarken: 0.78,
-  rimLightIntensity: 1.25,
-  surfaceOverride: {
-    clearcoat: 0,
-    metalness: 0.03,
-    roughness: 0.74,
-    clearcoatRoughness: 0.08
-  }
+  rimLightIntensity: 1.25
 };
 
 const DARK_STONE_PRESENTATION: StonePresentationProfile = {
