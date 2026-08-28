@@ -1,0 +1,12 @@
+\section{Plany na przyszłość}
+\label{sec:plany}
+
+Pierwszym zadaniem na kolejną wersję jest domknięcie luki opisanej w podrozdziale~\ref{sec:testy-rls}. Polityka Row Level Security pozwala obecnie monterowi zapisywać do wszystkich kolumn tabeli zamówień, podczas gdy zgodnie z przyjętym modelem uprawnień powinien zmieniać wyłącznie status. Wymaga to wyzwalacza ograniczającego zakres kolumn; przygotowany test zmieni się wtedy w zwykły test regresji.
+
+Naturalnym kierunkiem rozbudowy jest poszerzenie oferty. Silnik graficzny obsługuje trzynaście kształtów tablicy, ale w sprzedaży udostępniono trzy; pozostałe wymagają uzgodnienia cen i możliwości wykonania z zakładem. Wraz ze wzrostem katalogu potrzebne staną się wyszukiwarka i stronicowanie, z których na obecnym etapie zrezygnowano ze względu na niewielką liczbę pozycji.
+
+Planowany jest moduł raportowy dla właściciela zakładu, obejmujący zestawienia sprzedaży w podziale na materiały i kształty oraz czasy realizacji zamówień. Dane potrzebne do takich raportów już są zapisywane, brakuje jedynie warstwy prezentacji.
+
+Kolejnym kierunkiem jest aplikacja mobilna dla monterów. Widok montażowy działa poprawnie w przeglądarce telefonu, ale aplikacja natywna pozwoliłaby pracować bez zasięgu i dołączać zdjęcia z miejsca montażu bezpośrednio do zlecenia.
+
+Rozważana jest też integracja z zewnętrznym systemem płatności, umożliwiająca wpłatę zaliczki przy składaniu zamówienia, oraz uzupełnienie zestawu o testy komponentowe panelu administratora i widoku montażowego, których obecnie na tym poziomie brakuje.

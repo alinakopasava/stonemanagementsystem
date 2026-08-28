@@ -1,0 +1,73 @@
+\section{Testy API}
+\label{sec:testy-api}
+
+Uruchamiam serwer Express w pamięci i wysyłam do niego żądania HTTP biblioteką Supertest, z klientem bazy podmienionym na atrapę. Sprawdzam całą drogę żądania: pośredniki, kontroler i usługę, razem z kodami odpowiedzi i nagłówkami.
+
+\subsection{Logowanie i sesja}
+\label{ssec:uwierzytelnianie}
+
+Poprawne logowanie kończy się kodem 200 i samym potwierdzeniem. Osobno sprawdzam, że w odpowiedzi nie ma tokenu JWT, a sesja wraca tylko w ciasteczkach z \texttt{HttpOnly} -- takiego tokenu nie da się wykraść atakiem \textit{cross-site scripting}.
+
+Logowanie na nieistniejący adres i logowanie ze złym hasłem muszą dać tę samą odpowiedź 401 i ten sam komunikat; test porównuje obie odpowiedzi. Gdyby się różniły, dałoby się sprawdzić, czy dany adres ma u nas konto, a to jest dana osobowa. Z tego samego powodu przypomnienie hasła zawsze zwraca 200. Sprawdzam też, że wpis w dzienniku po nieudanym logowaniu nie zawiera hasła.
+
+Rejestracja odrzuca kodem 400 imię z jednej litery i hasło niezgodne z polityką, a przy okazji sprawdzam, że atrapa logowania nie została wywołana. To pokazuje, że walidacja idzie przed zapisem, więc złe żądanie nie zostawia konta w połowie utworzonego.
+
+Odnawianie sesji sprawdzam na trzech nadużyciach: puste tokeny, tokeny dłuższe niż 8192 znaki oraz token dostępu jednego użytkownika z tokenem odświeżania drugiego. Wszystkie dają 401, a ostatni pokazuje, że oba tokeny sprawdzam razem. Pośrednik autoryzujący ma pięć przypadków. Wygasły token dostępu z ważnym tokenem odświeżania powoduje ciche odnowienie sesji. Gdy oba są nieważne, czyszczę ciasteczka, bo inaczej przeglądarka wysyłałaby je przy każdym kolejnym żądaniu.
+
+\subsection{Uprawnienia ról}
+\label{ssec:autoryzacja-role}
+
+Klient dostaje 403 przy każdym adresie panelu administratora, a monter — sprawdzany osobno, bo jest pracownikiem — przy liście użytkowników. Monter ma za to dostęp do listy kart montażowych, klient przy tym samym adresie dostaje 403, a żądanie bez sesji 401. Sprawdzam też przypadek pozytywny, bo sam test odmowy przeszedłby również wtedy, gdyby pośrednik blokował wszystkich.
+
+\subsection{Zapis karty zamówienia}
+\label{ssec:karty-zamowien}
+
+Ten punkt końcowy ma najwięcej walidacji, bo tylko tędy dane od klienta trafiają do dokumentacji produkcyjnej. Kodem 400 odrzucam identyfikator materiału, który nie jest poprawnym UUID, wymiary w innym formacie niż dwie liczby, wykończenie spoza trzech dozwolonych wartości oraz inskrypcję pustą albo dłuższą niż 4000 znaków.
+
+Dwa przypadki wychodzą poza sprawdzanie formatu. Pierwszy wysyła w treści cudzy identyfikator użytkownika: pole jest pomijane, a karta zapisuje się na koncie z tokenu sesji. Drugi udaje błąd zapisu części technicznej po udanym zapisie nagłówka i sprawdza, że kontroler kasuje wtedy utworzoną kartę. Bez tego w bazie zostawałyby karty bez parametrów, których nie da się wykonać.
+
+\subsection{Panel administratora}
+\label{ssec:operacje-administracyjne}
+
+Próba nadania roli, której nie ma w systemie, kończy się kodem 400 i zamyka drogę do zdobycia uprawnień przez podanie wymyślonej nazwy. Próba odebrania sobie roli administratora też daje 400, żeby nikt przypadkiem nie odciął sobie dostępu do panelu. Zmiana roli innego użytkownika działa i zostawia wpis w dzienniku zdarzeń.
+
+Zamianę karty na zamówienie opisałam pięcioma przypadkami: karta nieistniejąca daje 400, druga zamiana tej samej karty 409, cena ujemna 400, pusta cena zapisuje się jako brak wartości, a poprawna operacja kończy się kodem 201. Kod 409 wybrałam zamiast 400, bo problemem nie jest złe żądanie, tylko stan karty -- interfejs może wtedy napisać, że ktoś już ją przetworzył.
+
+\subsection{Formularz kontaktowy i zasoby publiczne}
+\label{ssec:formularz-origin}
+
+Formularz kontaktowy to jedyne miejsce, w którym zapisu może dokonać osoba niezalogowana, więc sprawdziłam go dokładnie. Brak imienia, adresu albo treści oraz zły format adresu dają 400. Testy pilnują limitów długości pól: 120, 200, 40 i 4000 znaków. Pusty numer telefonu zapisuje się jako brak wartości. Po stronie panelu sprawdzam, że oznaczenie wiadomości jako przeczytanej zapisuje datę i osobę, a archiwizacja te dane kasuje.
+
+Zasoby publiczne mają trzy testy: adres kontrolny zwraca stałą odpowiedź używaną przez hosting, katalog działa bez ciasteczka sesji, a żądanie większe niż 100~kB dostaje 413 jeszcze przed przetworzeniem.
+
+Nagłówek \texttt{Origin} chroni przed atakiem \textit{cross-site request forgery}, możliwym dlatego, że przeglądarka sama dokłada ciasteczka. Żądania GET przechodzą zawsze. Żądanie zmieniające dane z ciasteczkiem sesji dostaje 403 przy obcym nagłówku i przy jego braku. Żądanie bez ciasteczek i bez nagłówka przechodzi, bo nie pochodzi z przeglądarki.
+
+\subsection{Limity liczby żądań}
+\label{ssec:limity-zadan}
+
+Każdy z siedmiu limitów ma osobny test, który wysyła serię żądań i sprawdza odpowiedź na to jedno ponad limit. Wartości z tabeli~\ref{tab:limity-zadan} dobrałam tak, żeby przy normalnej pracy nie dało się ich zauważyć. Dwa dodatkowe testy sprawdzają nagłówki z informacją o limicie oraz to, że każdy adres IP ma własny licznik.
+
+\begin{table}[htbp]
+\centering
+\caption{Limity liczby żądań -- opracowanie własne}
+\label{tab:limity-zadan}
+\begin{tabular}{|p{0.30\textwidth}|p{0.13\textwidth}|p{0.38\textwidth}|}
+\hline
+\textbf{Zasób} & \textbf{Limit} & \textbf{Przed czym chroni} \\
+\hline
+Wszystkie żądania do API & 100 / 10 s & Nadmierne obciążenie serwera \\
+\hline
+Logowanie & 5 / min & Zgadywanie hasła \\
+\hline
+Rejestracja & 3 / min & Masowe zakładanie kont \\
+\hline
+Operacje na haśle & 3 / min & Nadużycie wysyłki e-maili \\
+\hline
+Odnawianie sesji & 10 / min & Nadużycie modułu logowania \\
+\hline
+Formularz kontaktowy & 3 / min & Spam \\
+\hline
+Zapis kart zamówień & 8 / min & Zaśmiecanie panelu \\
+\hline
+\end{tabular}
+\end{table}

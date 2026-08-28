@@ -32,6 +32,10 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    // The developer's own .env must not leak into the suite. A VITE_API_URL
+    // pointing at a running backend would send every request to a real server
+    // instead of to the handlers, and the level would stop being hermetic.
+    env: { VITE_API_URL: '' },
     setupFiles: ['./tests/setup.ts'],
     include: ['tests/**/*.test.{ts,tsx}'],
     exclude: ['tests/e2e/**', 'node_modules/**'],

@@ -71,6 +71,9 @@ test('2. the chosen language persists across a reload and drives the currency', 
   await languages.getByRole('button', { name: 'RU' }).click();
   await expect(page.locator('body')).toContainText(/BYN/);
 
+  await languages.getByRole('button', { name: 'EN' }).click();
+  await expect(page.locator('body')).toContainText(/USD/);
+
   await languages.getByRole('button', { name: 'PL' }).click();
   await expect(page.locator('body')).toContainText(/PLN|zł/);
 

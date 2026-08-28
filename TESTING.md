@@ -4,16 +4,30 @@ Five levels, each answering a question the level below it cannot.
 
 | Level | Where | Count | Needs a database? | Command |
 |---|---|---|---|---|
-| Unit + API integration | `backend/tests/{unit,integration}` | 120 | no | `cd backend && npm test` |
+| Unit + API integration | `backend/tests/{unit,integration}` | 107 | no | `cd backend && npm test` |
 | Row Level Security | `backend/tests/rls` | 16 | **yes** | `cd backend && npm run test:rls` |
-| Unit + component | `frontend/tests/{unit,components}` | 60 | no | `cd frontend && npm test` |
+| Unit + component | `frontend/tests/{unit,components}` | 107 | no | `cd frontend && npm test` |
 | System (Playwright) | `frontend/tests/e2e` | 7 | **yes** | `cd frontend && npm run test:e2e` |
 
+237 cases in all, of which 214 run offline in a few seconds.
+
 `npm test` at either level is hermetic: no network, no database, ~1 s per side.
-The two database-backed levels are opt-in and skip with an explanatory message
-until switched on.
+The client suite pins `VITE_API_URL` to the empty string in `vitest.config.ts`
+so that a developer's own `frontend/.env` — which normally points at a running
+backend — cannot send the tests to a real server. The two database-backed
+levels are opt-in and skip with an explanatory message until switched on.
 
 ## What each level is for
+
+**Unit** covers the rules that decide something on their own: the pricing
+formula and its base-price table, the password policy and its 128-character
+upper bound, the return-path guard behind `?from=`, cookie parsing, client
+identification with and without proxy trust, the exchange rate with its cache,
+its two banks and its failure modes, dictionary completeness across the three
+languages,
+photo cropping, and the fetch wrapper every other layer goes through. Each of
+these has an oracle outside the code — a formula, a requirement, a published
+exchange rate — rather than whatever the current implementation returns.
 
 **API integration** drives the real Express middleware stack through supertest.
 Supabase is replaced by a stub that reproduces the PostgREST query builder

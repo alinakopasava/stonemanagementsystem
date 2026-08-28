@@ -1,0 +1,10 @@
+\section{Alina Kopasava}
+\label{sec:wklad-kopasava}
+
+Zakres prac obejmował całą aplikację kliencką: jej architekturę, wszystkie widoki oraz scenę trójwymiarową.
+
+Zaprojektowany został podział kodu na cztery warstwy opisany w podrozdziale~\ref{sec:implementacja-frontendu}, oddzielający typy dziedzinowe od logiki aplikacji, integracji sieciowych i prezentacji. W tym układzie powstały wszystkie strony aplikacji: strona główna z formularzem kontaktowym, katalog materiałów, formularze rejestracji, logowania i odzyskiwania hasła, panel administratora z wykazem użytkowników, kart zamówień i wiadomości oraz uproszczony widok montażowy przystosowany do ekranu telefonu. Dostępem do widoków zastrzeżonych steruje komponent sprawdzający rolę użytkownika przed wyświetleniem strony.
+
+Najobszerniejszą częścią prac był konfigurator produktu wraz ze sceną trójwymiarową. Do tego zakresu należą generowanie geometrii trzynastu kształtów tablicy, proceduralne tworzenie tekstur kamienia, nakładanie inskrypcji z zewnętrznych krojów pisma, kadrowanie wgranej fotografii portretowej do ramki na tablicy oraz bieżące przeliczanie ceny według wzoru~(\ref{eq:cena}). Zrealizowana została również wielojęzyczność interfejsu w trzech wersjach oraz prezentacja cen w walucie zależnej od wybranego języka, wraz z obsługą sytuacji, w której kurs jest niedostępny.
+
+Po stronie integracji z serwerem powstał moduł skupiający cały ruch sieciowy aplikacji klienckiej, przekształcający odpowiedzi błędne w wyjątki i rozpoznający przekroczenie limitu liczby żądań. W obszarze testów przygotowane zostały testy jednostkowe funkcji dziedzinowych aplikacji klienckiej oraz testy komponentowe stron wykonywane w środowisku jsdom. Do zakresu prac należało ponadto opracowanie dokumentacji projektowej.

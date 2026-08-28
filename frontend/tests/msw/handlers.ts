@@ -12,7 +12,6 @@ export const MATERIALS = [
     name: 'Gabbro-Diabase',
     category: 'Stone',
     price_per_m2: 420,
-    stock_status: true,
     image_url: '/images/materials/gabbro-diabase.jpg'
   },
   {
@@ -20,7 +19,6 @@ export const MATERIALS = [
     name: 'Marble',
     category: 'Stone',
     price_per_m2: 900,
-    stock_status: true,
     image_url: '/images/materials/marble.jpg'
   },
   {
@@ -28,7 +26,6 @@ export const MATERIALS = [
     name: 'Gandhi Granite',
     category: 'Stone',
     price_per_m2: 610,
-    stock_status: true,
     image_url: '/images/materials/gandhi.jpg'
   }
 ];
@@ -39,7 +36,9 @@ export const EXCHANGE_RATE = {
   scale: 10,
   officialRate: 8.0182,
   bynPerPln: 0.80182,
-  plnPerByn: 10 / 8.0182
+  plnPerByn: 10 / 8.0182,
+  bynPerUsd: 3.0399,
+  usdPerByn: 1 / 3.0399
 };
 
 export const handlers = [
@@ -63,7 +62,10 @@ export const handlers = [
 
   http.post('/api/orders/submit', () =>
     HttpResponse.json({ data: { orderCard: { id: 'card-1' } } }, { status: 201 })
-  )
+  ),
+
+  // Nothing ordered by default; the my-orders suite overrides this per case.
+  http.get('/api/orders/mine', () => HttpResponse.json({ data: [] }))
 ];
 
 /** Signs the caller in as the given role for tests that need a session. */

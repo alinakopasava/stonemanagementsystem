@@ -77,33 +77,35 @@ export const ConfiguratorWidget = ({ materials, product: _product }: Configurato
   };
 
   return (
-    <section className="mx-auto w-full max-w-6xl px-6 py-10" id="configurator">
-      <div className="rounded-2xl border border-slate-700/60 bg-slate-900/70 p-6 md:p-8">
-        <h2 className="font-serif text-3xl text-gray-100">{t('configurator.title')}</h2>
-        <p className="mt-2 text-slate-300">{t('configurator.subtitle')}</p>
+    <section className="mx-auto w-full max-w-[1400px] px-4 py-16 sm:px-6" id="configurator">
+      <div className="border border-line bg-surface p-6 md:p-8">
+        <h2 className="u-display text-3xl text-ink sm:text-4xl">{t('configurator.title')}</h2>
+        <p className="mt-2 text-ink-2">{t('configurator.subtitle')}</p>
 
         <div className="mt-6 grid gap-5 md:grid-cols-2">
           <label className="space-y-2">
-            <span className="text-sm text-slate-200">{t('configurator.material')}</span>
+            <span className="u-label">{t('configurator.material')}</span>
             <select
-              className="w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-gray-100"
+              className="u-field"
               value={materialId}
               onChange={(event) => setMaterialId(event.target.value)}
               disabled={materials.length === 0}
             >
               {materials.map((material) => (
                 <option key={material.id} value={material.id}>
-                  {materialLabel(material.name, t)} ({formatFromByn(material.pricePerM2, { digits: 2 })} {t('designer.pricePerM2Unit')})
+                  {materialLabel(material.name, t)} (
+                  {formatFromByn(material.pricePerM2, { digits: 2 })} {t('designer.pricePerM2Unit')}
+                  )
                 </option>
               ))}
             </select>
           </label>
 
           <label className="space-y-2">
-            <span className="text-sm text-slate-200">{t('configurator.inscription')}</span>
+            <span className="u-label">{t('configurator.inscription')}</span>
             <input
               type="text"
-              className="w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-gray-100"
+              className="u-field"
               value={inscriptionText}
               onChange={(event) => setInscriptionText(event.target.value)}
               placeholder={t('configurator.inscriptionPlaceholder')}
@@ -111,9 +113,9 @@ export const ConfiguratorWidget = ({ materials, product: _product }: Configurato
           </label>
 
           <label className="space-y-2">
-            <span className="text-sm text-slate-200">{t('configurator.finishType')}</span>
+            <span className="u-label">{t('configurator.finishType')}</span>
             <select
-              className="w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-gray-100"
+              className="u-field"
               value={finishType}
               onChange={(event) => setFinishType(event.target.value as FinishType)}
             >
@@ -126,10 +128,10 @@ export const ConfiguratorWidget = ({ materials, product: _product }: Configurato
           </label>
 
           <label className="space-y-2">
-            <span className="text-sm text-slate-200">{t('configurator.dimensions')}</span>
+            <span className="u-label">{t('configurator.dimensions')}</span>
             <input
               type="text"
-              className="w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-gray-100"
+              className="u-field"
               value={dimensions}
               onChange={(event) => setDimensions(event.target.value)}
               placeholder={t('configurator.dimensionsPlaceholder')}
@@ -139,14 +141,14 @@ export const ConfiguratorWidget = ({ materials, product: _product }: Configurato
 
         <div className="mt-7 flex items-center justify-between gap-4">
           {isAuthenticated ? (
-            <p className="text-xs text-emerald-300">{t('configurator.readyToSubmit')}</p>
+            <p className="text-xs text-positive">{t('configurator.readyToSubmit')}</p>
           ) : (
-            <p className="text-xs text-amber-300">{t('configurator.signInHint')}</p>
+            <p className="text-xs text-brand">{t('configurator.signInHint')}</p>
           )}
           <button
             type="button"
             onClick={handleCreateOrder}
-            className="rounded-md bg-gray-100 px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-white disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
+            className="u-btn u-btn-primary"
             disabled={!selectedMaterial || isSubmitting}
           >
             {isSubmitting
@@ -156,7 +158,7 @@ export const ConfiguratorWidget = ({ materials, product: _product }: Configurato
                 : t('configurator.signInButton')}
           </button>
         </div>
-        {submitMessage ? <p className="mt-4 text-sm text-slate-300">{submitMessage}</p> : null}
+        {submitMessage ? <p className="mt-4 text-sm text-ink-2">{submitMessage}</p> : null}
       </div>
     </section>
   );

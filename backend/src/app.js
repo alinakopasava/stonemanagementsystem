@@ -1,5 +1,6 @@
 import cors from 'cors';
 import express from 'express';
+import helmet from 'helmet';
 import { env } from './config/env.js';
 import { cookieParser } from './http/cookies.js';
 import { apiLimiter } from './middleware/rate-limit.js';
@@ -26,6 +27,33 @@ export const createApp = () => {
   if (env.trustProxy) {
     app.set('trust proxy', 1);
   }
+
+  /**
+   * This process serves JSON, never HTML, so the headers that matter here are
+   * the ones a browser applies to a response whatever its type: no MIME
+   * sniffing, no framing, no referrer leakage, and HSTS once the site is on
+   * https. The CSP is locked all the way down for the same reason — nothing
+   * this API returns is ever meant to load a script, a style or an image.
+   */
+  app.disable('x-powered-by');
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        useDefaults: false,
+        directives: {
+          'default-src': ["'none'"],
+          'frame-ancestors': ["'none'"],
+          'base-uri': ["'none'"],
+          'form-action': ["'none'"]
+        }
+      },
+      // The API answers a separate origin, so isolation policies meant for
+      // documents would only complicate CORS without protecting anything.
+      crossOriginEmbedderPolicy: false,
+      crossOriginOpenerPolicy: false,
+      referrerPolicy: { policy: 'no-referrer' }
+    })
+  );
 
   app.use(
     cors({

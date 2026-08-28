@@ -2,15 +2,16 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CalendarClock, ClipboardCheck, MapPin, UserRound } from 'lucide-react';
 import { finishLabel, materialLabel } from '@application/i18n/catalog-labels';
 import { useTranslation } from '@application/i18n/i18n-context';
-import {
-  LANGUAGE_LOCALES,
-  type TranslationKey
-} from '@application/i18n/translations';
+import { useCurrency } from '@application/currency/currency-context';
+import { LANGUAGE_LOCALES, type TranslationKey } from '@application/i18n/translations';
 import {
   fetchInstallationCards,
+  saveInstallationReport,
   type InstallationCard
 } from '@infrastructure/api/installation-card-api';
+import { InstallationReportForm } from '@presentation/components/installation-report-form';
 import { Header } from '@presentation/components/header';
+import { DataFields, DataSection } from '@presentation/components/data-fields';
 
 type CardFilter = 'all' | 'oczekujące' | 'w_realizacji' | 'zrealizowane' | 'anulowane';
 
@@ -30,14 +31,15 @@ const STATUS_LABELS: Record<string, TranslationKey> = {
 };
 
 const STATUS_STYLES: Record<string, string> = {
-  oczekujące: 'border-amber-300/30 bg-amber-300/10 text-amber-200',
-  w_realizacji: 'border-sky-300/30 bg-sky-300/10 text-sky-200',
-  zrealizowane: 'border-emerald-300/30 bg-emerald-300/10 text-emerald-200',
-  anulowane: 'border-rose-400/30 bg-rose-400/10 text-rose-200'
+  oczekujące: 'u-chip u-chip-active',
+  w_realizacji: 'border-info bg-info-soft text-info',
+  zrealizowane: 'border-positive bg-positive-soft text-positive',
+  anulowane: 'border-critical bg-critical-soft text-critical'
 };
 
 export const InstallerCardsPage = () => {
   const { t, language } = useTranslation();
+  const { formatFromByn } = useCurrency();
   const dateLocale = LANGUAGE_LOCALES[language];
   const [cards, setCards] = useState<InstallationCard[]>([]);
   const [filter, setFilter] = useState<CardFilter>('all');
@@ -71,26 +73,24 @@ export const InstallerCardsPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-transparent text-gray-100">
+    <div className="min-h-[100dvh] bg-canvas text-ink">
       <Header />
-      <main className="mx-auto w-full max-w-7xl px-6 py-8">
+      <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <ClipboardCheck className="h-6 w-6 text-amber-300" />
-              <h1 className="font-serif text-3xl text-gray-100">{t('installer.title')}</h1>
+              <ClipboardCheck className="h-6 w-6 text-brand" />
+              <h1 className="u-display text-3xl text-ink sm:text-4xl">{t('installer.title')}</h1>
             </div>
-            <p className="mt-2 max-w-2xl text-sm text-slate-400">
-              {t('installer.subtitle')}
-            </p>
-            <span className="mt-3 inline-flex rounded-full border border-slate-600 bg-slate-800/70 px-3 py-1 text-[10px] uppercase tracking-wider text-slate-300">
+            <p className="mt-2 max-w-2xl text-sm text-ink-3">{t('installer.subtitle')}</p>
+            <span className="mt-3 inline-flex border border-line bg-surface-2 px-3 py-1 text-[10px] uppercase tracking-wider text-ink-2">
               {t('installer.readOnly')}
             </span>
           </div>
           <button
             type="button"
             onClick={() => void load()}
-            className="rounded-md border border-slate-700 px-3 py-2 text-xs text-slate-300 transition hover:border-slate-500 hover:text-white"
+            className="border border-line px-3 py-2 text-xs text-ink-2 transition hover:border-line-strong hover:text-ink"
           >
             {t('admin.common.refresh')}
           </button>
@@ -102,10 +102,10 @@ export const InstallerCardsPage = () => {
               key={option.id}
               type="button"
               onClick={() => setFilter(option.id)}
-              className={`rounded-md border px-3 py-1.5 text-xs transition ${
+              className={`border px-3 py-1.5 text-xs transition ${
                 filter === option.id
-                  ? 'border-amber-300/40 bg-amber-300/10 text-amber-100'
-                  : 'border-slate-700 text-slate-400 hover:border-slate-500 hover:text-white'
+                  ? 'u-chip u-chip-active'
+                  : 'border-line text-ink-3 hover:border-line-strong hover:text-ink'
               }`}
             >
               {t(option.labelKey)}
@@ -116,100 +116,165 @@ export const InstallerCardsPage = () => {
         {error ? (
           <p
             role="alert"
-            className="mb-4 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-200"
+            className="mb-4 border border-critical bg-critical-soft px-3 py-2 text-sm text-critical"
           >
             {error}
           </p>
         ) : null}
 
         {isLoading ? (
-          <div className="rounded-xl border border-slate-700/60 bg-slate-900/70 p-8 text-center text-slate-400">
+          <div className="border border-line bg-surface p-8 text-center text-ink-3">
             {t('admin.common.loading')}
           </div>
         ) : visibleCards.length === 0 ? (
-          <div className="rounded-xl border border-slate-700/60 bg-slate-900/70 p-8 text-center text-slate-400">
-            {t('installer.empty')}
+          <div className="border border-line bg-surface p-8 text-center text-ink-3">
+            {/* Nothing handed over is a different situation from a filter that
+                happens to match none of the jobs waiting. */}
+            {cards.length === 0 ? t('installer.empty') : t('installer.emptyFilter')}
           </div>
         ) : (
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4">
             {visibleCards.map((card) => (
-              <article
-                key={card.id}
-                className="rounded-xl border border-slate-700/60 bg-slate-900/70 p-5"
-              >
+              <article key={card.id} className="border border-line bg-surface p-5">
                 <header className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="font-mono text-[11px] text-slate-500">
+                    <p className="font-mono text-[11px] text-ink-3">
                       {t('installer.cardNumber')} {card.orderId.slice(0, 8)}
                     </p>
-                    <p className="mt-2 flex items-center gap-2 text-sm text-slate-200">
-                      <UserRound className="h-4 w-4 text-slate-500" />
+                    <p className="mt-2 flex items-center gap-2 text-sm text-ink-2">
+                      <UserRound className="h-4 w-4 text-ink-3" />
                       {card.clientFullName || t('installer.unknownClient')}
                     </p>
                   </div>
                   <span
-                    className={`rounded-full border px-3 py-1 text-[10px] uppercase tracking-wider ${
-                      STATUS_STYLES[card.status] ??
-                      'border-slate-700 bg-slate-800 text-slate-200'
+                    className={`border px-3 py-1 text-[10px] uppercase tracking-wider ${
+                      STATUS_STYLES[card.status] ?? 'border-line bg-surface-2 text-ink-2'
                     }`}
                   >
                     {statusLabel(card.status)}
                   </span>
                 </header>
 
-                <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-                  <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-                    <dt className="flex items-center gap-2 text-xs text-slate-500">
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div className="border border-line bg-canvas p-3">
+                    <p className="flex items-center gap-2 text-xs text-ink-3">
                       <MapPin className="h-3.5 w-3.5" />
                       {t('installer.address')}
-                    </dt>
-                    <dd className="mt-1 text-slate-200">
+                    </p>
+                    <p className="mt-1 text-sm text-ink-2">
                       {card.installationAddress || t('installer.noAddress')}
-                    </dd>
+                    </p>
                   </div>
-                  <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-                    <dt className="flex items-center gap-2 text-xs text-slate-500">
+                  <div className="border border-line bg-canvas p-3">
+                    <p className="flex items-center gap-2 text-xs text-ink-3">
                       <CalendarClock className="h-3.5 w-3.5" />
                       {t('installer.deadline')}
-                    </dt>
-                    <dd className="mt-1 text-slate-200">
+                    </p>
+                    <p className="mt-1 text-sm text-ink-2">
                       {card.deadline
                         ? new Date(card.deadline).toLocaleDateString(dateLocale)
                         : t('installer.noDeadline')}
-                    </dd>
+                    </p>
                   </div>
-                </dl>
+                </div>
 
-                <div className="mt-4 space-y-3">
+                {/* Everything the administrator sees on the order, minus the
+                    identity documents — an installation crew has no use for
+                    a passport series and number. */}
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <DataSection title={t('admin.field.clientSection')}>
+                    <DataFields
+                      placeholder={t('admin.field.notProvided')}
+                      fields={[
+                        {
+                          label: t('admin.field.registeredName'),
+                          value: [card.client.firstName, card.client.lastName]
+                            .filter(Boolean)
+                            .join(' ')
+                        },
+                        { label: t('admin.field.phone'), value: card.client.phoneNumber },
+                        { label: t('admin.field.email'), value: card.client.email }
+                      ]}
+                    />
+                  </DataSection>
+
+                  <DataSection title={t('admin.field.orderSection')}>
+                    <DataFields
+                      placeholder={t('admin.field.notProvided')}
+                      fields={[
+                        {
+                          label: t('admin.field.price'),
+                          value:
+                            card.price != null
+                              ? `${formatFromByn(Number(card.price), { digits: 2 })} ${t('designer.priceUnit')}`
+                              : null
+                        },
+                        {
+                          label: t('admin.field.submittedAt'),
+                          value: card.submittedAt
+                            ? new Date(card.submittedAt).toLocaleString(dateLocale)
+                            : null
+                        },
+                        {
+                          label: t('admin.field.updated'),
+                          value: card.updatedAt
+                            ? new Date(card.updatedAt).toLocaleString(dateLocale)
+                            : null
+                        },
+                        {
+                          label: t('admin.field.contractDetails'),
+                          value: card.contractDetails,
+                          wide: true
+                        }
+                      ]}
+                    />
+                  </DataSection>
+                </div>
+
+                <div className="mt-3 space-y-3">
                   {card.orderDetails.length === 0 ? (
-                    <p className="text-sm text-slate-400">{t('installer.noDetails')}</p>
+                    <p className="text-sm text-ink-3">{t('installer.noDetails')}</p>
                   ) : (
                     card.orderDetails.map((detail) => (
-                      <div
-                        key={detail.id}
-                        className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 text-xs"
-                      >
-                        <p className="font-medium text-slate-100">
+                      <DataSection key={detail.id} title={t('admin.field.configSection')}>
+                        <p className="mb-2 font-medium text-ink">
                           {materialLabel(
                             detail.materials?.name,
                             t,
                             t('admin.orders.unknownMaterial')
                           )}
                         </p>
-                        <dl className="mt-2 grid grid-cols-[90px_1fr] gap-y-1 text-slate-300">
-                          <dt className="text-slate-500">{t('admin.orders.dimensions')}</dt>
-                          <dd>{detail.dimensions ?? '—'}</dd>
-                          <dt className="text-slate-500">{t('admin.orders.finish')}</dt>
-                          <dd>{finishLabel(detail.finish_type, t)}</dd>
-                          <dt className="text-slate-500">{t('admin.orders.inscription')}</dt>
-                          <dd className="italic text-slate-200">
-                            {detail.inscription_text ?? '—'}
-                          </dd>
-                        </dl>
-                      </div>
+                        <DataFields
+                          placeholder={t('admin.field.notProvided')}
+                          fields={[
+                            { label: t('admin.field.category'), value: detail.materials?.category },
+                            { label: t('admin.orders.dimensions'), value: detail.dimensions },
+                            {
+                              label: t('admin.orders.finish'),
+                              value: detail.finish_type ? finishLabel(detail.finish_type, t) : null
+                            },
+                            {
+                              label: t('admin.orders.inscription'),
+                              value: detail.inscription_text,
+                              wide: true
+                            }
+                          ]}
+                        />
+                      </DataSection>
                     ))
                   )}
                 </div>
+
+                <InstallationReportForm
+                  card={card}
+                  onSave={async (input) => {
+                    const report = await saveInstallationReport(card.orderId, input);
+                    setCards((prev) => prev.map((c) => (c.id === card.id ? { ...c, report } : c)));
+                  }}
+                  onReport={(report) =>
+                    setCards((prev) => prev.map((c) => (c.id === card.id ? { ...c, report } : c)))
+                  }
+                />
               </article>
             ))}
           </div>

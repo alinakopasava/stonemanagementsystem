@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { TriangleAlert } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@application/auth/auth-context';
 import { useTranslation } from '@application/i18n/i18n-context';
@@ -45,7 +46,7 @@ const FINISH_OPTIONS: { id: FinishType; labelKey: TranslationKey }[] = [
 ];
 
 /** Derived from the one storefront shape list so the picker and the catalog cards
- *  can never drift apart. See `SELECTABLE_MONUMENT_SHAPES`. */
+ * can never drift apart. See `SELECTABLE_MONUMENT_SHAPES`. */
 const SHAPE_OPTIONS: { id: MonumentShape; labelKey: TranslationKey }[] =
   SELECTABLE_MONUMENT_SHAPES.map((id) => ({ id, labelKey: shapeLabelKey(id) }));
 
@@ -143,7 +144,10 @@ const serializeDimensions = (d: { heightCm: number; widthCm: number }) =>
   `${d.heightCm}x${d.widthCm}`;
 
 const memorialInscriptionText = (inscription: string, name: string, dates: string) =>
-  [inscription, name, dates].map((part) => part.trim()).filter(Boolean).join('\n');
+  [inscription, name, dates]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join('\n');
 
 const readAsDataUrl = (blob: Blob) =>
   new Promise<string>((resolve, reject) => {
@@ -158,7 +162,7 @@ const fileToDataUrl = (file: File) => readAsDataUrl(file);
 export const DesignerPage = ({ materials }: DesignerPageProps) => {
   const { user } = useAuth();
   const { t, language } = useTranslation();
-  const { formatFromByn } = useCurrency();
+  const { formatFromByn, isRateStale } = useCurrency();
   const navigate = useNavigate();
 
   const [materialId, setMaterialId] = useState<string>('');
@@ -193,7 +197,7 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
   const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
   /** Live engraving adjustments for the on-stone portrait. Defaults match the shader's
-   *  auto-tuned baseline; the user can fine-tune per material via sliders. */
+   * auto-tuned baseline; the user can fine-tune per material via sliders. */
   const [photoBrightness, setPhotoBrightness] = useState(DEFAULT_PHOTO_BRIGHTNESS);
   const [photoContrast, setPhotoContrast] = useState(DEFAULT_PHOTO_CONTRAST);
   /** 0 = opaque photo (max visible), 1 = strongly dissolves into the stone (seamless). */
@@ -333,20 +337,18 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-transparent text-gray-100">
+    <div className="min-h-[100dvh] bg-canvas text-ink">
       <Header />
-      <main className="mx-auto w-full max-w-7xl px-6 py-8">
-        <div className="mb-6">
-          <p className="text-sm uppercase tracking-[0.2em] text-slate-400">
-            {t('designer.section.tag')}
-          </p>
-          <h1 className="mt-1 font-serif text-4xl text-gray-100">{t('designer.title')}</h1>
-          <p className="mt-2 max-w-3xl text-slate-300">{t('designer.subtitle')}</p>
+      <main className="mx-auto w-full max-w-[1400px] px-4 py-8 sm:px-6 lg:py-12">
+        <div className="mb-8">
+          <h1 className="u-display text-3xl text-ink sm:text-4xl">{t('designer.title')}</h1>
+          <p className="mt-3 max-w-prose text-ink-2">{t('designer.subtitle')}</p>
         </div>
 
-        <div className="grid items-start gap-6 lg:grid-cols-[1.4fr_1fr]">
-          <LazyMonumentViewer
-            label={t('designer.previewLoading')}
+        <div className="grid items-start gap-6 lg:grid-cols-[1.5fr_1fr]">
+          <div className="border border-line bg-surface">
+            <LazyMonumentViewer
+              label={t('designer.previewLoading')}
             textureUrl={textureUrl}
             materialName={selectedMaterial?.name}
             finish={finish}
@@ -372,11 +374,12 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
             secondaryInscription={secondaryInscription}
             secondaryName={secondaryName}
             secondaryDates={secondaryDates}
-            doubleGapCm={doubleGapCm}
-          />
+              doubleGapCm={doubleGapCm}
+            />
+          </div>
 
-          <aside className="flex flex-col overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-900/70 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)]">
-            <nav className="flex gap-1 border-b border-slate-700/60 bg-slate-950/40 p-2">
+          <aside className="flex flex-col overflow-hidden border border-line bg-surface lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)]">
+            <nav className="flex border-b border-line bg-canvas">
               {TABS.map((tab) => {
                 const active = tab.id === activeTab;
                 return (
@@ -384,11 +387,12 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
                     key={tab.id}
                     type="button"
                     onClick={() => setActiveTab(tab.id)}
+                    aria-pressed={active}
                     className={[
-                      'flex-1 rounded-md px-2 py-2 text-xs font-medium transition sm:text-sm',
+                      'flex-1 border-b-2 px-2 py-3 text-xs font-medium transition-colors sm:text-sm',
                       active
-                        ? 'bg-amber-300/15 text-amber-100 shadow-sm'
-                        : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
+                        ? 'border-brand text-ink'
+                        : 'border-transparent text-ink-3 hover:text-ink'
                     ].join(' ')}
                   >
                     {t(tab.labelKey)}
@@ -397,699 +401,706 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
               })}
             </nav>
 
-            <div className="flex-1 space-y-5 overflow-y-auto p-6">
+            <div className="u-scroll flex-1 space-y-5 overflow-y-auto p-6">
               {activeTab === 'form' && (
                 <>
-            <section>
-              <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
-                {t('designer.layout')}
-              </h2>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                {LAYOUT_OPTIONS.map((option) => {
-                  const active = option.id === layout;
-                  return (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() => setLayout(option.id)}
-                      className={[
-                        'rounded-md border px-3 py-2 text-sm transition',
-                        active
-                          ? 'border-amber-300 bg-amber-300/10 text-amber-100'
-                          : 'border-slate-700 text-slate-300 hover:border-slate-500'
-                      ].join(' ')}
-                    >
-                      {t(option.labelKey)}
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="mt-2 text-[11px] text-slate-500">
-                {t('designer.layout.hint')}
-              </p>
-              {layout === 'double' && (
-                <div className="mt-3">
-                  <SliderRow
-                    label={t('designer.doubleGap')}
-                    value={doubleGapCm}
-                    min={0}
-                    max={40}
-                    step={1}
-                    unit={t('designer.units.cm')}
-                    onChange={setDoubleGapCm}
-                  />
-                </div>
-              )}
-            </section>
-
-            <section>
-              <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
-                {t('designer.material')}
-              </h2>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                {materials.map((m) => {
-                  const active = m.id === materialId;
-                  return (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => setMaterialId(m.id)}
-                      className={[
-                        'group overflow-hidden rounded-lg border text-left transition',
-                        active
-                          ? 'border-amber-300 ring-1 ring-amber-300'
-                          : 'border-slate-700 hover:border-slate-500'
-                      ].join(' ')}
-                    >
-                      <img
-                        src={m.imageUrl}
-                        alt={materialLabel(m.name, t)}
-                        className="h-16 w-full object-cover"
-                      />
-                      <div className="p-2">
-                        <p className="text-xs font-medium text-gray-100">{materialLabel(m.name, t)}</p>
-                        <p className="text-[10px] text-slate-400">
-                          {formatFromByn(m.pricePerM2)} {t('designer.pricePerM2Unit')}
-                        </p>
+                  <section>
+                    <h2 className="u-group-label">
+                      {t('designer.layout')}
+                    </h2>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      {LAYOUT_OPTIONS.map((option) => {
+                        const active = option.id === layout;
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => setLayout(option.id)}
+                            className={[
+                              'border px-3 py-2 text-sm transition',
+                              active
+                                ? 'u-chip u-chip-active'
+                                : 'u-chip'
+                            ].join(' ')}
+                          >
+                            {t(option.labelKey)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="mt-2 text-[11px] text-ink-3">{t('designer.layout.hint')}</p>
+                    {layout === 'double' && (
+                      <div className="mt-3">
+                        <SliderRow
+                          label={t('designer.doubleGap')}
+                          value={doubleGapCm}
+                          min={0}
+                          max={40}
+                          step={1}
+                          unit={t('designer.units.cm')}
+                          onChange={setDoubleGapCm}
+                        />
                       </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
+                    )}
+                  </section>
 
-            <section>
-              <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
-                {t('designer.finish')}
-              </h2>
-              <div className="mt-3 flex gap-2">
-                {FINISH_OPTIONS.map((option) => {
-                  const active = option.id === finish;
-                  return (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() => setFinish(option.id)}
-                      className={[
-                        'flex-1 rounded-md border px-3 py-2 text-sm transition',
-                        active
-                          ? 'border-amber-300 bg-amber-300/10 text-amber-100'
-                          : 'border-slate-700 text-slate-300 hover:border-slate-500'
-                      ].join(' ')}
-                    >
-                      {t(option.labelKey)}
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
+                  <section>
+                    <h2 className="u-group-label">
+                      {t('designer.material')}
+                    </h2>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      {materials.map((m) => {
+                        const active = m.id === materialId;
+                        return (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => setMaterialId(m.id)}
+                            className={[
+                              'group overflow-hidden border text-left transition',
+                              active
+                                ? 'u-chip u-chip-active ring-1 ring-brand'
+                                : 'u-chip'
+                            ].join(' ')}
+                          >
+                            <img
+                              src={m.imageUrl}
+                              alt={materialLabel(m.name, t)}
+                              className="h-16 w-full object-cover"
+                            />
+                            <div className="p-2">
+                              <p className="text-xs font-medium text-ink">
+                                {materialLabel(m.name, t)}
+                              </p>
+                              <p className="text-[10px] text-ink-3">
+                                {formatFromByn(m.pricePerM2)} {t('designer.pricePerM2Unit')}
+                              </p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
 
-            <section>
-              <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
-                {t('designer.shape')}
-              </h2>
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                {SHAPE_OPTIONS.map((option) => {
-                  const active = option.id === shape;
-                  return (
-                    <button
-                      key={option.id}
-                      type="button"
-                      title={t(option.labelKey)}
-                      onClick={() => setShape(option.id)}
-                      className={[
-                        'group relative flex aspect-square items-center justify-center rounded-md border bg-slate-950 p-2 transition',
-                        active
-                          ? 'border-amber-300 bg-amber-300/10 text-amber-200 shadow-[0_0_0_1px_rgba(252,211,77,0.45)]'
-                          : 'border-slate-700 text-slate-300 hover:border-slate-500 hover:text-slate-100'
-                      ].join(' ')}
-                    >
-                      <ShapePreview id={option.id} className="h-full w-full" />
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-300">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    className="accent-amber-300"
-                    checked={showCross}
-                    onChange={(e) => setShowCross(e.target.checked)}
-                  />
-                  {t('designer.shape.showCross')}
-                </label>
-              </div>
-            </section>
+                  <section>
+                    <h2 className="u-group-label">
+                      {t('designer.finish')}
+                    </h2>
+                    <div className="mt-3 flex gap-2">
+                      {FINISH_OPTIONS.map((option) => {
+                        const active = option.id === finish;
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => setFinish(option.id)}
+                            className={[
+                              'flex-1 border px-3 py-2 text-sm transition',
+                              active
+                                ? 'u-chip u-chip-active'
+                                : 'u-chip'
+                            ].join(' ')}
+                          >
+                            {t(option.labelKey)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
+
+                  <section>
+                    <h2 className="u-group-label">
+                      {t('designer.shape')}
+                    </h2>
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                      {SHAPE_OPTIONS.map((option) => {
+                        const active = option.id === shape;
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            title={t(option.labelKey)}
+                            onClick={() => setShape(option.id)}
+                            className={[
+                              'group relative flex aspect-square items-center justify-center border bg-canvas p-2 transition',
+                              active
+                                ? 'u-chip u-chip-active ring-1 ring-brand'
+                                : 'border-line text-ink-2 hover:border-line-strong hover:text-ink'
+                            ].join(' ')}
+                          >
+                            <ShapePreview id={option.id} className="h-full w-full" />
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-3 text-xs text-ink-2">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          className="accent-brand"
+                          checked={showCross}
+                          onChange={(e) => setShowCross(e.target.checked)}
+                        />
+                        {t('designer.shape.showCross')}
+                      </label>
+                    </div>
+                  </section>
                 </>
               )}
 
               {activeTab === 'size' && (
                 <>
-            <section>
-              <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
-                {t('designer.size.standards')}
-              </h2>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                {SIZE_STANDARDS.map((standard) => {
-                  const active =
-                    dimensions.heightCm === standard.stele.heightCm &&
-                    dimensions.widthCm === standard.stele.widthCm &&
-                    dimensions.thicknessCm === standard.stele.thicknessCm &&
-                    baseDimensions.heightCm === standard.base.heightCm &&
-                    baseDimensions.widthCm === standard.base.widthCm &&
-                    baseDimensions.depthCm === standard.base.depthCm;
-                  return (
-                    <button
-                      key={standard.id}
-                      type="button"
-                      onClick={() => {
-                        setDimensions({ ...standard.stele });
-                        setBaseDimensions({ ...standard.base });
-                      }}
-                      className={[
-                        'rounded-md border px-3 py-2 text-left text-sm transition',
-                        active
-                          ? 'border-amber-300 bg-amber-300/10 text-amber-100'
-                          : 'border-slate-700 text-slate-300 hover:border-slate-500'
-                      ].join(' ')}
-                    >
-                      <span className="block font-medium">
-                        {t(
-                          standard.id === 's1'
-                            ? 'designer.size.standard1'
-                            : 'designer.size.standard2'
-                        )}
-                      </span>
-                      <span className="mt-1 block text-[11px] text-slate-400">
-                        {t(
-                          standard.id === 's1'
-                            ? 'designer.size.standard1.detail'
-                            : 'designer.size.standard2.detail'
-                        )}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
+                  <section>
+                    <h2 className="u-group-label">
+                      {t('designer.size.standards')}
+                    </h2>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      {SIZE_STANDARDS.map((standard) => {
+                        const active =
+                          dimensions.heightCm === standard.stele.heightCm &&
+                          dimensions.widthCm === standard.stele.widthCm &&
+                          dimensions.thicknessCm === standard.stele.thicknessCm &&
+                          baseDimensions.heightCm === standard.base.heightCm &&
+                          baseDimensions.widthCm === standard.base.widthCm &&
+                          baseDimensions.depthCm === standard.base.depthCm;
+                        return (
+                          <button
+                            key={standard.id}
+                            type="button"
+                            onClick={() => {
+                              setDimensions({ ...standard.stele });
+                              setBaseDimensions({ ...standard.base });
+                            }}
+                            className={[
+                              'border px-3 py-2 text-left text-sm transition',
+                              active
+                                ? 'u-chip u-chip-active'
+                                : 'u-chip'
+                            ].join(' ')}
+                          >
+                            <span className="block font-medium">
+                              {t(
+                                standard.id === 's1'
+                                  ? 'designer.size.standard1'
+                                  : 'designer.size.standard2'
+                              )}
+                            </span>
+                            <span className="mt-1 block text-[11px] text-ink-3">
+                              {t(
+                                standard.id === 's1'
+                                  ? 'designer.size.standard1.detail'
+                                  : 'designer.size.standard2.detail'
+                              )}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
 
-            <section>
-              <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
-                {t('designer.stelaSize')}
-              </h2>
-              <div className="mt-3 space-y-3">
-                <SliderRow
-                  label={t('designer.dimensions.height')}
-                  value={dimensions.heightCm}
-                  min={70}
-                  max={160}
-                  step={5}
-                  unit={t('designer.units.cm')}
-                  onChange={updateDimension('heightCm')}
-                />
-                <SliderRow
-                  label={t('designer.dimensions.thickness')}
-                  value={dimensions.thicknessCm}
-                  min={5}
-                  max={12}
-                  step={1}
-                  unit={t('designer.units.cm')}
-                  onChange={updateDimension('thicknessCm')}
-                />
-              </div>
-            </section>
+                  <section>
+                    <h2 className="u-group-label">
+                      {t('designer.stelaSize')}
+                    </h2>
+                    <div className="mt-3 space-y-3">
+                      <SliderRow
+                        label={t('designer.dimensions.height')}
+                        value={dimensions.heightCm}
+                        min={70}
+                        max={160}
+                        step={5}
+                        unit={t('designer.units.cm')}
+                        onChange={updateDimension('heightCm')}
+                      />
+                      <SliderRow
+                        label={t('designer.dimensions.thickness')}
+                        value={dimensions.thicknessCm}
+                        min={5}
+                        max={12}
+                        step={1}
+                        unit={t('designer.units.cm')}
+                        onChange={updateDimension('thicknessCm')}
+                      />
+                    </div>
+                  </section>
 
-            <section>
-              <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
-                {t('designer.baseSize')}
-              </h2>
-              <div className="mt-3 space-y-3">
-                <SliderRow
-                  label={t('designer.baseSize.width')}
-                  value={baseDimensions.widthCm}
-                  min={40}
-                  max={120}
-                  step={5}
-                  unit={t('designer.units.cm')}
-                  onChange={updateBaseDimension('widthCm')}
-                />
-                <SliderRow
-                  label={t('designer.baseSize.height')}
-                  value={baseDimensions.heightCm}
-                  min={10}
-                  max={30}
-                  step={1}
-                  unit={t('designer.units.cm')}
-                  onChange={updateBaseDimension('heightCm')}
-                />
-              </div>
-            </section>
+                  <section>
+                    <h2 className="u-group-label">
+                      {t('designer.baseSize')}
+                    </h2>
+                    <div className="mt-3 space-y-3">
+                      <SliderRow
+                        label={t('designer.baseSize.width')}
+                        value={baseDimensions.widthCm}
+                        min={40}
+                        max={120}
+                        step={5}
+                        unit={t('designer.units.cm')}
+                        onChange={updateBaseDimension('widthCm')}
+                      />
+                      <SliderRow
+                        label={t('designer.baseSize.height')}
+                        value={baseDimensions.heightCm}
+                        min={10}
+                        max={30}
+                        step={1}
+                        unit={t('designer.units.cm')}
+                        onChange={updateBaseDimension('heightCm')}
+                      />
+                    </div>
+                  </section>
                 </>
               )}
 
               {activeTab === 'elements' && (
                 <>
-            <section>
-              <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
-                {t('designer.elements')}
-              </h2>
-              <div className="mt-3 space-y-4">
-                <ToggleRow
-                  label={t('designer.elements.flowerbed')}
-                  hint={t('designer.elements.flowerbed.hint')}
-                  checked={showFlowerbed}
-                  onChange={setShowFlowerbed}
-                />
+                  <section>
+                    <h2 className="u-group-label">
+                      {t('designer.elements')}
+                    </h2>
+                    <div className="mt-3 space-y-4">
+                      <ToggleRow
+                        label={t('designer.elements.flowerbed')}
+                        hint={t('designer.elements.flowerbed.hint')}
+                        checked={showFlowerbed}
+                        onChange={setShowFlowerbed}
+                      />
 
-                <div>
-                  <h3 className="text-[11px] uppercase tracking-wider text-slate-500">
-                    {t('designer.slabVariant')}
-                  </h3>
-                  <div className="mt-2 grid grid-cols-3 gap-2">
-                    {SLAB_VARIANT_OPTIONS.map((option) => {
-                      const active = option.id === tombstoneSlab;
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => setTombstoneSlab(option.id)}
-                          className={[
-                            'rounded-md border px-3 py-2 text-xs transition',
-                            active
-                              ? 'border-amber-300 bg-amber-300/10 text-amber-100'
-                              : 'border-slate-700 text-slate-300 hover:border-slate-500'
-                          ].join(' ')}
-                        >
-                          {t(option.labelKey)}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <p className="mt-2 text-[11px] text-slate-500">
-                    {t('designer.elements.tombstoneSlab.hint')}
-                  </p>
-                </div>
+                      <div>
+                        <h3 className="u-group-label">
+                          {t('designer.slabVariant')}
+                        </h3>
+                        <div className="mt-2 grid grid-cols-3 gap-2">
+                          {SLAB_VARIANT_OPTIONS.map((option) => {
+                            const active = option.id === tombstoneSlab;
+                            return (
+                              <button
+                                key={option.id}
+                                type="button"
+                                onClick={() => setTombstoneSlab(option.id)}
+                                className={[
+                                  'border px-3 py-2 text-xs transition',
+                                  active
+                                    ? 'u-chip u-chip-active'
+                                    : 'u-chip'
+                                ].join(' ')}
+                              >
+                                {t(option.labelKey)}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <p className="mt-2 text-[11px] text-ink-3">
+                          {t('designer.elements.tombstoneSlab.hint')}
+                        </p>
+                      </div>
 
-                {tombstoneSlab !== 'none' && (
-                  <div>
-                    <h3 className="text-[11px] uppercase tracking-wider text-slate-500">
-                      {t('designer.slabThickness')}
-                    </h3>
-                    <div className="mt-2 flex gap-2">
-                      {SLAB_THICKNESS_OPTIONS.map((value) => {
-                        const active = value === slabThicknessCm;
+                      {tombstoneSlab !== 'none' && (
+                        <div>
+                          <h3 className="u-group-label">
+                            {t('designer.slabThickness')}
+                          </h3>
+                          <div className="mt-2 flex gap-2">
+                            {SLAB_THICKNESS_OPTIONS.map((value) => {
+                              const active = value === slabThicknessCm;
+                              return (
+                                <button
+                                  key={value}
+                                  type="button"
+                                  onClick={() => setSlabThicknessCm(value)}
+                                  className={[
+                                    'flex-1 border px-3 py-2 text-sm transition',
+                                    active
+                                      ? 'u-chip u-chip-active'
+                                      : 'u-chip'
+                                  ].join(' ')}
+                                >
+                                  {value} {t('designer.units.cm')}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <p className="mt-2 text-[11px] text-ink-3">
+                            {t('designer.slabThickness.hint')}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </section>
+
+                  <section>
+                    <h2 className="u-group-label">
+                      {t('designer.decoration')}
+                    </h2>
+                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      {DECORATION_OPTIONS.map((option) => {
+                        const active = option.id === decoration;
                         return (
                           <button
-                            key={value}
+                            key={option.id}
                             type="button"
-                            onClick={() => setSlabThicknessCm(value)}
+                            onClick={() => setDecoration(option.id)}
                             className={[
-                              'flex-1 rounded-md border px-3 py-2 text-sm transition',
+                              'border px-3 py-2 text-xs transition',
                               active
-                                ? 'border-amber-300 bg-amber-300/10 text-amber-100'
-                                : 'border-slate-700 text-slate-300 hover:border-slate-500'
+                                ? 'u-chip u-chip-active'
+                                : 'u-chip'
                             ].join(' ')}
                           >
-                            {value} {t('designer.units.cm')}
+                            {t(option.labelKey)}
                           </button>
                         );
                       })}
                     </div>
-                    <p className="mt-2 text-[11px] text-slate-500">
-                      {t('designer.slabThickness.hint')}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </section>
 
-            <section>
-              <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
-                {t('designer.decoration')}
-              </h2>
-              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {DECORATION_OPTIONS.map((option) => {
-                  const active = option.id === decoration;
-                  return (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() => setDecoration(option.id)}
-                      className={[
-                        'rounded-md border px-3 py-2 text-xs transition',
-                        active
-                          ? 'border-amber-300 bg-amber-300/10 text-amber-100'
-                          : 'border-slate-700 text-slate-300 hover:border-slate-500'
-                      ].join(' ')}
-                    >
-                      {t(option.labelKey)}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {(decoration === 'portrait' || decoration === 'medallion') && (
-                <div className="mt-4">
-                  <h3 className="text-[11px] uppercase tracking-wider text-slate-500">
-                    {t('designer.nicheStyle')}
-                  </h3>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    {NICHE_STYLE_OPTIONS.map((option) => {
-                      const active = option.id === nicheStyle;
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => setNicheStyle(option.id)}
-                          className={[
-                            'rounded-md border px-3 py-2 text-xs transition',
-                            active
-                              ? 'border-amber-300 bg-amber-300/10 text-amber-100'
-                              : 'border-slate-700 text-slate-300 hover:border-slate-500'
-                          ].join(' ')}
-                        >
-                          {t(option.labelKey)}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <p className="mt-2 text-[11px] text-slate-500">
-                    {t('designer.nicheStyle.hint')}
-                  </p>
-                </div>
-              )}
-
-              {(decoration === 'portrait' || decoration === 'medallion') && (
-                <div className="mt-4">
-                  <h3 className="text-[11px] uppercase tracking-wider text-slate-500">
-                    {t('designer.photo')}
-                  </h3>
-                  <div className="mt-2 flex items-center gap-3">
-                    <div className="relative shrink-0">
-                      {photoUrl ? (
-                        <img
-                          src={photoUrl}
-                          alt=""
-                          className={[
-                            'h-16 w-16 border border-slate-600 bg-slate-950 object-cover',
-                            decoration === 'medallion' ? 'rounded-full' : 'rounded-md'
-                          ].join(' ')}
-                        />
-                      ) : (
-                        <div
-                          className={[
-                            'flex h-16 w-16 items-center justify-center border border-dashed border-slate-600 text-[10px] text-slate-500',
-                            decoration === 'medallion' ? 'rounded-full' : 'rounded-md'
-                          ].join(' ')}
-                        >
-                          {t('designer.photo')}
+                    {(decoration === 'portrait' || decoration === 'medallion') && (
+                      <div className="mt-4">
+                        <h3 className="u-group-label">
+                          {t('designer.nicheStyle')}
+                        </h3>
+                        <div className="mt-2 grid grid-cols-2 gap-2">
+                          {NICHE_STYLE_OPTIONS.map((option) => {
+                            const active = option.id === nicheStyle;
+                            return (
+                              <button
+                                key={option.id}
+                                type="button"
+                                onClick={() => setNicheStyle(option.id)}
+                                className={[
+                                  'border px-3 py-2 text-xs transition',
+                                  active
+                                    ? 'u-chip u-chip-active'
+                                    : 'u-chip'
+                                ].join(' ')}
+                              >
+                                {t(option.labelKey)}
+                              </button>
+                            );
+                          })}
                         </div>
-                      )}
-                      {isProcessingPhoto && (
-                        <div
-                          className={[
-                            'absolute inset-0 flex items-center justify-center bg-slate-950/75 px-1 text-center text-[9px] leading-tight text-amber-100',
-                            decoration === 'medallion' ? 'rounded-full' : 'rounded-md'
-                          ].join(' ')}
-                        >
-                          {t('designer.photo.processing')}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 space-y-2">
-                      <label className="block cursor-pointer rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-center text-xs text-slate-200 transition hover:border-amber-300 hover:text-amber-100">
-                        {photoUrl ? t('designer.photo.change') : t('designer.photo.upload')}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={handlePhotoChange}
-                        />
-                      </label>
-                      {photoUrl && (
-                        <button
-                          type="button"
-                          onClick={handleRemovePhoto}
-                          className="text-[11px] text-slate-400 underline-offset-2 hover:text-red-300 hover:underline"
-                        >
-                          {t('designer.photo.remove')}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <label className="mt-3 flex cursor-pointer items-center gap-2 text-[11px] text-slate-300">
-                    <input
-                      type="checkbox"
-                      className="accent-amber-300"
-                      checked={removeBg}
-                      onChange={(e) => handleToggleRemoveBg(e.target.checked)}
-                    />
-                    {t('designer.photo.removeBg')}
-                  </label>
-
-                  {photoUrl && (
-                    <div className="mt-3">
-                      <PhotoCropEditor
-                        imageUrl={photoUrl}
-                        aspect={photoAspect}
-                        crop={photoCrop}
-                        onChange={setPhotoCrop}
-                      />
-                    </div>
-                  )}
-
-                  {photoUrl && (
-                    <div className="mt-3 space-y-2 rounded-md border border-slate-700/60 bg-slate-950/40 p-3">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-[11px] uppercase tracking-wider text-slate-500">
-                          {t('designer.photo.adjust')}
-                        </h4>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPhotoBrightness(DEFAULT_PHOTO_BRIGHTNESS);
-                            setPhotoContrast(DEFAULT_PHOTO_CONTRAST);
-                            setPhotoBlend(DEFAULT_PHOTO_BLEND);
-                          }}
-                          className="text-[10px] text-slate-400 underline-offset-2 hover:text-amber-200 hover:underline"
-                        >
-                          {t('designer.photo.adjust.reset')}
-                        </button>
+                        <p className="mt-2 text-[11px] text-ink-3">
+                          {t('designer.nicheStyle.hint')}
+                        </p>
                       </div>
-                      <SliderRow
-                        label={t('designer.photo.adjust.brightness')}
-                        value={photoBrightness}
-                        min={-0.4}
-                        max={0.4}
-                        step={0.02}
-                        unit=""
-                        onChange={setPhotoBrightness}
-                      />
-                      <SliderRow
-                        label={t('designer.photo.adjust.contrast')}
-                        value={photoContrast}
-                        min={0.5}
-                        max={2.5}
-                        step={0.05}
-                        unit=""
-                        onChange={setPhotoContrast}
-                      />
-                      <SliderRow
-                        label={t('designer.photo.adjust.blend')}
-                        value={photoBlend}
-                        min={0}
-                        max={1}
-                        step={0.05}
-                        unit=""
-                        onChange={setPhotoBlend}
-                      />
-                    </div>
-                  )}
+                    )}
 
-                  {photoError ? (
-                    <p className="mt-2 text-[11px] text-red-300">{photoError}</p>
-                  ) : null}
-                  <p className="mt-2 text-[11px] text-slate-500">{t('designer.photo.hint')}</p>
-                </div>
-              )}
-            </section>
+                    {(decoration === 'portrait' || decoration === 'medallion') && (
+                      <div className="mt-4">
+                        <h3 className="u-group-label">
+                          {t('designer.photo')}
+                        </h3>
+                        <div className="mt-2 flex items-center gap-3">
+                          <div className="relative shrink-0">
+                            {photoUrl ? (
+                              <img
+                                src={photoUrl}
+                                alt=""
+                                className={[
+                                  'h-16 w-16 border border-line bg-canvas object-cover',
+                                  decoration === 'medallion' ? 'rounded-full' : ''
+                                ].join(' ')}
+                              />
+                            ) : (
+                              <div
+                                className={[
+                                  'flex h-16 w-16 items-center justify-center border border-dashed border-line text-[10px] text-ink-3',
+                                  decoration === 'medallion' ? 'rounded-full' : ''
+                                ].join(' ')}
+                              >
+                                {t('designer.photo')}
+                              </div>
+                            )}
+                            {isProcessingPhoto && (
+                              <div
+                                className={[
+                                  'absolute inset-0 flex items-center justify-center bg-canvas px-1 text-center text-[9px] leading-tight text-brand',
+                                  decoration === 'medallion' ? 'rounded-full' : ''
+                                ].join(' ')}
+                              >
+                                {t('designer.photo.processing')}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1 space-y-2">
+                            <label className="block cursor-pointer border border-line bg-canvas px-3 py-2 text-center text-xs text-ink-2 transition hover:border-brand hover:text-brand">
+                              {photoUrl ? t('designer.photo.change') : t('designer.photo.upload')}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={handlePhotoChange}
+                              />
+                            </label>
+                            {photoUrl && (
+                              <button
+                                type="button"
+                                onClick={handleRemovePhoto}
+                                className="text-[11px] text-ink-3 underline-offset-2 hover:text-critical hover:underline"
+                              >
+                                {t('designer.photo.remove')}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        <label className="mt-3 flex cursor-pointer items-center gap-2 text-[11px] text-ink-2">
+                          <input
+                            type="checkbox"
+                            className="accent-brand"
+                            checked={removeBg}
+                            onChange={(e) => handleToggleRemoveBg(e.target.checked)}
+                          />
+                          {t('designer.photo.removeBg')}
+                        </label>
+
+                        {photoUrl && (
+                          <div className="mt-3">
+                            <PhotoCropEditor
+                              imageUrl={photoUrl}
+                              aspect={photoAspect}
+                              crop={photoCrop}
+                              onChange={setPhotoCrop}
+                            />
+                          </div>
+                        )}
+
+                        {photoUrl && (
+                          <div className="mt-3 space-y-2 border border-line bg-canvas p-3">
+                            <div className="flex items-center justify-between">
+                              <h4 className="u-group-label">
+                                {t('designer.photo.adjust')}
+                              </h4>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPhotoBrightness(DEFAULT_PHOTO_BRIGHTNESS);
+                                  setPhotoContrast(DEFAULT_PHOTO_CONTRAST);
+                                  setPhotoBlend(DEFAULT_PHOTO_BLEND);
+                                }}
+                                className="text-[10px] text-ink-3 underline-offset-2 hover:text-brand hover:underline"
+                              >
+                                {t('designer.photo.adjust.reset')}
+                              </button>
+                            </div>
+                            <SliderRow
+                              label={t('designer.photo.adjust.brightness')}
+                              value={photoBrightness}
+                              min={-0.4}
+                              max={0.4}
+                              step={0.02}
+                              unit=""
+                              onChange={setPhotoBrightness}
+                            />
+                            <SliderRow
+                              label={t('designer.photo.adjust.contrast')}
+                              value={photoContrast}
+                              min={0.5}
+                              max={2.5}
+                              step={0.05}
+                              unit=""
+                              onChange={setPhotoContrast}
+                            />
+                            <SliderRow
+                              label={t('designer.photo.adjust.blend')}
+                              value={photoBlend}
+                              min={0}
+                              max={1}
+                              step={0.05}
+                              unit=""
+                              onChange={setPhotoBlend}
+                            />
+                          </div>
+                        )}
+
+                        {photoError ? (
+                          <p className="mt-2 text-[11px] text-critical">{photoError}</p>
+                        ) : null}
+                        <p className="mt-2 text-[11px] text-ink-3">{t('designer.photo.hint')}</p>
+                      </div>
+                    )}
+                  </section>
                 </>
               )}
 
               {activeTab === 'inscription' && (
                 <>
-            <section>
-              <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
-                {t('designer.inscription')}
-              </h2>
-              <div className="mt-3">
-                <p className="text-[11px] uppercase tracking-wider text-slate-500">
-                  {t('designer.presets.title')}
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {INSCRIPTION_PRESETS.map((preset, idx) => {
-                    const active = presetIndex === idx;
-                    return (
-                      <button
-                        key={preset.label}
-                        type="button"
-                        onClick={() => setPresetIndex(idx)}
-                        className={[
-                          'rounded-md border px-2 py-1 text-xs transition',
-                          active
-                            ? 'border-amber-300 bg-amber-300/10 text-amber-100'
-                            : 'border-slate-700 text-slate-300 hover:border-slate-500 hover:text-gray-100'
-                        ].join(' ')}
-                      >
-                        {t(preset.label)}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <textarea
-                className="mt-3 h-20 w-full resize-none rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-gray-100 focus:border-amber-300 focus:outline-none"
-                value={inscription}
-                onChange={(e) => {
-                  setInscription(e.target.value);
-                  setPresetIndex(null);
-                }}
-                placeholder={t('designer.inscriptionPlaceholder')}
-                aria-label={t('designer.inscription')}
-                maxLength={140}
-              />
-              <p className="mt-1 text-right text-[10px] text-slate-500">
-                {inscription.length}/140
-              </p>
-
-              <div className="mt-3 grid gap-3 sm:grid-cols-[1.4fr_1fr]">
-                <label className="block">
-                  <span className="text-[11px] uppercase tracking-wider text-slate-400">
-                    {t('designer.name')}
-                  </span>
-                  <input
-                    type="text"
-                    className="mt-1 w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-gray-100 focus:border-amber-300 focus:outline-none"
-                    value={name}
-                    onChange={(e) => {
-                      setName(e.target.value);
-                      setPresetIndex(null);
-                    }}
-                    placeholder={t('designer.namePlaceholder')}
-                    maxLength={80}
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-[11px] uppercase tracking-wider text-slate-400">
-                    {t('designer.dates')}
-                  </span>
-                  <input
-                    type="text"
-                    className="mt-1 w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-gray-100 focus:border-amber-300 focus:outline-none"
-                    value={dates}
-                    onChange={(e) => {
-                      setDates(e.target.value);
-                      setPresetIndex(null);
-                    }}
-                    placeholder={t('designer.datesPlaceholder')}
-                    maxLength={40}
-                  />
-                </label>
-              </div>
-            </section>
-
-            {layout === 'double' && (
-              <section>
-                <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
-                  {t('designer.secondary')}
-                </h2>
-                <p className="mt-1 text-[11px] text-slate-500">{t('designer.secondary.hint')}</p>
-                <label className="mt-3 block">
-                  <span className="text-[11px] uppercase tracking-wider text-slate-400">
-                    {t('designer.secondary.inscription')}
-                  </span>
-                  <textarea
-                    className="mt-1 h-20 w-full resize-none rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-gray-100 focus:border-amber-300 focus:outline-none"
-                    value={secondaryInscription}
-                    onChange={(e) => setSecondaryInscription(e.target.value)}
-                    placeholder={t('designer.inscriptionPlaceholder')}
-                    maxLength={140}
-                  />
-                  <p className="mt-1 text-right text-[10px] text-slate-500">
-                    {secondaryInscription.length}/140
-                  </p>
-                </label>
-
-                <div className="mt-3 grid gap-3 sm:grid-cols-[1.4fr_1fr]">
-                  <label className="block">
-                    <span className="text-[11px] uppercase tracking-wider text-slate-400">
-                      {t('designer.secondary.name')}
-                    </span>
-                    <input
-                      type="text"
-                      className="mt-1 w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-gray-100 focus:border-amber-300 focus:outline-none"
-                      value={secondaryName}
-                      onChange={(e) => setSecondaryName(e.target.value)}
-                      placeholder={t('designer.namePlaceholder')}
-                      maxLength={80}
+                  <section>
+                    <h2 className="u-group-label">
+                      {t('designer.inscription')}
+                    </h2>
+                    <div className="mt-3">
+                      <p className="u-group-label">
+                        {t('designer.presets.title')}
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {INSCRIPTION_PRESETS.map((preset, idx) => {
+                          const active = presetIndex === idx;
+                          return (
+                            <button
+                              key={preset.label}
+                              type="button"
+                              onClick={() => setPresetIndex(idx)}
+                              className={[
+                                'border px-2 py-1 text-xs transition',
+                                active
+                                  ? 'u-chip u-chip-active'
+                                  : 'border-line text-ink-2 hover:border-line-strong hover:text-ink'
+                              ].join(' ')}
+                            >
+                              {t(preset.label)}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <textarea
+                      className="mt-3 h-20 w-full resize-none u-field"
+                      value={inscription}
+                      onChange={(e) => {
+                        setInscription(e.target.value);
+                        setPresetIndex(null);
+                      }}
+                      placeholder={t('designer.inscriptionPlaceholder')}
+                      aria-label={t('designer.inscription')}
+                      maxLength={140}
                     />
-                  </label>
-                  <label className="block">
-                    <span className="text-[11px] uppercase tracking-wider text-slate-400">
-                      {t('designer.secondary.dates')}
-                    </span>
-                    <input
-                      type="text"
-                      className="mt-1 w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-gray-100 focus:border-amber-300 focus:outline-none"
-                      value={secondaryDates}
-                      onChange={(e) => setSecondaryDates(e.target.value)}
-                      placeholder={t('designer.datesPlaceholder')}
-                      maxLength={40}
-                    />
-                  </label>
-                </div>
-              </section>
-            )}
+                    <p className="mt-1 text-right text-[10px] text-ink-3">
+                      {inscription.length}/140
+                    </p>
 
-            <section>
-              <h2 className="text-sm uppercase tracking-[0.16em] text-slate-400">
-                {t('designer.inscriptionStyle')}
-              </h2>
-              <div className="mt-3">
-                <InscriptionStylePicker
-                  inscription={inscription || name}
-                  selectedId={inscriptionStyleId}
-                  onSelect={setInscriptionStyleId}
-                />
-              </div>
-            </section>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-[1.4fr_1fr]">
+                      <label className="block">
+                        <span className="u-group-label">
+                          {t('designer.name')}
+                        </span>
+                        <input
+                          type="text"
+                          className="mt-1 w-full u-field"
+                          value={name}
+                          onChange={(e) => {
+                            setName(e.target.value);
+                            setPresetIndex(null);
+                          }}
+                          placeholder={t('designer.namePlaceholder')}
+                          maxLength={80}
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="u-group-label">
+                          {t('designer.dates')}
+                        </span>
+                        <input
+                          type="text"
+                          className="mt-1 w-full u-field"
+                          value={dates}
+                          onChange={(e) => {
+                            setDates(e.target.value);
+                            setPresetIndex(null);
+                          }}
+                          placeholder={t('designer.datesPlaceholder')}
+                          maxLength={40}
+                        />
+                      </label>
+                    </div>
+                  </section>
+
+                  {layout === 'double' && (
+                    <section>
+                      <h2 className="u-group-label">
+                        {t('designer.secondary')}
+                      </h2>
+                      <p className="mt-1 text-[11px] text-ink-3">{t('designer.secondary.hint')}</p>
+                      <label className="mt-3 block">
+                        <span className="u-group-label">
+                          {t('designer.secondary.inscription')}
+                        </span>
+                        <textarea
+                          className="mt-1 h-20 w-full resize-none u-field"
+                          value={secondaryInscription}
+                          onChange={(e) => setSecondaryInscription(e.target.value)}
+                          placeholder={t('designer.inscriptionPlaceholder')}
+                          maxLength={140}
+                        />
+                        <p className="mt-1 text-right text-[10px] text-ink-3">
+                          {secondaryInscription.length}/140
+                        </p>
+                      </label>
+
+                      <div className="mt-3 grid gap-3 sm:grid-cols-[1.4fr_1fr]">
+                        <label className="block">
+                          <span className="u-group-label">
+                            {t('designer.secondary.name')}
+                          </span>
+                          <input
+                            type="text"
+                            className="mt-1 w-full u-field"
+                            value={secondaryName}
+                            onChange={(e) => setSecondaryName(e.target.value)}
+                            placeholder={t('designer.namePlaceholder')}
+                            maxLength={80}
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="u-group-label">
+                            {t('designer.secondary.dates')}
+                          </span>
+                          <input
+                            type="text"
+                            className="mt-1 w-full u-field"
+                            value={secondaryDates}
+                            onChange={(e) => setSecondaryDates(e.target.value)}
+                            placeholder={t('designer.datesPlaceholder')}
+                            maxLength={40}
+                          />
+                        </label>
+                      </div>
+                    </section>
+                  )}
+
+                  <section>
+                    <h2 className="u-group-label">
+                      {t('designer.inscriptionStyle')}
+                    </h2>
+                    <div className="mt-3">
+                      <InscriptionStylePicker
+                        inscription={inscription || name}
+                        selectedId={inscriptionStyleId}
+                        onSelect={setInscriptionStyleId}
+                      />
+                    </div>
+                  </section>
                 </>
               )}
             </div>
 
-            <div className="space-y-3 border-t border-slate-700/60 bg-slate-950/50 p-5">
+            <div className="space-y-3 border-t border-line bg-canvas p-5">
               <div className="flex items-baseline justify-between gap-3">
                 <div className="min-w-0">
-                  <span className="block text-xs text-slate-400">
-                    {t('designer.estimatedCost')}
-                  </span>
-                  <span className="block truncate text-[11px] text-slate-500">
-                    {materialLabel(selectedMaterial?.name, t, '—')} · {dimensions.heightCm}×{dimensions.widthCm}{' '}
-                    {t('designer.units.cm')}
+                  <span className="block text-xs text-ink-3">{t('designer.estimatedCost')}</span>
+                  <span className="block truncate text-[11px] text-ink-3">
+                    {materialLabel(selectedMaterial?.name, t, '-')} · {dimensions.heightCm}×
+                    {dimensions.widthCm} {t('designer.units.cm')}
                   </span>
                 </div>
-                <span className="shrink-0 font-serif text-3xl text-amber-200">
+                <span className="shrink-0 u-display text-3xl text-brand">
                   {formatFromByn(estimatedPrice, { digits: 2 })} {t('designer.priceUnit')}
                 </span>
               </div>
+
+              {/* The price the customer decides on is the one place a stale
+                  conversion has to be visible rather than merely logged. */}
+              {isRateStale ? (
+                <p className="mt-2 flex items-start gap-1.5 text-[11px] text-brand/80">
+                  <TriangleAlert className="mt-px h-3.5 w-3.5 shrink-0" />
+                  {t('designer.rateStale')}
+                </p>
+              ) : null}
 
               <button
                 type="button"
                 onClick={handleSubmit}
                 disabled={!selectedMaterial || isSubmitting}
-                className="w-full rounded-md bg-gray-100 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-white disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
+                className="u-btn u-btn-primary w-full py-3"
               >
                 {isSubmitting
                   ? t('designer.submitting')
@@ -1099,12 +1110,12 @@ export const DesignerPage = ({ materials }: DesignerPageProps) => {
               </button>
 
               {submitMessage ? (
-                <p className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+                <p className="border border-positive bg-positive-soft px-3 py-2 text-xs text-positive">
                   {submitMessage}
                 </p>
               ) : null}
               {submitError ? (
-                <p className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                <p className="border border-critical bg-critical-soft px-3 py-2 text-xs text-critical">
                   {submitError}
                 </p>
               ) : null}
@@ -1128,9 +1139,9 @@ interface SliderRowProps {
 
 const SliderRow = ({ label, value, min, max, step, unit, onChange }: SliderRowProps) => (
   <label className="block">
-    <div className="flex items-center justify-between text-xs text-slate-300">
+    <div className="flex items-center justify-between text-xs text-ink-2">
       <span>{label}</span>
-      <span className="font-mono text-slate-100">
+      <span className="font-mono text-ink">
         {value} {unit}
       </span>
     </div>
@@ -1141,7 +1152,7 @@ const SliderRow = ({ label, value, min, max, step, unit, onChange }: SliderRowPr
       step={step}
       value={value}
       onChange={(e) => onChange(Number(e.target.value))}
-      className="mt-1 w-full accent-amber-300"
+      className="mt-1 w-full accent-brand"
     />
   </label>
 );
@@ -1154,16 +1165,16 @@ interface ToggleRowProps {
 }
 
 const ToggleRow = ({ label, hint, checked, onChange }: ToggleRowProps) => (
-  <label className="flex cursor-pointer items-start gap-3 rounded-md border border-slate-700 bg-slate-950/40 px-3 py-2 transition hover:border-slate-500">
+  <label className="flex cursor-pointer items-start gap-3 border border-line bg-canvas px-3 py-2 transition hover:border-line-strong">
     <input
       type="checkbox"
-      className="mt-1 accent-amber-300"
+      className="mt-1 accent-brand"
       checked={checked}
       onChange={(e) => onChange(e.target.checked)}
     />
     <span className="flex-1">
-      <span className="block text-sm text-gray-100">{label}</span>
-      {hint ? <span className="mt-0.5 block text-[11px] text-slate-400">{hint}</span> : null}
+      <span className="block text-sm text-ink">{label}</span>
+      {hint ? <span className="mt-0.5 block text-[11px] text-ink-3">{hint}</span> : null}
     </span>
   </label>
 );

@@ -24,9 +24,9 @@ const STATUS_LABEL_KEYS: Record<ContactMessageStatus, TranslationKey> = {
 };
 
 const statusBadge: Record<ContactMessageStatus, string> = {
-  new: 'bg-amber-300/10 text-amber-200 border-amber-300/30',
-  read: 'bg-sky-300/10 text-sky-200 border-sky-300/30',
-  archived: 'bg-slate-500/10 text-slate-300 border-slate-500/30'
+  new: 'bg-brand-soft text-brand border-brand',
+  read: 'bg-info-soft text-info border-info',
+  archived: 'bg-surface-2 text-ink-2 border-line-strong'
 };
 
 export const AdminMessagesPage = () => {
@@ -86,20 +86,17 @@ export const AdminMessagesPage = () => {
     }
   };
 
-  const newCount = useMemo(
-    () => messages.filter((m) => m.status === 'new').length,
-    [messages]
-  );
+  const newCount = useMemo(() => messages.filter((m) => m.status === 'new').length, [messages]);
 
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-serif text-3xl text-gray-100">{t('admin.messages.title')}</h1>
-          <p className="mt-1 text-sm text-slate-400">
+          <h1 className="u-display text-3xl text-ink sm:text-4xl">{t('admin.messages.title')}</h1>
+          <p className="mt-1 text-sm text-ink-3">
             {t('admin.messages.subtitle')}
             {filter === 'all' && newCount > 0 ? (
-              <span className="ml-2 rounded-full bg-amber-300/10 px-2 py-0.5 text-xs text-amber-200">
+              <span className="ml-2 bg-brand-soft px-2 py-0.5 text-xs text-brand">
                 {t('admin.messages.newBadge', { count: newCount })}
               </span>
             ) : null}
@@ -107,7 +104,7 @@ export const AdminMessagesPage = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex overflow-hidden rounded-md border border-slate-700">
+          <div className="flex overflow-hidden border border-line">
             {STATUS_FILTERS.map((option) => (
               <button
                 key={option.id}
@@ -115,8 +112,8 @@ export const AdminMessagesPage = () => {
                 onClick={() => setFilter(option.id)}
                 className={`px-3 py-1.5 text-xs transition ${
                   filter === option.id
-                    ? 'bg-slate-800 text-white'
-                    : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
+                    ? 'bg-surface-2 text-ink'
+                    : 'text-ink-3 hover:bg-surface-2 hover:text-ink'
                 }`}
               >
                 {t(option.labelKey)}
@@ -126,7 +123,7 @@ export const AdminMessagesPage = () => {
           <button
             type="button"
             onClick={load}
-            className="rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:border-slate-500 hover:text-white"
+            className="border border-line px-3 py-1.5 text-xs text-ink-2 hover:border-line-strong hover:text-ink"
           >
             {t('admin.common.refresh')}
           </button>
@@ -134,54 +131,45 @@ export const AdminMessagesPage = () => {
       </div>
 
       {error ? (
-        <p className="mb-4 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+        <p className="mb-4 border border-critical bg-critical-soft px-3 py-2 text-sm text-critical">
           {error}
         </p>
       ) : null}
 
       <div className="space-y-3">
         {isLoading ? (
-          <div className="rounded-xl border border-slate-700/60 bg-slate-900/70 p-6 text-center text-slate-400">
+          <div className="border border-line bg-surface p-6 text-center text-ink-3">
             {t('admin.common.loading')}
           </div>
         ) : messages.length === 0 ? (
-          <div className="rounded-xl border border-slate-700/60 bg-slate-900/70 p-6 text-center text-slate-400">
+          <div className="border border-line bg-surface p-6 text-center text-ink-3">
             {t('admin.messages.empty')}
           </div>
         ) : (
           messages.map((m) => (
-            <article
-              key={m.id}
-              className="rounded-xl border border-slate-700/60 bg-slate-900/70 p-5"
-            >
+            <article key={m.id} className="border border-line bg-surface p-5">
               <header className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h2 className="text-lg font-medium text-slate-100">{m.name}</h2>
-                  <p className="mt-1 text-xs text-slate-400">
-                    <a
-                      href={`mailto:${m.email}`}
-                      className="text-slate-300 hover:text-white"
-                    >
+                  <h2 className="text-lg font-medium text-ink">{m.name}</h2>
+                  <p className="mt-1 text-xs text-ink-3">
+                    <a href={`mailto:${m.email}`} className="text-ink-2 hover:text-ink">
                       {m.email}
                     </a>
                     {m.phone ? (
                       <>
                         {' · '}
-                        <a
-                          href={`tel:${m.phone}`}
-                          className="text-slate-300 hover:text-white"
-                        >
+                        <a href={`tel:${m.phone}`} className="text-ink-2 hover:text-ink">
                           {m.phone}
                         </a>
                       </>
                     ) : null}
                   </p>
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-xs text-ink-3">
                     {new Date(m.created_at).toLocaleString(dateLocale)}
                   </p>
                 </div>
                 <span
-                  className={`rounded-full border px-3 py-1 text-[10px] uppercase tracking-wider ${
+                  className={`border px-3 py-1 text-[10px] uppercase tracking-wider ${
                     statusBadge[m.status]
                   }`}
                 >
@@ -189,9 +177,7 @@ export const AdminMessagesPage = () => {
                 </span>
               </header>
 
-              <p className="mt-4 whitespace-pre-wrap text-sm text-slate-200">
-                {m.message}
-              </p>
+              <p className="mt-4 whitespace-pre-wrap text-sm text-ink-2">{m.message}</p>
 
               <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
                 {m.status !== 'read' ? (
@@ -199,7 +185,7 @@ export const AdminMessagesPage = () => {
                     type="button"
                     onClick={() => handleStatusChange(m.id, 'read')}
                     disabled={busyId === m.id}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:border-slate-500 hover:text-white disabled:opacity-60"
+                    className="inline-flex items-center gap-1.5 border border-line px-3 py-1.5 text-xs text-ink-2 hover:border-line-strong hover:text-ink disabled:opacity-60"
                   >
                     <MailOpen className="h-3.5 w-3.5" />
                     {t('admin.messages.markRead')}
@@ -209,7 +195,7 @@ export const AdminMessagesPage = () => {
                     type="button"
                     onClick={() => handleStatusChange(m.id, 'new')}
                     disabled={busyId === m.id}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:border-slate-500 hover:text-white disabled:opacity-60"
+                    className="inline-flex items-center gap-1.5 border border-line px-3 py-1.5 text-xs text-ink-2 hover:border-line-strong hover:text-ink disabled:opacity-60"
                   >
                     <Mail className="h-3.5 w-3.5" />
                     {t('admin.messages.markNew')}
@@ -221,7 +207,7 @@ export const AdminMessagesPage = () => {
                     type="button"
                     onClick={() => handleStatusChange(m.id, 'archived')}
                     disabled={busyId === m.id}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:border-slate-500 hover:text-white disabled:opacity-60"
+                    className="inline-flex items-center gap-1.5 border border-line px-3 py-1.5 text-xs text-ink-2 hover:border-line-strong hover:text-ink disabled:opacity-60"
                   >
                     <Archive className="h-3.5 w-3.5" />
                     {t('admin.messages.archive')}
@@ -232,7 +218,7 @@ export const AdminMessagesPage = () => {
                   type="button"
                   onClick={() => handleDelete(m.id)}
                   disabled={busyId === m.id}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-rose-500/40 px-3 py-1.5 text-xs text-rose-200 hover:border-rose-400 hover:bg-rose-500/10 disabled:opacity-60"
+                  className="inline-flex items-center gap-1.5 border border-critical px-3 py-1.5 text-xs text-critical hover:border-critical hover:bg-critical-soft disabled:opacity-60"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   {t('admin.messages.delete')}

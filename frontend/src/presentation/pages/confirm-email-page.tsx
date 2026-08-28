@@ -15,17 +15,15 @@ export const ConfirmEmailPage = () => {
     <AuthShell
       title={t('confirmEmail.title')}
       subtitle={
-        email
-          ? t('confirmEmail.subtitleWithEmail', { email })
-          : t('confirmEmail.subtitleNoEmail')
+        email ? t('confirmEmail.subtitleWithEmail', { email }) : t('confirmEmail.subtitleNoEmail')
       }
       footer={
-        <Link to="/sign-in" className="text-amber-300 hover:underline">
+        <Link to="/sign-in" className="text-brand hover:underline">
           {t('confirmEmail.backToSignIn')}
         </Link>
       }
     >
-      <p className="text-sm text-slate-300">{t('confirmEmail.tip')}</p>
+      <p className="text-sm text-ink-2">{t('confirmEmail.tip')}</p>
     </AuthShell>
   );
 };

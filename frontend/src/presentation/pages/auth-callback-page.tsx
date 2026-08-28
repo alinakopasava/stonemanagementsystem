@@ -16,8 +16,7 @@ export const AuthCallbackPage = () => {
   const callbackParams = new URLSearchParams(
     location.hash.startsWith('#') ? location.hash.slice(1) : location.search
   );
-  const hasProviderError =
-    callbackParams.has('error') || callbackParams.has('error_code');
+  const hasProviderError = callbackParams.has('error') || callbackParams.has('error_code');
   const hasCallbackError = authHandoffError || hasProviderError;
 
   useEffect(() => {
@@ -27,11 +26,11 @@ export const AuthCallbackPage = () => {
 
   if (hasCallbackError) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-900 px-6 text-center text-slate-200">
-        <p role="alert" className="text-red-200">
+      <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-4 bg-surface px-6 text-center text-ink-2">
+        <p role="alert" className="text-critical">
           {t('authCallback.error')}
         </p>
-        <Link to="/sign-in" className="text-amber-300 hover:underline">
+        <Link to="/sign-in" className="text-brand hover:underline">
           {t('authCallback.backToSignIn')}
         </Link>
       </div>
@@ -39,7 +38,7 @@ export const AuthCallbackPage = () => {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-900 text-slate-200">
+    <div className="flex min-h-[100dvh] items-center justify-center bg-surface text-ink-2">
       {t('authCallback.finalizing')}
     </div>
   );

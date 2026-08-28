@@ -55,7 +55,7 @@ export const materialLabel = (name: string | null | undefined, t: Translate, fal
   return key ? t(key) : name;
 };
 
-export const finishLabel = (finish: string | null | undefined, t: Translate, fallback = '—') => {
+export const finishLabel = (finish: string | null | undefined, t: Translate, fallback = '-') => {
   if (!finish) return fallback;
   const key = FINISH_KEYS[finish];
   return key ? t(key) : finish;

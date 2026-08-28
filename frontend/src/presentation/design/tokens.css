@@ -1,0 +1,126 @@
+/*
+  Signature Stone design tokens.
+  ------------------------------------------------------------------
+  One palette, two modes, no per-section improvisation.
+
+  Colours are stored as space-separated sRGB channels so Tailwind can
+  apply alpha modifiers to them: `bg-surface/70` compiles to
+  `rgb(var(--surface) / 0.7)`. Never write a raw hex in a component.
+
+  PALETTE: "Forest" - cool stone neutrals plus a single deep evergreen.
+  Granite greys because granite is literally the product; evergreen
+  because it is the one colour of remembrance that is neither cheerful
+  nor funereal. Deliberately NOT the beige/brass/oxblood family that
+  every artisan-goods site defaults to.
+
+  SHAPE: radius 0 everywhere. Cut stone has edges, not fillets. The
+  single documented exception is the segmented language control, which
+  is a pill so it reads as a switch rather than as four buttons.
+*/
+
+:root {
+  color-scheme: light;
+
+  /* Ground and raised planes */
+  --canvas: 240 241 238;
+  --surface: 247 248 246;
+  --surface-2: 231 233 228;
+
+  /*
+    Text, in descending emphasis. Pulled off pure near-black: 12.4:1 still
+    clears AAA with room to spare, and the page stops feeling struck rather
+    than printed.
+  */
+  --ink: 38 44 41;
+  --ink-2: 78 86 82;
+  --ink-3: 97 106 100;
+
+  /* Hairlines. The light one is a suggestion, not a rule. */
+  --line: 223 226 220;
+  --line-strong: 191 197 188;
+
+  /* The one accent */
+  --brand: 31 74 60;
+  --brand-strong: 23 58 47;
+  --brand-soft: 227 234 229;
+  --brand-ink: 242 246 243;
+
+  /* Status. Used for meaning only, never for decoration. */
+  --positive: 27 94 62;
+  --positive-soft: 224 238 230;
+  --critical: 143 34 34;
+  --critical-soft: 246 228 228;
+  --notice: 122 82 20;
+  --notice-soft: 247 236 217;
+  --info: 32 74 96;
+  --info-soft: 223 235 241;
+
+  /*
+    The one full-bleed colour block on the page. It inverts against the
+    ground in light mode and settles into the ground in dark mode, so the
+    page still reads as a single theme in both.
+  */
+  --band: 31 74 60;
+  --band-ink: 242 246 243;
+
+  /* Focus ring, shared by every interactive element */
+  --focus: 31 74 60;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --canvas: 16 20 19;
+    --surface: 23 28 26;
+    --surface-2: 31 37 35;
+
+    --ink: 221 227 223;
+    --ink-2: 168 178 172;
+    --ink-3: 135 145 139;
+
+    --line: 38 45 42;
+    --line-strong: 57 65 62;
+
+    --brand: 127 182 156;
+    --brand-strong: 158 205 182;
+    --brand-soft: 27 39 35;
+    --brand-ink: 14 22 20;
+
+    --positive: 122 194 155;
+    --positive-soft: 22 41 32;
+    --critical: 226 138 138;
+    --critical-soft: 48 26 26;
+    --notice: 219 175 106;
+    --notice-soft: 45 35 18;
+    --info: 141 187 210;
+    --info-soft: 21 33 41;
+
+    --band: 27 39 35;
+    --band-ink: 232 236 233;
+
+    --focus: 127 182 156;
+  }
+}
+
+/*
+  Type scale. Two families, both of which already ship with the app:
+
+  - Display is PT Serif, the same face the "roman" inscription style
+    engraves into the stone in the 3D viewer. The masthead and the
+    monument speak in one voice, which is the only honest reason to
+    reach for a serif here. It is self-hosted, so it costs no extra
+    request, and it covers Cyrillic for the Russian locale.
+
+  - Body is the platform UI face. Inter was declared before but never
+    self-hosted or loaded, so the app silently rendered system-ui
+    anyway; naming the stack honestly removes a phantom dependency and
+    guarantees Polish and Cyrillic coverage on every OS at zero bytes.
+*/
+:root {
+  --font-display: 'PT Serif', 'Times New Roman', Georgia, serif;
+  --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, 'Noto Sans', sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+    'Liberation Mono', monospace;
+}

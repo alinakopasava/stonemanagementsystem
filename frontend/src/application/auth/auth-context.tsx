@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
 import type { ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import type { AuthUser } from '@domain/entities/user-profile';
@@ -60,8 +68,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
 
     const run = (async () => {
-      const session =
-        providedSession ?? (await supabase.auth.getSession()).data.session;
+      const session = providedSession ?? (await supabase.auth.getSession()).data.session;
       if (!session?.access_token || !session.refresh_token) {
         return;
       }

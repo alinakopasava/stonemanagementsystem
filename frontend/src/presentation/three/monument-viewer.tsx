@@ -2,11 +2,7 @@ import { Suspense, useEffect, useLayoutEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { Canvas, useThree } from '@react-three/fiber';
 import { Environment, OrbitControls } from '@react-three/drei';
-import {
-  ClassicMonumentModel,
-  ROUNDED_MODEL_URL,
-  STELE_MODEL_URL
-} from './classic-monument-model';
+import { ClassicMonumentModel, ROUNDED_MODEL_URL, STELE_MODEL_URL } from './classic-monument-model';
 import { MonumentModel } from './monument-model';
 import type {
   BaseDimensionsCm,
@@ -67,7 +63,7 @@ const SceneReadyNotifier = ({ onReady }: { onReady?: () => void }) => {
   useEffect(() => {
     /** frameloop="demand" (catalog grid) does not paint until invalidate() — GLB looked missing.
      *  Troika text fonts resolve in a nested Suspense after the first frame, so keep
-     *  requesting draws until the inscription has had a chance to sync. */
+     * requesting draws until the inscription has had a chance to sync. */
     invalidate();
     const retries = [80, 250, 700].map((ms) => window.setTimeout(() => invalidate(), ms));
     const readyId = onReady ? requestAnimationFrame(() => onReady()) : 0;
@@ -81,13 +77,7 @@ const SceneReadyNotifier = ({ onReady }: { onReady?: () => void }) => {
 };
 
 /** Frames the current stele + base so the monument fills the view without clipping. */
-const FrameCamera = ({
-  position,
-  fov
-}: {
-  position: [number, number, number];
-  fov: number;
-}) => {
+const FrameCamera = ({ position, fov }: { position: [number, number, number]; fov: number }) => {
   const camera = useThree((state) => state.camera);
   const invalidate = useThree((state) => state.invalidate);
 
@@ -114,16 +104,14 @@ export const MonumentViewer = ({
   /** These single stelas share the detailed Blender assembly and differ only in
    * the silhouette of the main upper slab. */
   const isDetailedGlb =
-    (props.shape === 'classic' ||
-      props.shape === 'rounded' ||
-      props.shape === 'stele') &&
+    (props.shape === 'classic' || props.shape === 'rounded' || props.shape === 'stele') &&
     layout !== 'double';
   const detailedModelUrl =
     props.shape === 'rounded'
       ? ROUNDED_MODEL_URL
       : props.shape === 'stele'
         ? STELE_MODEL_URL
-      : '/models/classic-monument.glb';
+        : '/models/classic-monument.glb';
   const presentation = getStonePresentationProfile(props.materialName);
   const fov = isCatalogQuality ? 26 : 28;
   const framing = useMemo(() => {
@@ -157,7 +145,7 @@ export const MonumentViewer = ({
   ]);
 
   return (
-    <div className={`${heightClassName} w-full overflow-hidden rounded-2xl border border-slate-200/30 bg-[#eceae8]`}>
+    <div className={`${heightClassName} w-full overflow-hidden border border-line bg-[#eceae8]`}>
       <Canvas
         frameloop={frameloop}
         shadows={{
@@ -189,13 +177,9 @@ export const MonumentViewer = ({
           castShadow
           position={[-4.5, 8, 4]}
           intensity={4.0}
-          shadow-mapSize={
-            isCatalogQuality
-              ? [512, 512]
-              : [2048, 2048]
-          }
+          shadow-mapSize={isCatalogQuality ? [512, 512] : [2048, 2048]}
           shadow-bias={-0.0001}
-          shadow-normalBias={0.10}
+          shadow-normalBias={0.1}
           shadow-camera-left={-2.5}
           shadow-camera-right={2.5}
           shadow-camera-top={3}

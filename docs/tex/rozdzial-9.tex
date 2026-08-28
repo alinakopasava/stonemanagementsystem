@@ -1,0 +1,67 @@
+% ---------------------------------------------------------------------
+% Rozdział 9: Wkład pracy
+% Podział jest propozycją opartą na strukturze aplikacji: backend, baza
+% i bezpieczeństwo po jednej stronie, aplikacja kliencka i scena 3D po
+% drugiej. Zweryfikujcie tabelę przed oddaniem pracy.
+% ---------------------------------------------------------------------
+
+\chapter{Wkład pracy}
+\label{cha:wklad-pracy}
+
+W rozdziale przedstawiono podział pracy pomiędzy członków zespołu projektowego. System podzielono wzdłuż naturalnej granicy architektury opisanej w rozdziale~\ref{cha:projektowanie}: warstwa serwerowa wraz z bazą danych i mechanizmami bezpieczeństwa przypadła jednemu z autorów, aplikacja kliencka wraz ze sceną trójwymiarową i warstwą prezentacji drugiemu. Etapy analizy, projektowania oraz testy systemowe prowadzono wspólnie, ponieważ dotyczą one całości rozwiązania i wymagały uzgodnień po obu stronach interfejsu programistycznego. Podział przedstawia tabela~\ref{tab:podzial-pracy}.
+
+\begin{table}[htbp]
+\centering
+\caption{Podział prac nad systemem SZK -- opracowanie własne}
+\label{tab:podzial-pracy}
+\begin{tabular}{|p{0.50\textwidth}|p{0.34\textwidth}|}
+\hline
+\textbf{Obszar} & \textbf{Wykonawca} \\
+\hline
+Analiza procesów w zakładzie kamieniarskim & wspólnie \\
+\hline
+Wymagania funkcjonalne i pozafunkcjonalne & wspólnie \\
+\hline
+Diagram przypadków użycia, opis aktorów & wspólnie \\
+\hline
+Projekt schematu bazy danych & Aliaksei Habrukovich \\
+\hline
+Skrypty migracyjne, wyzwalacze, polityki Row Level Security & Aliaksei Habrukovich \\
+\hline
+Serwer Express: ścieżki, kontrolery, warstwa usług & Aliaksei Habrukovich \\
+\hline
+Uwierzytelnianie, sesja w ciasteczkach, odzyskiwanie hasła & Aliaksei Habrukovich \\
+\hline
+Ograniczanie liczby żądań, ochrona CSRF, dziennik zdarzeń & Aliaksei Habrukovich \\
+\hline
+Integracja z NBRB i pamięć podręczna kursu walutowego & Aliaksei Habrukovich \\
+\hline
+Architektura aplikacji klienckiej i podział na warstwy & Alina Kopasava \\
+\hline
+Strona główna, katalog, formularze uwierzytelniania i kontaktu & Alina Kopasava \\
+\hline
+Konfigurator produktu i scena trójwymiarowa & Alina Kopasava \\
+\hline
+Generowanie kształtów, tekstur, inskrypcji i kadrowanie fotografii & Alina Kopasava \\
+\hline
+Wielojęzyczność interfejsu i prezentacja cen w walutach & Alina Kopasava \\
+\hline
+Panel administratora i widok montażowy & Alina Kopasava \\
+\hline
+Testy jednostkowe i integracyjne warstwy API & Aliaksei Habrukovich \\
+\hline
+Testy polityk Row Level Security & Aliaksei Habrukovich \\
+\hline
+Testy jednostkowe i komponentowe aplikacji klienckiej & Alina Kopasava \\
+\hline
+Testy systemowe & wspólnie \\
+\hline
+Konfiguracja środowisk i wdrożenie & Aliaksei Habrukovich \\
+\hline
+Dokumentacja projektowa i tekst pracy & wspólnie \\
+\hline
+\end{tabular}
+\end{table}
+
+\input{9.1}
+\input{9.2}

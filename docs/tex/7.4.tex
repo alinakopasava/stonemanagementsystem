@@ -1,0 +1,43 @@
+\section{Testy zabezpieczeń bazy}
+\label{sec:testy-rls}
+
+Tu sprawdzam reguły zapisane w samej bazie, czyli zabezpieczenia, które zadziałają nawet wtedy, gdy zawiedzie kod serwera. Zapytania wysyłam z tokenem JWT prosto do PostgREST, z pominięciem Express, czyli tak, jak zrobiłby ktoś, kto zna publiczny adres bazy i klucz aplikacji.
+
+\begin{table}[htbp]
+\centering
+\caption{Scenariusze testów Row Level Security -- opracowanie własne}
+\label{tab:rls}
+\begin{tabular}{|p{0.14\textwidth}|p{0.43\textwidth}|p{0.26\textwidth}|}
+\hline
+\textbf{Obszar} & \textbf{Operacja} & \textbf{Wynik oczekiwany} \\
+\hline
+Wyzwalacz & Rejestracja z metadanymi z rolą administratora & Profil dostaje rolę klienta \\
+\hline
+Izolacja & Klient A czyta karty klienta B i całą tabelę kart & Tylko własne karty \\
+\hline
+Izolacja & Klient A zapisuje kartę na klienta B & Odmowa \\
+\hline
+Izolacja & Klient zmienia status zamówienia & Odmowa \\
+\hline
+Izolacja & Klient nadaje sobie rolę administratora & Odmowa \\
+\hline
+Izolacja & Anonim zapisuje wiadomość kontaktową & Odmowa \\
+\hline
+Izolacja & Klient czyta wiadomości i zapisuje wpis dziennika & Pusty wynik; odmowa \\
+\hline
+Monter & Odczyt wszystkich zamówień & Widzi zamówienia obu klientów \\
+\hline
+Monter & Usunięcie karty zamówienia & Odmowa \\
+\hline
+Monter & Zmiana kolumny innej niż status & Odmowa (luka otwarta) \\
+\hline
+Administrator & Odczyt dziennika zdarzeń & Widzi wpisy \\
+\hline
+Katalog & Odczyt materiałów bez logowania; zapis przez gościa i klienta & Odczyt tak, oba zapisy nie \\
+\hline
+\end{tabular}
+\end{table}
+
+Przy rejestracji można wysłać dowolne metadane użytkownika, więc bez zabezpieczenia w bazie wystarczyłoby dopisać rolę administratora, żeby wejść do panelu. Zapis wiadomości przez anonima baza odrzuca, choć formularz jest publiczny, bo zapis ma iść tylko przez backend, po walidacji i sprawdzeniu limitu.
+
+Ostatni wiersz montera opisuje lukę, której jeszcze nie naprawiłam. Według założeń monter ma czytać wszystkie zamówienia i zmieniać tylko status, ale obecna polityka pozwala mu zapisywać do wszystkich kolumn. Ten test zostawiłam z oznaczeniem, że ma się nie udać. Po dodaniu wyzwalacza ograniczającego kolumny stanie się zwykłym testem regresji.

@@ -11,6 +11,17 @@ export interface AdminUser {
   createdAt: string | null;
 }
 
+/** The customer behind an order or a card, as they registered themselves. */
+export interface AdminClient {
+  id: string | null;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  phoneNumber: string | null;
+  role: UserRole | null;
+  registeredAt: string | null;
+}
+
 export interface AdminOrder {
   id: string;
   status: string | null;
@@ -25,18 +36,32 @@ export interface AdminOrder {
   updated_at: string | null;
   user_id: string | null;
   order_card_id: string | null;
+  /** Present once the order has been handed to the crew. At most one row. */
+  installation_cards: Array<{
+    id: string;
+    status: string | null;
+    completion_timestamp: string | null;
+  }> | null;
   order_cards: {
     id: string;
     user_id: string | null;
+    /** When the customer submitted the configuration this order grew out of. */
+    created_at: string | null;
     order_details: Array<{
       id: string;
       material_id: string | null;
       dimensions: string | null;
       inscription_text: string | null;
       finish_type: string | null;
-      materials: { id: string; name: string; category: string | null } | null;
+      materials: {
+        id: string;
+        name: string;
+        category: string | null;
+        price_per_m2: number | string | null;
+      } | null;
     }>;
   } | null;
+  client: AdminClient;
 }
 
 export const fetchAdminUsers = () =>
@@ -55,6 +80,7 @@ export interface AdminOrderCard {
   id: string;
   user_id: string | null;
   user_email: string | null;
+  created_at: string | null;
   order_details: Array<{
     id: string;
     material_id: string | null;
@@ -63,6 +89,7 @@ export interface AdminOrderCard {
     finish_type: string | null;
     materials: { id: string; name: string; category: string | null; price_per_m2: number | null } | null;
   }>;
+  client: AdminClient;
   converted_order: {
     id: string;
     status: string | null;
@@ -144,3 +171,11 @@ export const deleteContactMessage = (id: string) =>
   apiFetch<{ data: { id: string } }>(`/api/admin/contact-messages/${id}`, {
     method: 'DELETE'
   });
+
+export const handOverOrderToInstaller = (orderId: string) =>
+  apiFetch<{
+    data: {
+      alreadyHandedOver: boolean;
+      installationCard: { id: string; status: string | null; completion_timestamp: string | null };
+    };
+  }>(`/api/admin/orders/${orderId}/hand-over`, { method: 'POST' }).then((r) => r.data);

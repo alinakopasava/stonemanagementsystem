@@ -1,0 +1,20 @@
+\section{Panel administratora}
+\label{sec:prez-panel}
+
+Panel dostępny jest wyłącznie dla konta z rolą administratora; próba wejścia z innym kontem kończy się powrotem na stronę główną, a bezpośrednie odpytanie API odpowiedzią o braku uprawnień. Panel dzieli się na cztery widoki. Wykaz użytkowników pozwala zmienić rolę wybranej osoby, przy czym system nie pozwala odebrać roli administratora samemu sobie. Wykaz kart zamówień prezentuje projekty nadesłane przez klientów w formie kafelków z plakietką statusu i można go zawęzić do kart jeszcze nieprzetworzonych. Kliknięcie karty otwiera okno ze szczegółami konfiguracji oraz z dwiema akcjami: usunięciem karty po potwierdzeniu albo przekształceniem jej w zamówienie produkcyjne. Druga akcja otwiera formularz z ostateczną ceną, adresem montażu i planowanym terminem; cena podpowiadana jest na podstawie konfiguracji klienta. Osobny widok obsługuje wiadomości z formularza kontaktowego, z oznaczaniem jako przeczytane i archiwizacją.
+
+Monter korzysta z osobnego, uproszczonego widoku montażowego, przystosowanego do ekranu telefonu. Widzi w nim wyłącznie dane potrzebne w terenie: adres montażu, planowany termin i parametry techniczne pomnika, z możliwością filtrowania zleceń po statusie.
+
+\begin{figure}[htbp]
+\centering
+% \includegraphics[width=0.9\textwidth]{obrazy/prez-panel-karty.png}
+\caption{Wykaz kart zamówień w panelu administratora}
+\label{fig:prez-panel-karty}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+% \includegraphics[width=0.9\textwidth]{obrazy/prez-widok-montazowy.png}
+\caption{Widok montażowy na urządzeniu mobilnym}
+\label{fig:prez-widok-montazowy}
+\end{figure}

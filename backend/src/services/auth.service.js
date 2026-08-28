@@ -5,17 +5,13 @@ import {
   supabaseForUser
 } from '../config/supabase.js';
 import { PublicError } from '../http/errors.js';
-import { writeAuditLog } from './audit.service.js';
+import { checkPassword } from './password-policy.js';
+import { logSecurityEvent } from './security-log.js';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const passwordIsStrong = (password) =>
-  typeof password === 'string' &&
-  password.length >= 8 &&
-  password.length <= 128 &&
-  /[A-Z]/.test(password) &&
-  /[a-z]/.test(password) &&
-  /\d/.test(password);
+const BREACHED_PASSWORD_MESSAGE =
+  'This password is among the most commonly used ones. Choose a different one.';
 
 const normalizeEmail = (email) => (typeof email === 'string' ? email.trim().toLowerCase() : '');
 
@@ -38,20 +34,11 @@ export const signInWithPassword = async ({ email, password, ip, userAgent }) => 
   });
 
   if (error || !data.session || !data.user) {
-    await writeAuditLog({
-      action: 'auth.sign_in_failed',
-      ip,
-      userAgent
-    });
+    logSecurityEvent('auth.sign_in_failed', { ip, userAgent });
     throw new PublicError('Invalid credentials.', 401);
   }
 
-  await writeAuditLog({
-    actorId: data.user.id,
-    action: 'auth.sign_in',
-    ip,
-    userAgent
-  });
+  logSecurityEvent('auth.sign_in', { actorId: data.user.id, ip });
 
   return data.session;
 };
@@ -62,8 +49,7 @@ export const signUpWithPassword = async ({
   firstName,
   lastName,
   phoneNumber,
-  ip,
-  userAgent
+  ip
 }) => {
   const normalizedEmail = normalizeEmail(email);
   const first = typeof firstName === 'string' ? firstName.trim() : '';
@@ -81,8 +67,17 @@ export const signUpWithPassword = async ({
   ) {
     throw new PublicError('Could not create account.', 400);
   }
-  if (!passwordIsStrong(password)) {
-    throw new PublicError('Could not create account.', 400);
+  const passwordCheck = checkPassword(password);
+  if (!passwordCheck.ok) {
+    // A weak shape is already blocked by the form, so a generic message covers
+    // it. A breached password passes every visible rule, so saying nothing
+    // would leave the user retyping something that looks compliant.
+    throw new PublicError(
+      passwordCheck.reason === 'common'
+        ? BREACHED_PASSWORD_MESSAGE
+        : 'Could not create account.',
+      400
+    );
   }
 
   const authClient = createSupabaseAuthClient();
@@ -100,20 +95,11 @@ export const signUpWithPassword = async ({
   });
 
   if (error) {
-    await writeAuditLog({
-      action: 'auth.sign_up_failed',
-      ip,
-      userAgent
-    });
+    logSecurityEvent('auth.sign_up_failed', { ip });
     throw new PublicError('Could not create account.', 400);
   }
 
-  await writeAuditLog({
-    actorId: data.user?.id ?? null,
-    action: 'auth.sign_up',
-    ip,
-    userAgent
-  });
+  logSecurityEvent('auth.sign_up', { actorId: data.user?.id ?? null, ip });
 
   return {
     requiresEmailConfirmation: !data.session,
@@ -121,7 +107,7 @@ export const signUpWithPassword = async ({
   };
 };
 
-export const requestPasswordReset = async ({ email, ip, userAgent }) => {
+export const requestPasswordReset = async ({ email }) => {
   const normalizedEmail = normalizeEmail(email);
   if (normalizedEmail.length <= 254 && EMAIL_PATTERN.test(normalizedEmail)) {
     const authClient = createSupabaseAuthClient();
@@ -129,19 +115,11 @@ export const requestPasswordReset = async ({ email, ip, userAgent }) => {
       redirectTo: `${env.frontendOrigin}/auth/reset-password`
     });
   }
-
-  await writeAuditLog({
-    action: 'auth.password_reset_requested',
-    ip,
-    userAgent
-  });
 };
 
 export const establishSessionFromTokens = async ({
   accessToken,
-  refreshToken,
-  ip,
-  userAgent
+  refreshToken
 }) => {
   if (
     typeof accessToken !== 'string' ||
@@ -151,22 +129,12 @@ export const establishSessionFromTokens = async ({
     accessToken.length > 8192 ||
     refreshToken.length > 8192
   ) {
-    await writeAuditLog({
-      action: 'auth.session_established_failed',
-      ip,
-      userAgent
-    });
     throw new PublicError('Invalid or expired session.', 401);
   }
 
   const { data: accessData, error: accessError } =
     await supabaseAdmin.auth.getUser(accessToken);
   if (accessError || !accessData?.user) {
-    await writeAuditLog({
-      action: 'auth.session_established_failed',
-      ip,
-      userAgent
-    });
     throw new PublicError('Invalid or expired session.', 401);
   }
 
@@ -181,74 +149,41 @@ export const establishSessionFromTokens = async ({
     !refreshData.user ||
     refreshData.user.id !== accessData.user.id
   ) {
-    await writeAuditLog({
-      actorId: accessData.user.id,
-      action: 'auth.session_established_failed',
-      ip,
-      userAgent
-    });
     throw new PublicError('Invalid or expired session.', 401);
   }
-
-  await writeAuditLog({
-    actorId: refreshData.user.id,
-    action: 'auth.session_established',
-    ip,
-    userAgent
-  });
 
   return refreshData.session;
 };
 
-export const updatePassword = async ({ accessToken, password, actorId, ip, userAgent }) => {
-  if (!passwordIsStrong(password)) {
-    await writeAuditLog({
-      actorId: actorId ?? null,
-      action: 'auth.password_reset_failed',
-      ip,
-      userAgent
-    });
-    throw new PublicError('Password does not meet the requirements.', 400);
+export const updatePassword = async ({ accessToken, password, actorId, ip }) => {
+  const passwordCheck = checkPassword(password);
+  if (!passwordCheck.ok) {
+    throw new PublicError(
+      passwordCheck.reason === 'common'
+        ? BREACHED_PASSWORD_MESSAGE
+        : 'Password does not meet the requirements.',
+      400
+    );
   }
 
   const userClient = supabaseForUser(accessToken);
-  const { data, error } = await userClient.auth.updateUser({ password });
+  const { error } = await userClient.auth.updateUser({ password });
   if (error) {
-    await writeAuditLog({
-      actorId: actorId ?? null,
-      action: 'auth.password_reset_failed',
-      ip,
-      userAgent
-    });
+    logSecurityEvent('auth.password_reset_failed', { actorId, ip });
     throw new PublicError('Could not update password.', 400);
   }
 
-  await writeAuditLog({
-    actorId: data.user?.id ?? actorId ?? null,
-    action: 'auth.password_reset',
-    ip,
-    userAgent
-  });
+  logSecurityEvent('auth.password_reset', { actorId, ip });
 };
 
-export const revokeSession = async ({ accessToken, actorId, ip, userAgent }) => {
-  let resolvedActor = actorId ?? null;
+export const revokeSession = async ({ accessToken }) => {
   if (accessToken) {
     try {
-      const { data } = await supabaseAdmin.auth.getUser(accessToken);
-      resolvedActor = data.user?.id ?? resolvedActor;
       await supabaseAdmin.auth.admin.signOut(accessToken, 'global');
     } catch (error) {
       console.error('[auth] Failed to revoke session:', error);
     }
   }
-
-  await writeAuditLog({
-    actorId: resolvedActor,
-    action: 'auth.sign_out',
-    ip,
-    userAgent
-  });
 };
 
 export const refreshAccessToken = async (refreshToken) => {

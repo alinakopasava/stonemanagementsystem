@@ -1,0 +1,81 @@
+\section{Wyniki}
+\label{sec:wyniki-testow}
+
+Testy uruchomiłam 26 sierpnia 2026 na Node.js 24.13.0 pod Windows 11, w Vitest 2.1.9 i Playwright 1.62.1.
+
+\begin{table}[htbp]
+\centering
+\caption{Wyniki uruchomienia testów -- opracowanie własne}
+\label{tab:wyniki-uruchomienia}
+\begin{tabular}{|p{0.23\textwidth}|p{0.20\textwidth}|c|p{0.19\textwidth}|c|}
+\hline
+\textbf{Poziom} & \textbf{Polecenie} & \textbf{Przyp.} & \textbf{Wynik} & \textbf{Czas} \\
+\hline
+Jednostkowy + API & \texttt{npm test} w \texttt{backend} & 107 & 107 zaliczonych & 3,0 s \\
+\hline
+Jednostkowy + komponenty & \texttt{npm test} w \texttt{frontend} & 107 & 107 zaliczonych & 13,2 s \\
+\hline
+Row Level Security & \texttt{npm run test:rls} & 16 & pominięte & -- \\
+\hline
+Systemowy & \texttt{npm run test:e2e} & 7 & pominięte & -- \\
+\hline
+\textbf{Razem} & & \textbf{237} & \textbf{214 zaliczonych, 23 pominięte} & \textbf{16,2 s} \\
+\hline
+\end{tabular}
+\end{table}
+
+Rozkład testów na pliki pokazuje tabela~\ref{tab:rozklad-plikow}. Widać w nim kształt piramidy z podrozdziału~\ref{sec:strategia-testow}: na dole 107 testów jednostkowych, na górze siedem ścieżek systemowych.
+
+\begin{table}[htbp]
+\centering
+\caption{Rozkład testów na pliki -- opracowanie własne}
+\label{tab:rozklad-plikow}
+\begin{tabular}{|p{0.18\textwidth}|p{0.54\textwidth}|c|}
+\hline
+\textbf{Poziom} & \textbf{Plik} & \textbf{Testy} \\
+\hline
+Jednostkowy & \texttt{frontend/tests/unit/monument-price.test.ts} & 29 \\
+Jednostkowy & \texttt{frontend/tests/unit/safe-path.test.ts} & 26 \\
+Jednostkowy & \texttt{frontend/tests/unit/photo-crop.test.ts} & 17 \\
+Jednostkowy & \texttt{backend/tests/unit/http-helpers.test.js} & 17 \\
+Jednostkowy & \texttt{frontend/tests/unit/password-policy.test.ts} & 15 \\
+Jednostkowy & \texttt{frontend/tests/unit/translations.test.ts} & 14 \\
+Jednostkowy & \texttt{frontend/tests/unit/i18n-context.test.tsx} & 11 \\
+Jednostkowy & \texttt{backend/tests/unit/exchange-rate.test.js} & 10 \\
+Jednostkowy & \texttt{frontend/tests/unit/api-client.test.ts} & 9 \\
+Jednostkowy & \texttt{frontend/tests/unit/currency.test.tsx} & 7 \\
+\hline
+API & \texttt{backend/tests/integration/auth.routes.test.js} & 25 \\
+API & \texttt{backend/tests/integration/contact-and-public.test.js} & 25 \\
+API & \texttt{backend/tests/integration/order-submit.test.js} & 17 \\
+API & \texttt{backend/tests/integration/admin.test.js} & 14 \\
+API & \texttt{backend/tests/integration/require-auth.test.js} & 14 \\
+API & \texttt{backend/tests/integration/rate-limit.test.js} & 9 \\
+\hline
+Baza & \texttt{backend/tests/rls/policies.test.js} & 16 \\
+\hline
+Komponenty & \texttt{frontend/tests/components/designer-page.test.tsx} & 9 \\
+Komponenty & \texttt{frontend/tests/components/protected-route.test.tsx} & 7 \\
+Komponenty & \texttt{frontend/tests/components/catalog-page.test.tsx} & 6 \\
+Komponenty & \texttt{frontend/tests/components/contact-form.test.tsx} & 6 \\
+\hline
+Systemowy & \texttt{frontend/tests/e2e/system.spec.ts} & 7 \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Testy pominięte}
+\label{ssec:przypadki-niewykonane}
+
+23 testy zostały pominięte, bo oba poziomy korzystające z prawdziwej bazy potrzebują więcej niż zwykłego komputera do pracy. Testy RLS zakładają i kasują prawdziwe konta oraz rekordy, więc włączają się dopiero po ustawieniu zmiennej \texttt{RLS\_TEST\_ENABLED} i wskazaniu testowego projektu Supabase. Ścieżki systemowe potrzebują uruchomionej aplikacji, serwera i bazy oraz kont montera i administratora założonych wcześniej.
+
+Wynik należy więc czytać tak: 214 testów wykonanych i zaliczonych oraz 23 gotowe do uruchomienia w środowisku testowym. Do tego jeden test RLS jest oznaczony jako taki, który ma się nie udać, bo dokumentuje lukę opisaną w podrozdziale~\ref{sec:testy-rls}. W pełnym środowisku wyjdzie z niego 15 zaliczonych i jeden nieudany, a nie 16 zaliczonych.
+
+\subsection{Błędy znalezione przez testy}
+\label{ssec:usterki}
+
+Testy przydały się jeszcze zanim uruchomiłam cały zestaw, bo pokazały dwa błędy, których nie wychwyciłabym czytaniem kodu.
+
+Pierwszy dotyczył samych testów komponentów. Na komputerze bez pliku konfiguracyjnego aplikacji klienckiej przechodziły, ale na moim, gdzie ten plik wskazuje adres uruchomionego serwera, 14 z 32 testów nie przechodziło -- żądania omijały atrapy i leciały pod prawdziwy adres. Wynik testu zależał więc od ustawień komputera, wbrew zasadzie z podrozdziału~\ref{sec:strategia-testow}. Naprawiłam to, wymuszając w konfiguracji testów pusty adres backendu.
+
+Drugi wyszedł przy przypadku z tabeli~\ref{tab:przypadki-wyceny}, czyli materiale bez podanej ceny. Zakładałam, że funkcja pominie ten składnik i pokaże cenę niepełną, a okazało się, że zwraca wartość nieliczbową, która trafiłaby do interfejsu w miejsce kwoty. Błąd nie ujawniłby się przy normalnym korzystaniu, bo wszystkie materiały w katalogu mają cenę, ale wyszedłby przy pierwszym niekompletnym rekordzie. Dodałam sprawdzenie, czy cena jest liczbą.

@@ -1,6 +1,7 @@
 import {
   convertOrderCardToOrder,
   deleteOrderCard,
+  handOverOrderToInstaller,
   listOrderCards,
   listOrders,
   listUsers,
@@ -13,7 +14,7 @@ import {
   updateContactMessageStatus
 } from '../services/contact.service.js';
 import { sendError } from '../http/errors.js';
-import { getClientIp, getUserAgent } from '../http/client-ip.js';
+import { getClientIp } from '../http/client-ip.js';
 
 export const listUsersController = async (req, res) => {
   try {
@@ -31,8 +32,7 @@ export const updateUserRoleController = async (req, res) => {
       userId: req.params.id,
       role: req.body?.role,
       actorUserId: req.user.id,
-      ip: getClientIp(req),
-      userAgent: getUserAgent(req)
+      ip: getClientIp(req)
     });
     return res.status(200).json({ data: result });
   } catch (error) {
@@ -54,14 +54,23 @@ export const updateOrderStatusController = async (req, res) => {
     const result = await updateOrderStatus({
       supabase: req.supabase,
       orderId: req.params.id,
-      status: req.body?.status,
-      actorUserId: req.user.id,
-      ip: getClientIp(req),
-      userAgent: getUserAgent(req)
+      status: req.body?.status
     });
     return res.status(200).json({ data: result });
   } catch (error) {
     return sendError(res, error, 'Failed to update order status.');
+  }
+};
+
+export const handOverOrderController = async (req, res) => {
+  try {
+    const result = await handOverOrderToInstaller({
+      supabase: req.supabase,
+      orderId: req.params.id
+    });
+    return res.status(result.alreadyHandedOver ? 200 : 201).json({ data: result });
+  } catch (error) {
+    return sendError(res, error, 'Failed to hand the order over.');
   }
 };
 
@@ -93,10 +102,7 @@ export const deleteContactMessageController = async (req, res) => {
   try {
     const result = await deleteContactMessage({
       supabase: req.supabase,
-      id: req.params.id,
-      actorUserId: req.user.id,
-      ip: getClientIp(req),
-      userAgent: getUserAgent(req)
+      id: req.params.id
     });
     return res.status(200).json({ data: result });
   } catch (error) {
@@ -120,10 +126,7 @@ export const convertOrderCardController = async (req, res) => {
     const order = await convertOrderCardToOrder({
       supabase: req.supabase,
       orderCardId: req.params.id,
-      payload: req.body,
-      actorUserId: req.user.id,
-      ip: getClientIp(req),
-      userAgent: getUserAgent(req)
+      payload: req.body
     });
     return res.status(201).json({ data: order });
   } catch (error) {
@@ -135,10 +138,7 @@ export const deleteOrderCardController = async (req, res) => {
   try {
     const result = await deleteOrderCard({
       supabase: req.supabase,
-      orderCardId: req.params.id,
-      actorUserId: req.user.id,
-      ip: getClientIp(req),
-      userAgent: getUserAgent(req)
+      orderCardId: req.params.id
     });
     return res.status(200).json({ data: result });
   } catch (error) {

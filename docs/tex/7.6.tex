@@ -1,0 +1,33 @@
+\section{Testy systemowe}
+\label{sec:testy-systemowe}
+
+Poziom systemowy to siedem ścieżek uruchamianych przez Playwright w przeglądarce Chromium, na działającej aplikacji, serwerze i bazie. Celowo jest ich mało -- zostawiłam tu tylko to, czego nie da się sprawdzić niżej: prawdziwe zachowanie ciasteczek, trwałość danych w bazie i współpracę kilku ról w jednym procesie.
+
+\begin{table}[htbp]
+\centering
+\caption{Ścieżki testów systemowych -- opracowanie własne}
+\label{tab:sciezki-systemowe}
+\begin{tabular}{|c|p{0.38\textwidth}|p{0.41\textwidth}|}
+\hline
+\textbf{Nr} & \textbf{Przebieg} & \textbf{Co sprawdzam} \\
+\hline
+1 & Gość: strona główna, katalog, konfigurator, formularz kontaktowy & Cena jako liczba, podgląd 3D, zapis wiadomości w bazie \\
+\hline
+2 & Zmiana języka i odświeżenie strony & Rosyjski pokazuje BYN, polski PLN, wybór języka zostaje \\
+\hline
+3 & Rejestracja, potem logowanie na potwierdzonym koncie & Sesja tylko w ciasteczkach \texttt{HttpOnly}, brak tokenu w pamięci przeglądarki, wyczyszczenie ciasteczek po wylogowaniu \\
+\hline
+4 & Klient zapisuje kartę zamówienia & Karta zapisana na koncie zalogowanego klienta \\
+\hline
+5 & Administrator zamienia kartę na zamówienie, monter otwiera widok montażowy & Adres montażu i termin widoczne dla montera \\
+\hline
+6 & Klient próbuje wejść do panelu i odpytać jego API & Przekierowanie w interfejsie, 403 dla żądania, brak danych w odpowiedzi \\
+\hline
+7 & Żądanie z obcym \texttt{Origin}; sześć prób logowania ze złym hasłem & 403 dla obcego pochodzenia, 429 po przekroczeniu limitu \\
+\hline
+\end{tabular}
+\end{table}
+
+Ścieżka trzecia zakłada konto i sprawdza, że system prosi o potwierdzenie adresu, ale dalszą część robi na koncie potwierdzonym wcześniej, bo potwierdzenia nie da się zautomatyzować bez dostępu do skrzynki. Z tego samego powodu ścieżki z monterem i administratorem korzystają z kont przygotowanych wcześniej: samodzielna rejestracja zawsze daje rolę klienta.
+
+Ścieżka piąta odtwarza cały obieg informacji, którego brak wykryłam w analizie procesów: od projektu klienta, przez decyzję w biurze, po dane na telefonie montera. Jeżeli przechodzi, dane techniczne idą całą drogę bez ręcznego przepisywania, czyli główny cel pracy został osiągnięty. Ścieżka szósta sprawdza to samo zabezpieczenie przez interfejs i przez bezpośrednie żądanie do API, bo ukrycie linku w menu nie jest zabezpieczeniem.

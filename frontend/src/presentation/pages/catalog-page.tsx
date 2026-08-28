@@ -6,16 +6,14 @@ import { useTranslation } from '@application/i18n/i18n-context';
 import { useCurrency } from '@application/currency/currency-context';
 import { materialLabel, shapeLabelKey } from '@application/i18n/catalog-labels';
 import { Header } from '@presentation/components/header';
+import { SiteFooter } from '@presentation/components/site-footer';
 import { LazyMonumentViewer } from '@presentation/components/lazy-monument-viewer';
 import {
   DEFAULT_INSCRIPTION_STYLE_ID,
   getInscriptionStyle
 } from '@presentation/components/inscription-styles';
 import { DEFAULT_PORTRAIT_CROP, SAMPLE_PORTRAIT_URL } from '@presentation/three/photo-crop';
-import {
-  SELECTABLE_MONUMENT_SHAPES,
-  type MonumentShape
-} from '@domain/entities/monument';
+import { SELECTABLE_MONUMENT_SHAPES, type MonumentShape } from '@domain/entities/monument';
 import { monumentPriceByn, SHAPE_BASE_PRICE_BYN } from '@application/pricing/monument-price';
 
 interface CatalogPageProps {
@@ -44,137 +42,140 @@ export const CatalogPage = ({ materials }: CatalogPageProps) => {
   const selectedMaterial = materials.find((m) => m.id === selectedMaterialId) ?? materials[0];
 
   return (
-    <div className="min-h-screen bg-transparent text-gray-100">
+    <div className="flex min-h-[100dvh] flex-col bg-canvas text-ink">
       <Header />
-      <main className="mx-auto w-full max-w-6xl px-6 py-10">
 
-        {/* Heading */}
-        <div className="mb-8">
-          <p className="text-sm uppercase tracking-[0.2em] text-slate-400">
-            {t('header.catalog')}
-          </p>
-          <h1 className="mt-1 font-serif text-4xl text-gray-100">{t('catalog.title')}</h1>
-          <p className="mt-2 max-w-2xl text-slate-300">{t('catalog.subtitle')}</p>
+      <main className="flex-1">
+        <div className="bg-surface">
+          <div className="mx-auto w-full max-w-[1400px] px-4 py-12 sm:px-6 lg:py-16">
+            <h1 className="u-display text-4xl text-ink sm:text-5xl">{t('catalog.title')}</h1>
+            <p className="mt-4 max-w-prose text-ink-2">{t('catalog.subtitle')}</p>
+          </div>
         </div>
 
-        {/* Material selector */}
+        {/* Choosing the stone re-renders every preview below, so it stays
+            pinned under the header rather than scrolling away from its effect. */}
         {materials.length > 0 && (
-          <div className="mb-8 flex flex-wrap items-center gap-3 rounded-xl border border-slate-700/60 bg-slate-900/60 px-5 py-4">
-            <span className="text-sm text-slate-400 shrink-0">
-              {t('catalog.material.label')}:
-            </span>
-            <div className="flex flex-wrap gap-2">
-              {materials.map((m) => {
-                const active = m.id === selectedMaterialId;
-                return (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => setSelectedMaterialId(m.id)}
-                    className={[
-                      'flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition',
-                      active
-                        ? 'border-amber-300 bg-amber-300/10 text-amber-100'
-                        : 'border-slate-700 text-slate-300 hover:border-slate-500 hover:text-gray-100'
-                    ].join(' ')}
-                  >
-                    <img
-                      src={m.imageUrl}
-                      alt={materialLabel(m.name, t)}
-                      loading="lazy"
-                      decoding="async"
-                      className="h-5 w-5 rounded-sm object-cover"
-                    />
-                    <span>{materialLabel(m.name, t)}</span>
-                    <span className={active ? 'text-amber-300/80' : 'text-slate-500'}>
-                      {t('catalog.priceFrom', { price: formatFromByn(m.pricePerM2) })}
-                    </span>
-                  </button>
-                );
-              })}
+          <div className="sticky top-16 z-10 border-b border-line bg-canvas/90 shadow-raised backdrop-blur">
+            <div className="mx-auto w-full max-w-[1400px] px-4 py-4 sm:px-6">
+              <p className="u-label mb-3">{t('catalog.material.label')}</p>
+              <div className="u-scroll-none u-fade-e flex gap-2 overflow-x-auto pb-1">
+                {materials.map((m) => {
+                  const active = m.id === selectedMaterialId;
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setSelectedMaterialId(m.id)}
+                      aria-pressed={active}
+                      className={[
+                        'u-chip flex shrink-0 items-center gap-2 px-3 py-2 text-sm',
+                        active ? 'u-chip-active' : ''
+                      ].join(' ')}
+                    >
+                      <img
+                        src={m.imageUrl}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                        className="h-6 w-6 object-cover"
+                      />
+                      <span>{materialLabel(m.name, t)}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
 
-        {/* Shape grid — one live configurator preview per existing silhouette */}
-        {materials.length === 0 ? (
-          <p className="py-20 text-center text-slate-400">{t('catalog.loading')}</p>
-        ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {CATALOG_SHAPES.map(({ shape, labelKey }) => {
-              const dimensions = CATALOG_STELA;
-              const materialPrice = selectedMaterial
-                ? monumentPriceByn(selectedMaterial.pricePerM2, dimensions, shape)
-                : SHAPE_BASE_PRICE_BYN[shape];
+        <div className="mx-auto w-full max-w-[1400px] px-4 py-12 sm:px-6 lg:py-16">
+          {materials.length === 0 ? (
+            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+              {/* Skeletons take the shape of the card they stand in for, so
+                  the grid does not reflow when the previews arrive. */}
+              {CATALOG_SHAPES.map(({ shape }) => (
+                <div key={shape} aria-hidden="true">
+                  <div className="u-skeleton h-80 w-full" />
+                  <div className="u-skeleton mt-4 h-5 w-2/3" />
+                  <div className="u-skeleton mt-2 h-4 w-1/3" />
+                </div>
+              ))}
+              <p className="sr-only">{t('catalog.loading')}</p>
+            </div>
+          ) : (
+            <div className="grid gap-x-8 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
+              {CATALOG_SHAPES.map(({ shape, labelKey }) => {
+                const dimensions = CATALOG_STELA;
+                const materialPrice = selectedMaterial
+                  ? monumentPriceByn(selectedMaterial.pricePerM2, dimensions, shape)
+                  : SHAPE_BASE_PRICE_BYN[shape];
 
-              return (
-                <article
-                  key={shape}
-                  className="group flex flex-col overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-900/70 transition hover:border-slate-500/80"
-                >
-                  <div className="relative">
-                    {/* Live configurator render — reacts to the selected material. */}
-                    <LazyMonumentViewer
-                      variant="compact"
-                      deferUntilVisible
-                      rootMargin="-80px 0px"
-                      heightClassName="h-80"
-                      frameloop="demand"
-                      layout="single"
-                      label={t('catalog.previewLoading')}
-                      textureUrl={selectedMaterial?.imageUrl}
-                      materialName={selectedMaterial?.name}
-                      finish="Polished"
-                      dimensions={dimensions}
-                      baseDimensions={CATALOG_BASE}
-                      inscription={t('designer.presets.classic.inscription')}
-                      name={t('designer.presets.classic.name')}
-                      dates={t('designer.presets.classic.dates')}
-                      inscriptionStyle={getInscriptionStyle(DEFAULT_INSCRIPTION_STYLE_ID).three}
-                      shape={shape}
-                      decoration="portrait"
-                      nicheStyle="recessed"
-                      photoUrl={SAMPLE_PORTRAIT_URL}
-                      photoCrop={DEFAULT_PORTRAIT_CROP}
-                      photoBlend={0.08}
-                      photoBrightness={0}
-                      photoContrast={1.3}
-                    />
-                    {selectedMaterial && (
-                      <div className="pointer-events-none absolute bottom-2 left-2 z-[2] rounded-md bg-slate-950/75 px-3 py-1.5 backdrop-blur-sm">
-                        <p className="text-[11px] text-slate-300">
+                return (
+                  <article key={shape} className="group flex flex-col">
+                    <div className="border border-line bg-surface">
+                      {/* Live configurator render, reacting to the stone above. */}
+                      <LazyMonumentViewer
+                        variant="compact"
+                        deferUntilVisible
+                        rootMargin="-80px 0px"
+                        heightClassName="h-80"
+                        frameloop="demand"
+                        layout="single"
+                        label={t('catalog.previewLoading')}
+                        textureUrl={selectedMaterial?.imageUrl}
+                        materialName={selectedMaterial?.name}
+                        finish="Polished"
+                        dimensions={dimensions}
+                        baseDimensions={CATALOG_BASE}
+                        inscription={t('designer.presets.classic.inscription')}
+                        name={t('designer.presets.classic.name')}
+                        dates={t('designer.presets.classic.dates')}
+                        inscriptionStyle={getInscriptionStyle(DEFAULT_INSCRIPTION_STYLE_ID).three}
+                        shape={shape}
+                        decoration="portrait"
+                        nicheStyle="recessed"
+                        photoUrl={SAMPLE_PORTRAIT_URL}
+                        photoCrop={DEFAULT_PORTRAIT_CROP}
+                        photoBlend={0.08}
+                        photoBrightness={0}
+                        photoContrast={1.3}
+                      />
+                    </div>
+
+                    <div className="mt-5 flex flex-1 flex-col">
+                      <h2 className="u-display text-xl text-ink">{t(labelKey)}</h2>
+
+                      {selectedMaterial && (
+                        <p className="mt-2 text-sm text-ink-2">
                           {materialLabel(selectedMaterial.name, t)}
-                        </p>
-                        <p className="font-serif text-base text-amber-200">
+                          {', '}
                           {t('catalog.basePriceFrom', {
                             price: formatFromByn(materialPrice, { digits: 2 })
                           })}
                         </p>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex flex-1 flex-col p-5">
-                    <h2 className="font-serif text-xl text-gray-100">{t(labelKey)}</h2>
-                    <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-400">
-                      {t('catalog.shapeTagline')}
-                    </p>
-                    <Link
-                      to={`/design?shape=${shape}`}
-                      className="mt-5 block rounded-md bg-gray-100 px-4 py-2.5 text-center text-sm font-semibold text-slate-900 transition hover:bg-white"
-                    >
-                      {t('catalog.designCta')}
-                    </Link>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        )}
+                      )}
+
+                      <p className="mt-3 flex-1 text-sm leading-relaxed text-ink-3">
+                        {t('catalog.shapeTagline')}
+                      </p>
+
+                      <Link
+                        to={`/design?shape=${shape}`}
+                        className="u-btn u-btn-secondary mt-5 w-full py-3 group-hover:border-brand group-hover:text-brand"
+                      >
+                        {t('catalog.designCta')}
+                      </Link>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </main>
 
-      <footer className="mx-auto mt-12 w-full max-w-6xl px-6 pb-10 text-xs text-slate-500">
-        {t('catalog.footer')}
-      </footer>
+      <SiteFooter note={t('catalog.footer')} />
     </div>
   );
 };

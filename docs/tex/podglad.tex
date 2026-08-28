@@ -1,0 +1,29 @@
+% ---------------------------------------------------------------------
+% Dokument pomocniczy do samodzielnego skompilowania rozdziałów 7-11,
+% bez reszty pracy. W wersji ostatecznej wciągnij pliki rozdzial-*.tex
+% w swoją własną preambułę.
+%
+% Kompilacja:  pdflatex podglad.tex   (dwa razy, żeby ustaliły się odsyłacze)
+%
+% Uwaga: cztery odwołania do rozdziałów 5 i 6 (patrz README) wyjdą tu jako
+% znaki zapytania, bo tych rozdziałów w tym dokumencie nie ma.
+% ---------------------------------------------------------------------
+
+\documentclass[12pt,a4paper]{report}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[polish]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{graphicx}
+
+\begin{document}
+
+\input{rozdzial-7}
+\input{rozdzial-8}
+\input{rozdzial-9}
+\input{rozdzial-10}
+\input{rozdzial-11}
+\input{bibliografia}
+
+\end{document}

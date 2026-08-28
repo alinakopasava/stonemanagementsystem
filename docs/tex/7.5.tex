@@ -1,0 +1,12 @@
+\section{Testy komponentów}
+\label{sec:testy-komponentow}
+
+Testy komponentów uruchamiam w jsdom, z podglądem 3D podmienionym na atrapę. Sieć podstawia biblioteka MSW, ustawiona tak, żeby żądanie pod nieobsłużony adres kończyło test błędem, a nie leciało do prawdziwego serwera. Sprawdzam to, co widzi użytkownik: treść po zmianie stanu, aktywność przycisków, adresy przekierowań i to, co idzie do backendu. Elementy wyszukuję po rolach i etykietach dostępności, więc zmiana wyglądu nie psuje testów.
+
+Komponent chroniący ścieżki czyta listę ról, więc sprawdzam każdą decyzję raz, bez powtarzania jej dla kolejnych adresów. Gość idzie do logowania z zapamiętanym adresem, klient i monter próbujący wejść do panelu wracają na stronę główną, monter wchodzi do widoku otwartego dla monterów i administratorów, a widok bez listy ról wpuszcza każdego zalogowanego. Rozkład ról na poszczególne adresy sprawdza zestaw API. Osobny test pilnuje, żeby do czasu odpowiedzi o sesji pokazywał się stan oczekiwania, bo inaczej zalogowany użytkownik wylatywałby z panelu przy każdym odświeżeniu.
+
+Formularz kontaktowy czyści pola po wysłaniu, pokazuje osobny komunikat po przekroczeniu limitu i nie pozwala kliknąć drugi raz, gdy żądanie trwa. Katalog pokazuje wszystkie trzynaście kamieni, a cenę porównuję z wynikiem ze wzoru~(\ref{eq:cena}), czyli tym samym, którego używam w testach jednostkowych.
+
+Najwięcej testów ma konfigurator. Gość próbujący zapisać projekt trafia do logowania z adresem powrotnym, a klient wysyła żądanie w formacie, którego oczekuje backend. Kształt z adresu URL jest uwzględniany, a nieznana wartość daje kształt domyślny, a nie pusty widok. Osobno sprawdziłam szablony inskrypcji przy zmianie języka: szablon nieruszany tłumaczy się razem z interfejsem, ale tekst wpisany ręcznie zostaje. To był najbardziej podatny na błąd fragment, bo pomyłka oznaczałaby skasowanie tekstu klienta.
+
+Panelu administratora i widoku montażowego nie objęłam testami komponentów. Reguły, które za nimi stoją, sprawdzam na poziomie API, a ich wygląd na poziomie systemowym.

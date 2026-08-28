@@ -1,0 +1,10 @@
+\section{Aliaksei Habrukovich}
+\label{sec:wklad-habrukovich}
+
+Zakres prac obejmował całą warstwę serwerową oraz bazę danych wraz z jej zabezpieczeniami.
+
+Po stronie bazy danych zaprojektowany został schemat opisany w podrozdziale~\ref{sec:baza-danych}, wraz z kluczami obcymi porządkującymi powiązane rekordy przy usuwaniu konta oraz indeksami wspierającymi polityki bezpieczeństwa. Struktura zapisana została w postaci powtarzalnych skryptów migracyjnych, dzięki czemu identyczne środowisko odtwarza się na dowolnej maszynie. W bazie zaimplementowany został wyzwalacz tworzący profil użytkownika przy rejestracji oraz komplet polityk Row Level Security dla wszystkich tabel biznesowych, wraz z funkcją pomocniczą odczytującą rolę zalogowanej osoby.
+
+Po stronie serwera aplikacyjnego powstała cała struktura opisana w podrozdziale~\ref{sec:implementacja-backendu}: ścieżki, kontrolery i warstwa usług, a także pośredniki odpowiadające za bezpieczeństwo. Do tego zakresu należą uwierzytelnianie oparte na ciasteczkach z atrybutem \texttt{HttpOnly}, ciche odnawianie sesji, obsługa rejestracji i odzyskiwania hasła, ochrona przed atakiem \textit{cross-site request forgery}, siedem limitów liczby żądań oraz dziennik zdarzeń rejestrujący operacje administracyjne. Zrealizowana została również integracja z serwisem kursowym Narodowego Banku Republiki Białorusi wraz z pamięcią podręczną i kursem zapasowym.
+
+W obszarze testów przygotowane zostały testy jednostkowe funkcji pomocniczych serwera oraz komplet testów integracyjnych warstwy API, a także osobny zestaw sprawdzający polityki Row Level Security przez bezpośrednie odpytanie PostgREST. Do zakresu prac należała ponadto konfiguracja środowisk uruchomieniowych i wdrożenie aplikacji.

@@ -21,7 +21,6 @@ const materials: Material[] = MATERIALS.map((m) => ({
   name: m.name,
   category: m.category,
   pricePerM2: m.price_per_m2,
-  stockStatus: m.stock_status,
   imageUrl: m.image_url
 }));
 
@@ -78,10 +77,13 @@ describe('DesignerPage', () => {
   });
 
   describe('the shape parameter in the address', () => {
-    it.each(['classic', 'rounded', 'stele'])('honours ?shape=%s', async (shape) => {
-      renderDesigner(`/design?shape=${shape}`);
+    it('honours every shape the catalogue can link to', async () => {
+      for (const shape of ['classic', 'rounded', 'stele']) {
+        const { unmount } = renderDesigner(`/design?shape=${shape}`);
 
-      await waitFor(() => expect(viewer()).toHaveAttribute('data-shape', shape));
+        await waitFor(() => expect(viewer()).toHaveAttribute('data-shape', shape));
+        unmount();
+      }
     });
 
     it('falls back to the default shape for an unknown value, not to an empty view', async () => {
@@ -150,18 +152,6 @@ describe('DesignerPage', () => {
     });
   });
 
-  describe('price', () => {
-    it('shows a numeric price and updates it when the stone changes', async () => {
-      const { user } = renderDesigner();
-
-      const priceBefore = document.body.textContent ?? '';
-      expect(priceBefore).toMatch(/\d/);
-
-      // Pick a different, more expensive stone and expect the summary to move.
-      const marble = await screen.findByRole('button', { name: /marble|marmur|мрамор/i });
-      await user.click(marble);
-
-      await waitFor(() => expect(viewer()).toHaveAttribute('data-material', 'Marble'));
-    });
-  });
+  // The price shown here comes from `monumentPriceByn`, which the catalogue
+  // suite already compares against the formula card by card.
 });

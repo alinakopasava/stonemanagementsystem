@@ -124,13 +124,13 @@ export const PhotoCropEditor = ({ imageUrl, aspect, crop, onChange }: PhotoCropE
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <h4 className="text-[11px] uppercase tracking-wider text-slate-500">
+        <h4 className="u-group-label">
           {t('designer.photo.crop')}
         </h4>
         <button
           type="button"
           onClick={() => applyCrop(getDefaultPhotoCrop(aspect))}
-          className="text-[10px] text-slate-400 underline-offset-2 hover:text-amber-200 hover:underline"
+          className="text-[10px] text-ink-3 underline-offset-2 hover:text-brand hover:underline"
         >
           {t('designer.photo.crop.reset')}
         </button>
@@ -138,7 +138,7 @@ export const PhotoCropEditor = ({ imageUrl, aspect, crop, onChange }: PhotoCropE
 
       <div
         ref={frameRef}
-        className="relative mx-auto w-full max-w-[280px] cursor-grab overflow-hidden rounded-md border border-amber-300/40 bg-slate-950 active:cursor-grabbing"
+        className="relative mx-auto w-full max-w-[280px] cursor-grab overflow-hidden border border-brand bg-canvas active:cursor-grabbing"
         style={{ aspectRatio: `${texSize.width} / ${texSize.height}` }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
@@ -157,17 +157,17 @@ export const PhotoCropEditor = ({ imageUrl, aspect, crop, onChange }: PhotoCropE
             style={imageStyle}
           />
         ) : (
-          <div className="absolute inset-0 animate-pulse bg-slate-800/60" />
+          <div className="absolute inset-0 animate-pulse bg-surface-2" />
         )}
 
-        <div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-amber-200/50" />
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-amber-200/30" />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-amber-200/30" />
+        <div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-brand/50" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-brand-soft/30" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-brand-soft/30" />
       </div>
 
-      <p className="text-[10px] leading-relaxed text-slate-500">{t('designer.photo.crop.hint')}</p>
+      <p className="text-[10px] leading-relaxed text-ink-3">{t('designer.photo.crop.hint')}</p>
 
-      <label className="block text-[10px] text-slate-400">
+      <label className="block text-[10px] text-ink-3">
         {t('designer.photo.crop.zoom')}
         <input
           type="range"
@@ -175,10 +175,8 @@ export const PhotoCropEditor = ({ imageUrl, aspect, crop, onChange }: PhotoCropE
           max={PHOTO_CROP_SCALE_MAX}
           step={0.02}
           value={crop.scale}
-          onChange={(event) =>
-            applyCrop({ ...crop, scale: Number.parseFloat(event.target.value) })
-          }
-          className="mt-1 w-full accent-amber-300"
+          onChange={(event) => applyCrop({ ...crop, scale: Number.parseFloat(event.target.value) })}
+          className="mt-1 w-full accent-brand"
         />
       </label>
     </div>

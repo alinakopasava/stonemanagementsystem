@@ -140,15 +140,6 @@ suite('Row Level Security', () => {
       expect(error).toBeNull();
       expect(data).toEqual([]);
     });
-
-    it('refuses a client writing an audit log entry', async () => {
-      const { error } = await accounts.clientA.db
-        .from('audit_logs')
-        .insert({ action: 'forged.entry' })
-        .select('id');
-
-      expect(error).not.toBeNull();
-    });
   });
 
   /* ---------------------------------------------------------------- */
@@ -178,12 +169,13 @@ suite('Row Level Security', () => {
     });
 
     /**
-     * Documented intent (AUTH.md): an installer may "read all, update status".
-     * The policy currently grants UPDATE on every column, so this case is the
-     * regression guard for the DB fix described in AUTH.md's "Known gap" note.
-     * It is expected to fail until the column-scope trigger is deployed.
+     * Closed by `0008_tighten_staff_writes.sql`. Every endpoint that changes an
+     * order sits behind `requireRole('admin')`, and the installer's own service
+     * only reads from `orders` — so the UPDATE the policy used to grant was
+     * reachable in exactly one way: an installer calling PostgREST directly
+     * with their own JWT, to rewrite price, contract name or passport fields.
      */
-    it.fails('is refused a change to an order column other than status', async () => {
+    it('is refused any change to an order', async () => {
       await accounts.monter.db
         .from('orders')
         .update({ client_full_name: 'Overwritten By Installer' })
@@ -197,17 +189,26 @@ suite('Row Level Security', () => {
 
       expect(data.client_full_name).not.toBe('Overwritten By Installer');
     });
-  });
 
-  /* ---------------------------------------------------------------- */
-  /* Administrator                                                     */
-  /* ---------------------------------------------------------------- */
+    it('is refused a change to an order card as well', async () => {
+      const { data: before } = await admin
+        .from('order_cards')
+        .select('user_id')
+        .eq('id', accounts.clientA.orderCardId)
+        .single();
 
-  describe('administrator', () => {
-    it('can read the audit log', async () => {
-      const { error } = await accounts.admin.db.from('audit_logs').select('id').limit(1);
+      await accounts.monter.db
+        .from('order_cards')
+        .update({ user_id: accounts.monter.id })
+        .eq('id', accounts.clientA.orderCardId);
 
-      expect(error).toBeNull();
+      const { data: after } = await admin
+        .from('order_cards')
+        .select('user_id')
+        .eq('id', accounts.clientA.orderCardId)
+        .single();
+
+      expect(after.user_id).toBe(before.user_id);
     });
   });
 

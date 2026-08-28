@@ -35,16 +35,11 @@ describe('parseDimensionPair', () => {
     expect(parseDimensionPair(' 120 X 70 ')).toEqual({ heightCm: 120, widthCm: 70 });
   });
 
-  it.each([
-    ['empty', ''],
-    ['null', null],
-    ['undefined', undefined],
-    ['no separator', '10060'],
-    ['not numeric', 'abcxdef'],
-    ['zero', '0x60'],
-    ['negative', '-10x60']
-  ])('returns null for %s input', (_label, raw) => {
-    expect(parseDimensionPair(raw as string)).toBeNull();
+  it('returns null for anything that is not a pair of positive numbers', () => {
+    // A zero or a negative would otherwise price the slab at its base alone.
+    for (const raw of ['', null, undefined, '10060', 'abcxdef', '0x60', '-10x60']) {
+      expect(parseDimensionPair(raw as string), String(raw)).toBeNull();
+    }
   });
 });
 
@@ -59,26 +54,79 @@ describe('monumentPriceByn', () => {
   });
 
   it('rounds to two decimal places', () => {
-    const price = monumentPriceByn(333.333, { heightCm: 100, widthCm: 60 }, 'classic');
-    expect(price).toBe(Math.round(price * 100) / 100);
-    expect(String(price).split('.')[1]?.length ?? 0).toBeLessThanOrEqual(2);
+    // 80 + 0.6 m² * 12.345 = 87.407, which the customer sees as 87.41.
+    expect(monumentPriceByn(12.345, { heightCm: 100, widthCm: 60 }, 'classic')).toBe(87.41);
   });
 
-  it('grows with the stone rate and with the area', () => {
-    const cheap = monumentPriceByn(420, { heightCm: 100, widthCm: 60 }, 'classic');
-    const dearStone = monumentPriceByn(900, { heightCm: 100, widthCm: 60 }, 'classic');
-    const biggerSlab = monumentPriceByn(420, { heightCm: 120, widthCm: 70 }, 'classic');
+  /* ---------------------------------------------------------------- */
+  /* Worked examples, each computed from the formula by hand           */
+  /* ---------------------------------------------------------------- */
 
-    expect(dearStone).toBeGreaterThan(cheap);
-    expect(biggerSlab).toBeGreaterThan(cheap);
+  describe('worked examples', () => {
+    // 180 x 90 cm is 1.62 m2, so at 100 BYN/m2 the stone contributes 162.
+    const SLAB = { heightCm: 180, widthCm: 90 };
+
+    it.each([
+      ['classic', 'classic' as const, 80 + 162],
+      ['cross, the most labour-intensive contour', 'cross' as const, 290 + 162]
+    ])('prices a 180 x 90 slab in %s stone at 100 BYN/m2', (_label, shape, expected) => {
+      expect(monumentPriceByn(100, SLAB, shape)).toBe(expected);
+    });
+
+    it('charges the base price alone when the stone itself costs nothing', () => {
+      expect(monumentPriceByn(0, SLAB, 'classic')).toBe(80);
+    });
+
+    it('charges the area alone for a shape identifier it does not recognise', () => {
+      // Reachable from a bookmarked address written before the shape list grew.
+      // A missing base price must not become NaN and wipe out the whole sum:
+      // an incomplete price the office can correct beats an error mid-order.
+      const price = monumentPriceByn(100, SLAB, 'trapezoid' as never);
+
+      expect(price).toBe(162);
+      expect(Number.isNaN(price)).toBe(false);
+    });
+
+    it('charges the base price alone when the stone has no catalogue rate', () => {
+      const price = monumentPriceByn(Number.NaN, SLAB, 'classic');
+
+      expect(Number.isNaN(price)).toBe(false);
+      expect(price).toBe(80);
+    });
   });
+});
 
-  it('prices every shape in the catalogue', () => {
-    for (const shape of Object.keys(SHAPE_BASE_PRICE_BYN)) {
-      const price = monumentPriceByn(420, { heightCm: 100, widthCm: 60 }, shape as never);
-      expect(Number.isFinite(price)).toBe(true);
-      expect(price).toBeGreaterThan(0);
-    }
+/* ------------------------------------------------------------------ */
+/* The base price table itself                                         */
+/* ------------------------------------------------------------------ */
+
+describe('SHAPE_BASE_PRICE_BYN', () => {
+  /**
+   * Pinned independently of the source, because these are commercial figures
+   * rather than derived values: a shape whose contour takes longer to cut and
+   * polish starts dearer. Nothing else in the suite would notice if one of them
+   * were changed by accident, and the error would reach the customer as a price.
+   */
+  const PRICE_LIST: Record<string, number> = {
+    classic: 80,
+    rounded: 100,
+    concave: 130,
+    stele: 150,
+    'wave-steep': 160,
+    heart: 170,
+    arc: 180,
+    gothic: 190,
+    asymmetric: 210,
+    dome: 230,
+    curvy: 240,
+    'cross-top': 270,
+    cross: 290
+  };
+
+  it('is exactly the thirteen prices the price list names', () => {
+    // One equality covers all three questions at once: every shape is priced,
+    // priced correctly, and no shape has appeared that the price list omits.
+    expect(SHAPE_BASE_PRICE_BYN).toEqual(PRICE_LIST);
   });
 });
 
@@ -87,20 +135,15 @@ describe('selectable shapes', () => {
     expect(SELECTABLE_MONUMENT_SHAPES).toEqual(['classic', 'rounded', 'stele']);
   });
 
-  it('has a base price for every selectable shape', () => {
+  it('recognises each of them', () => {
     for (const shape of SELECTABLE_MONUMENT_SHAPES) {
-      expect(SHAPE_BASE_PRICE_BYN[shape]).toBeGreaterThan(0);
+      expect(isSelectableMonumentShape(shape)).toBe(true);
     }
   });
 
-  it.each([...SELECTABLE_MONUMENT_SHAPES])('recognises %s as selectable', (shape) => {
-    expect(isSelectableMonumentShape(shape)).toBe(true);
-  });
-
-  it.each(['gothic', 'heart', 'cross', 'nonsense', '', null, undefined, 42])(
-    'rejects %s as a selectable shape',
-    (value) => {
-      expect(isSelectableMonumentShape(value)).toBe(false);
+  it('rejects everything else, priced shapes included', () => {
+    for (const value of ['gothic', 'heart', 'cross', 'nonsense', '', null, undefined, 42]) {
+      expect(isSelectableMonumentShape(value), String(value)).toBe(false);
     }
-  );
+  });
 });

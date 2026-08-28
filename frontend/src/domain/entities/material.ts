@@ -3,7 +3,6 @@ export interface Material {
   name: string;
   category: string;
   pricePerM2: number;
-  stockStatus: boolean;
   imageUrl: string;
 }
 

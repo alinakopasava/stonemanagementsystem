@@ -48,6 +48,7 @@ export const api = (app, options = {}) => {
     get: build('get'),
     post: build('post'),
     patch: build('patch'),
+    put: build('put'),
     delete: build('delete')
   };
 };
@@ -92,17 +93,6 @@ export const signedInAs = ({ id = 'user-1', role = 'klient', email = 'anna@examp
   });
 
   return { user, profile: makeProfile({ id, role }) };
-};
-
-/**
- * Audit writes happen on almost every auth path and are fire-and-forget, so an
- * unregistered `audit_logs` table would just spam the console. Register a
- * permissive default; tests that assert on audit entries override it.
- */
-export const stubAuditLogs = () => {
-  setTables({
-    audit_logs: { insert: () => ({ data: { id: 'audit-1' }, error: null }) }
-  });
 };
 
 /** Parses `Set-Cookie` into a name -> { value, attrs } map. */

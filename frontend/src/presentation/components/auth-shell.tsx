@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
-import { Landmark } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { LanguageSwitcher } from '@presentation/components/language-switcher';
+import { Wordmark } from '@presentation/components/wordmark';
 
 interface AuthShellProps {
   title: string;
@@ -10,22 +9,33 @@ interface AuthShellProps {
   footer?: ReactNode;
 }
 
+/**
+ * Sign-in sits on the plain ground rather than in a floating panel. A single
+ * column of content on an empty page is calmer than a card, and it removes the
+ * border-inside-a-border look the old shell had on small screens.
+ */
 export const AuthShell = ({ title, subtitle, children, footer }: AuthShellProps) => {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-transparent px-4 py-10 text-gray-100">
-      <div className="w-full max-w-md rounded-2xl border border-slate-700/60 bg-slate-900/80 p-8 shadow-xl backdrop-blur">
-        <div className="flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-3">
-            <Landmark className="h-5 w-5 text-amber-300" />
-            <span className="font-serif text-xl text-gray-100">Signature Stone</span>
-          </Link>
+    <div className="flex min-h-[100dvh] flex-col bg-canvas text-ink">
+      <header className="border-b border-line">
+        <div className="mx-auto flex h-16 w-full max-w-[1400px] items-center justify-between px-4 sm:px-6">
+          <Wordmark />
           <LanguageSwitcher variant="compact" />
         </div>
-        <h1 className="mt-6 font-serif text-3xl text-gray-100">{title}</h1>
-        {subtitle ? <p className="mt-2 text-sm text-slate-300">{subtitle}</p> : null}
-        <div className="mt-6">{children}</div>
-        {footer ? <div className="mt-6 text-center text-sm text-slate-300">{footer}</div> : null}
-      </div>
+      </header>
+
+      <main className="flex flex-1 items-start justify-center px-4 py-12 sm:py-20">
+        <div className="w-full max-w-md">
+          <h1 className="u-display text-3xl text-ink">{title}</h1>
+          {subtitle ? (
+            <p className="mt-3 text-sm leading-relaxed text-ink-2">{subtitle}</p>
+          ) : null}
+          <div className="mt-8">{children}</div>
+          {footer ? (
+            <div className="mt-8 border-t border-line pt-6 text-sm text-ink-2">{footer}</div>
+          ) : null}
+        </div>
+      </main>
     </div>
   );
 };

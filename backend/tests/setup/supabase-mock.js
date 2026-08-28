@@ -109,7 +109,7 @@ const makeFrom = (client) => vi.fn((table) => new QueryBuilder(table, client));
 
 const defaultAuthResult = { data: { user: null, session: null }, error: null };
 
-/** Service-role client: JWT verification, auth.users listing, audit + contact writes. */
+/** Service-role client: JWT verification, auth.users listing, contact writes. */
 export const supabaseAdmin = {
   from: makeFrom('admin'),
   auth: {

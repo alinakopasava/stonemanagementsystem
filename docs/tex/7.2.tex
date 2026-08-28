@@ -1,0 +1,100 @@
+\section{Testy jednostkowe}
+\label{sec:testy-jednostkowe}
+
+Sprawdzam tu funkcje, które nie zależą od stanu aplikacji ani od przeglądarki. Wcześniej wyciągnęłam je z komponentów interfejsu, co opisałam w rozdziale o realizacji.
+
+\subsection{Cena pomnika}
+\label{ssec:wycena}
+
+Cena jest liczona najczęściej ze wszystkiego w systemie. Klient widzi ją przed zamówieniem, a administrator dostaje jako podpowiedź przy tworzeniu zamówienia produkcyjnego. Liczę ją ze wzoru
+
+\begin{equation}
+\label{eq:cena}
+C = \mathrm{round}_2\!\left(B_k + \frac{h \cdot w}{10000} \cdot p\right)
+\end{equation}
+
+gdzie $B_k$ to cena bazowa kształtu w rublach białoruskich, $h$ i $w$ to wysokość i szerokość w centymetrach, a $p$ to cena kamienia za metr kwadratowy.
+
+Ceny bazowej nie było w pierwotnych wymaganiach. Dodałam ją, kiedy kształtów zrobiło się trzynaście, bo bez niej dwa projekty o tej samej powierzchni kosztowałyby tyle samo, choć wycięcie krzyża to dużo dłuższa praca niż przycięcie prostokąta.
+
+\begin{table}[htbp]
+\centering
+\caption{Ceny bazowe kształtów tablicy nagrobnej w BYN -- opracowanie własne}
+\label{tab:ceny-bazowe}
+\begin{tabular}{|l|r|l|r|l|r|}
+\hline
+\textbf{Kształt} & $B_k$ & \textbf{Kształt} & $B_k$ & \textbf{Kształt} & $B_k$ \\
+\hline
+classic & 80 & wave-steep & 160 & asymmetric & 210 \\
+rounded & 100 & heart & 170 & dome & 230 \\
+concave & 130 & arc & 180 & curvy & 240 \\
+stele & 150 & gothic & 190 & cross-top & 270 \\
+ & & & & cross & 290 \\
+\hline
+\end{tabular}
+\end{table}
+
+Te ceny nie wynikają z niczego innego w systemie, więc osobny test przechodzi po wszystkich trzynastu kluczach i porównuje je z tabelą~\ref{tab:ceny-bazowe}. Gdyby ktoś przypadkiem zmienił którąś stawkę, żaden inny test by tego nie zauważył.
+
+Pozostałe przypadki zebrałam w tabeli~\ref{tab:przypadki-wyceny}. Dwa dotyczą sytuacji wyjątkowych: nieznanego kształtu, który może być w starym linku, oraz materiału bez ceny. W obu funkcja pomija ten składnik zamiast zgłaszać błąd, bo niepełna cena, którą administrator poprawi, jest mniej szkodliwa niż komunikat przerywający pracę klienta.
+
+\begin{table}[htbp]
+\centering
+\caption{Wybrane przypadki testowe wyceny pomnika -- opracowanie własne}
+\label{tab:przypadki-wyceny}
+\begin{tabular}{|p{0.32\textwidth}|p{0.16\textwidth}|p{0.37\textwidth}|}
+\hline
+\textbf{Dane wejściowe} & \textbf{Wynik oczekiwany} & \textbf{Skąd wynik} \\
+\hline
+\texttt{classic}, $180 \times 90$ cm, $p = 100$ & 242,00 & $80 + 1{,}62 \cdot 100$ \\
+\hline
+\texttt{cross}, $180 \times 90$ cm, $p = 100$ & 452,00 & $290 + 1{,}62 \cdot 100$ \\
+\hline
+\texttt{classic}, $180 \times 90$ cm, $p = 0$ & 80,00 & sama cena bazowa \\
+\hline
+Nieznany kształt, $180 \times 90$ cm, $p = 100$ & 162,00 & $B_k = 0$ \\
+\hline
+\texttt{classic}, materiał bez ceny & 80,00 & pominięta powierzchnia \\
+\hline
+\texttt{classic}, $100 \times 60$ cm, $p = 420$ & 332,00 & ten sam wynik sprawdzam w testach komponentów \\
+\hline
+Wszystkie 13 kluczy & wartości z tab.~\ref{tab:ceny-bazowe} & ochrona cen przed przypadkową zmianą \\
+\hline
+\end{tabular}
+\end{table}
+
+Sprawdziłam też funkcję czytającą wymiary z tekstu w formacie \textit{wysokość} \texttt{x} \textit{szerokość}. Wielkość litery i spacje nie mają znaczenia, a pusty tekst, brak separatora, zero, wartość ujemna i tekst bez cyfr dają wynik pusty. Gdyby funkcja zwracała zero, cena spadłaby do samej ceny bazowej i nikt by tego nie zauważył.
+
+\subsection{Polityka haseł}
+\label{ssec:polityka-hasel}
+
+Hasło musi mieć od 8 do 128 znaków oraz wielką literę, małą literę i cyfrę. Nie wymagam znaku specjalnego, bo razem z resztą warunków prowadzi to do haseł typu \texttt{Haslo1!}, a bezpieczeństwa nie podnosi. Górna granica chroni przed wysyłaniem do logowania ogromnych danych.
+
+Testuję hasło poprawne, hasła bez którejś z trzech grup znaków oraz przypadki na granicach: siedem znaków, 129 znaków i tekst pusty. Osobno sprawdzam hasło o długości dokładnie 128 znaków, które musi przejść -- ten przypadek wychwytuje pomyłkę w znaku nierówności. Reguła jest zapisana w dwóch miejscach, bo frontend i backend są w różnych językach, więc testuję obie wersje osobno, a granice dodatkowo przez rejestrację (podrozdział~\ref{ssec:uwierzytelnianie}).
+
+\subsection{Bezpieczeństwo adresów i nagłówków}
+\label{ssec:warstwa-transportowa}
+
+Trzy małe funkcje odpowiadają za sporą część bezpieczeństwa, więc dałam im wyjątkowo dużo danych wejściowych.
+
+Pierwsza sprawdza adres, na który wracamy po zalogowaniu, i chroni przed atakiem \textit{open redirect}: ktoś wstawia w link adres obcej strony, a użytkownik trafia tam zaraz po podaniu hasła. Adresy wewnętrzne zostają bez zmian, a na stronę główną zamieniam między innymi adres z domeną, adres z dwoma ukośnikami, ukośnik odwrotny, ukryty w środku zapis \texttt{://}, wartość niebędącą tekstem i tekst ze znakiem sterującym. Odrzucam też adresy stron logowania, żeby po zalogowaniu nie wracać znowu do logowania.
+
+Druga rozbiera nagłówek \texttt{Cookie}. Testuję ją na danych zepsutych, bo gdyby zgłosiła błąd, przestałaby działać obsługa całego żądania. Pusty nagłówek daje pusty wynik, znak równości w środku wartości zostaje (mają go tokeny JWT), \texttt{\%20} zamienia się na spację, a błędny zapis procentowy przechodzi bez zmian.
+
+Trzecia ustala adres IP klienta, po którym liczę żądania w limitach. Gdyby dało się ten adres dowolnie podać, limity nic by nie dawały, więc nagłówek \texttt{X-Forwarded-For} biorę pod uwagę tylko wtedy, gdy konfiguracja mówi, że aplikacja stoi za serwerem pośredniczącym. Sprawdzam oba przypadki. Nagłówek \texttt{Origin} opisuję w podrozdziale~\ref{ssec:formularz-origin}, bo potrzebny jest tam cały serwer.
+
+\subsection{Waluty i tłumaczenia}
+\label{ssec:waluty}
+
+Ceny trzymam w rublach białoruskich, a pokazuję zależnie od języka: rosyjski w BYN, polski i angielski w złotych po kursie Narodowego Banku Republiki Białorusi. Testy sprawdzają, że po rosyjsku 100 BYN zostaje bez zmian, w pozostałych językach jest mnożone przez kurs, a wartość nieliczbowa daje zero zamiast napisu \texttt{NaN}. Przy skali 10 i kursie 8,0182 kurs jednostkowy wychodzi 0,80182.
+
+Serwis z kursem to jedyne miejsce, gdzie aplikacja korzysta z zewnętrznej usługi, więc jego awaria mogłaby zablokować pokazywanie cen. Odpowiedź trzymam w pamięci przez godzinę, a zapytanie przerywam po ośmiu sekundach. Testuję cztery sytuacje: poprawną odpowiedź, awarię z zapamiętanym kursem, awarię bez niego i odpowiedź z błędnymi liczbami. W drugim przypadku zwracam poprzedni kurs, w pozostałych kurs zapasowy wpisany w kodzie. Klient zobaczy więc najwyżej cenę lekko nieaktualną, a nigdy błąd.
+
+Tłumaczenia mają trzy grupy testów. Pierwsza sprawdza rozpoznawanie języka przeglądarki: \texttt{pl-PL} i \texttt{ru\_RU} skracam do kodu podstawowego, język nieobsługiwany daje angielski, a wybór użytkownika jest ważniejszy od ustawień przeglądarki. Druga przechodzi po wszystkich kluczach i sprawdza, czy każdy jest w trzech słownikach, więc brakujące tłumaczenie widać od razu. Trzecia sprawdza wstawianie kwoty w miejsce \texttt{\{price\}}.
+
+\subsection{Zdjęcie i klient API}
+\label{ssec:kadrowanie}
+
+Funkcja przygotowująca zdjęcie dopasowuje obraz o dowolnych proporcjach do ramki na tablicy. Testy sprawdzają powiększenie ograniczone do zakresu od 1 do 3, dopasowanie zdjęcia poziomego, pionowego, kwadratowego i panoramicznego oraz to, że obraz zawsze zakrywa całą ramkę i nie zostawia pustego pola.
+
+Funkcję wysyłającą żądania do backendu sprawdziłam pod kątem trzech rzeczy: czy dołącza ciasteczka, czy zamienia odpowiedź 4xx na błąd z komunikatem serwera i czy oznacza odpowiedź 429, żeby interfejs mógł napisać o zbyt częstych próbach.

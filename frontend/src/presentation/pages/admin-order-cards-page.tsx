@@ -5,6 +5,7 @@ import { finishLabel, materialLabel } from '@application/i18n/catalog-labels';
 import { LANGUAGE_LOCALES, type TranslationKey } from '@application/i18n/translations';
 import { useCurrency } from '@application/currency/currency-context';
 import { parseDimensionPair, monumentPriceByn } from '@application/pricing/monument-price';
+import { DataFields, DataSection } from '@presentation/components/data-fields';
 import {
   convertOrderCardToOrder,
   deleteAdminOrderCard,
@@ -152,11 +153,11 @@ export const AdminOrderCardsPage = () => {
     <div>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-serif text-3xl text-gray-100">{t('admin.orderCards.title')}</h1>
-          <p className="mt-1 text-sm text-slate-400">
+          <h1 className="u-display text-3xl text-ink sm:text-4xl">{t('admin.orderCards.title')}</h1>
+          <p className="mt-1 text-sm text-ink-3">
             {t('admin.orderCards.subtitle')}
             {filter !== 'converted' && pendingCount > 0 ? (
-              <span className="ml-2 rounded-full bg-amber-300/10 px-2 py-0.5 text-xs text-amber-200">
+              <span className="ml-2 bg-brand-soft px-2 py-0.5 text-xs text-brand">
                 {t('admin.orderCards.pendingBadge', { count: pendingCount })}
               </span>
             ) : null}
@@ -164,7 +165,7 @@ export const AdminOrderCardsPage = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex overflow-hidden rounded-md border border-slate-700">
+          <div className="flex overflow-hidden border border-line">
             {FILTERS.map((option) => (
               <button
                 key={option.id}
@@ -172,8 +173,8 @@ export const AdminOrderCardsPage = () => {
                 onClick={() => setFilter(option.id)}
                 className={`px-3 py-1.5 text-xs transition ${
                   filter === option.id
-                    ? 'bg-slate-800 text-white'
-                    : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
+                    ? 'bg-surface-2 text-ink'
+                    : 'text-ink-3 hover:bg-surface-2 hover:text-ink'
                 }`}
               >
                 {t(option.labelKey)}
@@ -183,7 +184,7 @@ export const AdminOrderCardsPage = () => {
           <button
             type="button"
             onClick={load}
-            className="rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:border-slate-500 hover:text-white"
+            className="border border-line px-3 py-1.5 text-xs text-ink-2 hover:border-line-strong hover:text-ink"
           >
             {t('admin.common.refresh')}
           </button>
@@ -191,104 +192,131 @@ export const AdminOrderCardsPage = () => {
       </div>
 
       {error ? (
-        <p className="mb-4 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+        <p className="mb-4 border border-critical bg-critical-soft px-3 py-2 text-sm text-critical">
           {error}
         </p>
       ) : null}
 
       <div className="space-y-3">
         {isLoading ? (
-          <div className="rounded-xl border border-slate-700/60 bg-slate-900/70 p-6 text-center text-slate-400">
+          <div className="border border-line bg-surface p-6 text-center text-ink-3">
             {t('admin.common.loading')}
           </div>
         ) : cards.length === 0 ? (
-          <div className="rounded-xl border border-slate-700/60 bg-slate-900/70 p-6 text-center text-slate-400">
+          <div className="border border-line bg-surface p-6 text-center text-ink-3">
             {t('admin.orderCards.empty')}
           </div>
         ) : (
           cards.map((card) => (
-            <article
-              key={card.id}
-              className="rounded-xl border border-slate-700/60 bg-slate-900/70 p-5"
-            >
+            <article key={card.id} className="border border-line bg-surface p-5">
               <header className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="flex items-center gap-2 font-mono text-[11px] text-slate-500">
+                  <p className="flex items-center gap-2 font-mono text-[11px] text-ink-3">
                     <FileText className="h-3.5 w-3.5" />
                     {t('admin.orderCards.cardNumber')}
                     {card.id.slice(0, 8)}
                   </p>
-                  <p className="mt-1 text-sm text-slate-300">
+                  <p className="mt-1 text-sm text-ink-2">
                     {card.user_email ?? (
-                      <span className="text-slate-500">
-                        {t('admin.orderCards.unknownUser')}
-                      </span>
+                      <span className="text-ink-3">{t('admin.orderCards.unknownUser')}</span>
                     )}
                   </p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-ink-3">
                     {t('admin.orderCards.clientId')}{' '}
-                    <span className="font-mono">{card.user_id?.slice(0, 8) ?? '—'}</span>
+                    <span className="font-mono">{card.user_id?.slice(0, 8) ?? '-'}</span>
                   </p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
                   {card.converted_order ? (
-                    <span className="rounded-full border border-emerald-300/30 bg-emerald-300/10 px-3 py-1 text-[10px] uppercase tracking-wider text-emerald-200">
+                    <span className="border border-positive bg-positive-soft px-3 py-1 text-[10px] uppercase tracking-wider text-positive">
                       {t('admin.orderCards.convertedBadge', {
                         id: card.converted_order.id.slice(0, 8)
                       })}{' '}
-                      · {card.converted_order.status ?? '—'}
+                      · {card.converted_order.status ?? '-'}
                     </span>
                   ) : (
-                    <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-[10px] uppercase tracking-wider text-amber-200">
+                    <span className="border border-brand bg-brand-soft px-3 py-1 text-[10px] uppercase tracking-wider text-brand">
                       {t('admin.orderCards.pendingStateBadge')}
                     </span>
                   )}
                 </div>
               </header>
 
-              {card.order_details.length === 0 ? (
-                <p className="mt-4 text-sm text-slate-400">{t('admin.orderCards.noDetails')}</p>
-              ) : (
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  {card.order_details.map((d) => (
-                    <div
-                      key={d.id}
-                      className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 text-xs text-slate-300"
-                    >
-                      <p className="font-medium text-slate-100">
+              {/* Only what the customer supplied themselves. Anything the office
+                  adds — price, address, contract, documents — appears after the
+                  card is converted, in the Orders tab. */}
+              <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                <DataSection title={t('admin.field.clientSection')}>
+                  <DataFields
+                    placeholder={t('admin.field.notProvided')}
+                    fields={[
+                      {
+                        label: t('admin.field.registeredName'),
+                        value: [card.client.firstName, card.client.lastName]
+                          .filter(Boolean)
+                          .join(' ')
+                      },
+                      { label: t('admin.field.phone'), value: card.client.phoneNumber },
+                      { label: t('admin.field.email'), value: card.client.email },
+                      {
+                        label: t('admin.field.registeredAt'),
+                        value: card.client.registeredAt
+                          ? new Date(card.client.registeredAt).toLocaleDateString(dateLocale)
+                          : null
+                      },
+                      { label: t('admin.orderCards.clientId'), value: card.user_id, mono: true }
+                    ]}
+                  />
+                </DataSection>
+
+                {card.order_details.length === 0 ? (
+                  <p className="text-sm text-ink-3">{t('admin.orderCards.noDetails')}</p>
+                ) : (
+                  card.order_details.map((d) => (
+                    <DataSection key={d.id} title={t('admin.field.configSection')}>
+                      <p className="mb-2 font-medium text-ink">
                         {materialLabel(d.materials?.name, t, t('admin.orderCards.unknownMaterial'))}
                       </p>
-                      <dl className="mt-1 grid grid-cols-[100px_1fr] gap-y-0.5">
-                        <dt className="text-slate-500">{t('admin.orderCards.dimensions')}</dt>
-                        <dd>{d.dimensions ?? '—'}</dd>
-                        <dt className="text-slate-500">{t('admin.orderCards.finish')}</dt>
-                        <dd>{finishLabel(d.finish_type, t)}</dd>
-                        <dt className="text-slate-500">{t('admin.orderCards.pricePerM2')}</dt>
-                        <dd>
-                          {d.materials?.price_per_m2 != null
-                            ? `${formatFromByn(Number(d.materials.price_per_m2), { digits: 2 })} ${t('designer.priceUnit')}`
-                            : '—'}
-                        </dd>
-                        <dt className="text-slate-500">{t('admin.orderCards.inscription')}</dt>
-                        <dd className="italic text-slate-200">
-                          {d.inscription_text ?? '—'}
-                        </dd>
-                      </dl>
-                    </div>
-                  ))}
-                </div>
-              )}
+                      <DataFields
+                        placeholder={t('admin.field.notProvided')}
+                        fields={[
+                          { label: t('admin.field.category'), value: d.materials?.category },
+                          {
+                            label: t('admin.orderCards.pricePerM2'),
+                            value:
+                              d.materials?.price_per_m2 != null
+                                ? `${formatFromByn(Number(d.materials.price_per_m2), { digits: 2 })} ${t('designer.priceUnit')}`
+                                : null
+                          },
+                          { label: t('admin.orderCards.dimensions'), value: d.dimensions },
+                          {
+                            label: t('admin.orderCards.finish'),
+                            value: d.finish_type ? finishLabel(d.finish_type, t) : null
+                          },
+                          {
+                            label: t('admin.orderCards.inscription'),
+                            value: d.inscription_text,
+                            wide: true
+                          }
+                        ]}
+                      />
+                    </DataSection>
+                  ))
+                )}
+              </div>
 
               <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
                 {card.converted_order ? (
-                  <span className="text-xs text-slate-400">
+                  <span className="text-xs text-ink-3">
                     {card.converted_order.price != null
                       ? `${formatFromByn(Number(card.converted_order.price), { digits: 2 })} ${t('designer.priceUnit')}`
                       : t('admin.orderCards.noPrice')}
                     {card.converted_order.deadline
                       ? ` · ${t('admin.orderCards.dueLabel', {
-                          date: new Date(card.converted_order.deadline).toLocaleDateString(dateLocale)
+                          date: new Date(card.converted_order.deadline).toLocaleDateString(
+                            dateLocale
+                          )
                         })}`
                       : ''}
                   </span>
@@ -297,7 +325,7 @@ export const AdminOrderCardsPage = () => {
                     type="button"
                     onClick={() => openConvertModal(card)}
                     disabled={busyId === card.id}
-                    className="inline-flex items-center gap-1.5 rounded-md bg-amber-300 px-3 py-1.5 text-xs font-semibold text-slate-900 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
+                    className="u-btn u-btn-primary px-3 py-1.5 text-xs"
                   >
                     {t('admin.orderCards.convertButton')}
                     <ArrowRight className="h-3.5 w-3.5" />
@@ -309,7 +337,7 @@ export const AdminOrderCardsPage = () => {
                     type="button"
                     onClick={() => handleDelete(card)}
                     disabled={busyId === card.id}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-rose-500/40 px-3 py-1.5 text-xs text-rose-200 hover:border-rose-400 hover:bg-rose-500/10 disabled:opacity-60"
+                    className="inline-flex items-center gap-1.5 border border-critical px-3 py-1.5 text-xs text-critical hover:border-critical hover:bg-critical-soft disabled:opacity-60"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                     {t('admin.common.delete')}
@@ -323,17 +351,15 @@ export const AdminOrderCardsPage = () => {
 
       {convertingCard ? (
         <div
-          className="fixed inset-0 z-30 flex items-center justify-center bg-slate-950/80 p-4"
+          className="fixed inset-0 z-30 flex items-center justify-center bg-canvas p-4"
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
+          <div className="w-full max-w-lg border border-line bg-surface p-6 shadow-2xl">
             <div className="flex items-start justify-between">
               <div>
-                <h2 className="font-serif text-2xl text-gray-100">
-                  {t('admin.orderCards.modalTitle')}
-                </h2>
-                <p className="mt-1 text-xs text-slate-400">
+                <h2 className="u-display text-2xl text-ink">{t('admin.orderCards.modalTitle')}</h2>
+                <p className="mt-1 text-xs text-ink-3">
                   {t('admin.orderCards.cardNumber')}
                   {convertingCard.id.slice(0, 8)} ·{' '}
                   {convertingCard.user_email ?? t('admin.common.unknown')}
@@ -342,7 +368,7 @@ export const AdminOrderCardsPage = () => {
               <button
                 type="button"
                 onClick={closeConvertModal}
-                className="rounded-md p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
+                className="p-1 text-ink-3 hover:bg-surface-2 hover:text-ink"
                 aria-label={t('admin.common.close')}
               >
                 <X className="h-5 w-5" />
@@ -351,7 +377,7 @@ export const AdminOrderCardsPage = () => {
 
             <form onSubmit={handleConvertSubmit} className="mt-5 space-y-4">
               <label className="block">
-                <span className="text-xs uppercase tracking-wider text-slate-400">
+                <span className="text-xs uppercase tracking-wider text-ink-3">
                   {t('admin.orderCards.price')}
                 </span>
                 <input
@@ -359,65 +385,61 @@ export const AdminOrderCardsPage = () => {
                   inputMode="decimal"
                   step="0.01"
                   min="0"
-                  className="mt-1 w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-gray-100 focus:border-amber-300 focus:outline-none"
+                  className="mt-1 w-full u-field"
                   value={form.price}
                   onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))}
                   placeholder={t('admin.orderCards.pricePlaceholder')}
                 />
-                <span className="mt-1 block text-[11px] text-slate-500">
+                <span className="mt-1 block text-[11px] text-ink-3">
                   {t('admin.orderCards.priceHint')}
                 </span>
               </label>
 
               <label className="block">
-                <span className="text-xs uppercase tracking-wider text-slate-400">
+                <span className="text-xs uppercase tracking-wider text-ink-3">
                   {t('admin.orderCards.installationAddress')}
                 </span>
                 <input
                   type="text"
-                  className="mt-1 w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-gray-100 focus:border-amber-300 focus:outline-none"
+                  className="mt-1 w-full u-field"
                   value={form.installation_address}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, installation_address: e.target.value }))
-                  }
+                  onChange={(e) => setForm((p) => ({ ...p, installation_address: e.target.value }))}
                   placeholder={t('admin.orderCards.installationAddressPlaceholder')}
                 />
               </label>
 
               <label className="block">
-                <span className="text-xs uppercase tracking-wider text-slate-400">
+                <span className="text-xs uppercase tracking-wider text-ink-3">
                   {t('admin.orderCards.contractDetails')}
                 </span>
                 <textarea
                   rows={3}
-                  className="mt-1 w-full resize-y rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-gray-100 focus:border-amber-300 focus:outline-none"
+                  className="mt-1 w-full resize-y u-field"
                   value={form.contract_details}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, contract_details: e.target.value }))
-                  }
+                  onChange={(e) => setForm((p) => ({ ...p, contract_details: e.target.value }))}
                   placeholder={t('admin.orderCards.contractDetailsPlaceholder')}
                 />
               </label>
 
               <label className="block">
-                <span className="text-xs uppercase tracking-wider text-slate-400">
+                <span className="text-xs uppercase tracking-wider text-ink-3">
                   {t('admin.orderCards.deadline')}
                 </span>
                 <input
                   type="date"
-                  className="mt-1 w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-gray-100 focus:border-amber-300 focus:outline-none"
+                  className="mt-1 w-full u-field"
                   value={form.deadline}
                   onChange={(e) => setForm((p) => ({ ...p, deadline: e.target.value }))}
                 />
               </label>
 
               <label className="block">
-                <span className="text-xs uppercase tracking-wider text-slate-400">
+                <span className="text-xs uppercase tracking-wider text-ink-3">
                   {t('admin.orderCards.clientFullName')}
                 </span>
                 <input
                   type="text"
-                  className="mt-1 w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-gray-100 focus:border-amber-300 focus:outline-none"
+                  className="mt-1 w-full u-field"
                   value={form.client_full_name}
                   onChange={(e) => setForm((p) => ({ ...p, client_full_name: e.target.value }))}
                   placeholder={t('admin.orderCards.clientFullNamePlaceholder')}
@@ -426,24 +448,24 @@ export const AdminOrderCardsPage = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <label className="block">
-                  <span className="text-xs uppercase tracking-wider text-slate-400">
+                  <span className="text-xs uppercase tracking-wider text-ink-3">
                     {t('admin.orderCards.passportSeries')}
                   </span>
                   <input
                     type="text"
-                    className="mt-1 w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-gray-100 focus:border-amber-300 focus:outline-none"
+                    className="mt-1 w-full u-field"
                     value={form.passport_series}
                     onChange={(e) => setForm((p) => ({ ...p, passport_series: e.target.value }))}
                     placeholder={t('admin.orderCards.passportSeriesPlaceholder')}
                   />
                 </label>
                 <label className="block">
-                  <span className="text-xs uppercase tracking-wider text-slate-400">
+                  <span className="text-xs uppercase tracking-wider text-ink-3">
                     {t('admin.orderCards.passportNumber')}
                   </span>
                   <input
                     type="text"
-                    className="mt-1 w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-gray-100 focus:border-amber-300 focus:outline-none"
+                    className="mt-1 w-full u-field"
                     value={form.passport_number}
                     onChange={(e) => setForm((p) => ({ ...p, passport_number: e.target.value }))}
                     placeholder={t('admin.orderCards.passportNumberPlaceholder')}
@@ -452,7 +474,7 @@ export const AdminOrderCardsPage = () => {
               </div>
 
               {convertError ? (
-                <p className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                <p className="border border-critical bg-critical-soft px-3 py-2 text-xs text-critical">
                   {convertError}
                 </p>
               ) : null}
@@ -461,14 +483,14 @@ export const AdminOrderCardsPage = () => {
                 <button
                   type="button"
                   onClick={closeConvertModal}
-                  className="rounded-md border border-slate-700 px-3 py-2 text-xs text-slate-300 hover:border-slate-500 hover:text-white"
+                  className="border border-line px-3 py-2 text-xs text-ink-2 hover:border-line-strong hover:text-ink"
                 >
                   {t('admin.common.cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={busyId === convertingCard.id}
-                  className="inline-flex items-center gap-2 rounded-md bg-amber-300 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
+                  className="u-btn u-btn-primary px-4 py-2"
                 >
                   {busyId === convertingCard.id
                     ? t('admin.orderCards.converting')

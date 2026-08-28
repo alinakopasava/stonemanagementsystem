@@ -1,6 +1,6 @@
+import { randomUUID } from 'node:crypto';
 import { supabaseAdmin } from '../config/supabase.js';
 import { PublicError } from '../http/errors.js';
-import { writeAuditLog } from './audit.service.js';
 
 const MAX_NAME_LENGTH = 120;
 const MAX_EMAIL_LENGTH = 200;
@@ -23,11 +23,19 @@ const enforceMaxLength = (value, fieldName, maxLength) => {
   }
 };
 
-export const submitContactMessage = async ({ payload, ip, userAgent }) => {
+export const submitContactMessage = async ({ payload }) => {
   const name = trimOrEmpty(payload?.name);
   const email = trimOrEmpty(payload?.email);
   const phone = trimOrEmpty(payload?.phone);
   const message = trimOrEmpty(payload?.message);
+
+  // The form carries a field no person can see or tab into. A bot that fills in
+  // every input it finds fills this one too. The reply is the same as for a
+  // real message, on purpose: an error would tell the author which field gave
+  // them away, and they would stop filling it.
+  if (trimOrEmpty(payload?.website)) {
+    return { id: randomUUID(), receivedAt: new Date().toISOString() };
+  }
 
   requireField(name, 'name');
   requireField(email, 'email');
@@ -56,14 +64,6 @@ export const submitContactMessage = async ({ payload, ip, userAgent }) => {
   if (error) {
     throw new Error('Failed to save contact message.');
   }
-
-  await writeAuditLog({
-    action: 'contact.created',
-    entity: 'contact_messages',
-    entityId: data.id,
-    ip,
-    userAgent
-  });
 
   return { id: data.id, receivedAt: data.created_at };
 };
@@ -117,7 +117,7 @@ export const updateContactMessageStatus = async ({ supabase, id, status, actorUs
   return data;
 };
 
-export const deleteContactMessage = async ({ supabase, id, actorUserId, ip, userAgent }) => {
+export const deleteContactMessage = async ({ supabase, id }) => {
   if (!id) {
     throw new PublicError('Missing contact message id.');
   }
@@ -127,15 +127,6 @@ export const deleteContactMessage = async ({ supabase, id, actorUserId, ip, user
   if (error) {
     throw new Error('Failed to delete contact message.');
   }
-
-  await writeAuditLog({
-    actorId: actorUserId,
-    action: 'contact.deleted',
-    entity: 'contact_messages',
-    entityId: id,
-    ip,
-    userAgent
-  });
 
   return { id };
 };

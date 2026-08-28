@@ -5,26 +5,26 @@ import { Header } from '@presentation/components/header';
 
 const navItemClass = ({ isActive }: { isActive: boolean }) =>
   [
-    'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition',
+    'flex items-center gap-3 border-l-2 px-3 py-2.5 text-sm transition-colors',
     isActive
-      ? 'bg-amber-300/10 text-amber-100'
-      : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
+      ? 'border-brand bg-brand-soft text-brand'
+      : 'border-transparent text-ink-2 hover:border-line-strong hover:text-ink'
   ].join(' ');
 
 export const AdminLayout = () => {
   const { t } = useTranslation();
 
   return (
-    <div className="min-h-screen bg-transparent text-gray-100">
+    <div className="min-h-[100dvh] bg-canvas text-ink">
       <Header />
-      <div className="mx-auto grid w-full max-w-7xl gap-6 px-6 py-8 lg:grid-cols-[220px_1fr]">
+      <div className="mx-auto grid w-full max-w-[1400px] gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[220px_1fr]">
         <aside className="lg:sticky lg:top-24 lg:self-start">
-          <div className="rounded-xl border border-slate-700/60 bg-slate-900/70 p-3">
-            <div className="flex items-center gap-2 px-2 pb-2 text-xs uppercase tracking-[0.18em] text-slate-400">
-              <LayoutDashboard className="h-3.5 w-3.5" />
+          <div className="border border-line bg-surface py-3">
+            <div className="u-group-label flex items-center gap-2 px-4 pb-3">
+              <LayoutDashboard className="h-3.5 w-3.5" strokeWidth={1.5} />
               {t('header.admin')}
             </div>
-            <nav className="space-y-1">
+            <nav className="flex flex-col">
               <NavLink to="/admin/users" className={navItemClass}>
                 <Users className="h-4 w-4" />
                 {t('admin.users.title')}

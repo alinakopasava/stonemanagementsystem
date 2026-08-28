@@ -9,8 +9,7 @@ const {
   sessionCookies,
   signedInAs,
   resetSupabaseMock,
-  setTables,
-  stubAuditLogs
+  setTables
 } = await import('../setup/harness.js');
 
 const MATERIAL_ID = '3f0d9a1e-4c2b-4f8a-9e7d-1b2c3d4e5f60';
@@ -37,7 +36,6 @@ const workingTables = () => {
 
 beforeEach(() => {
   resetSupabaseMock();
-  stubAuditLogs();
 });
 
 /* ------------------------------------------------------------------ */
@@ -57,19 +55,23 @@ describe('POST /api/orders/submit', () => {
       workingTables();
     });
 
-    it.each([
-      ['a material id that is not a UUID', { materialId: 'not-a-uuid' }],
-      ['a material id that is empty', { materialId: '' }],
-      ['dimensions that are not a number pair', { dimensions: '100 by 60' }],
-      ['dimensions that are missing', { dimensions: '' }],
-      ['a finish outside the three allowed values', { finishType: 'Brushed' }],
-      ['an empty inscription', { inscriptionText: '   ' }]
-    ])('rejects %s with 400', async (_label, override) => {
-      const response = await api(app, { cookies: sessionCookies() })
-        .post('/api/orders/submit')
-        .send({ ...validPayload, ...override });
+    it('rejects every malformed field with 400', async () => {
+      const malformed = [
+        { materialId: 'not-a-uuid' },
+        { materialId: '' },
+        { dimensions: '100 by 60' },
+        { dimensions: '' },
+        { finishType: 'Brushed' },
+        { inscriptionText: '   ' }
+      ];
 
-      expect(response.status).toBe(400);
+      for (const override of malformed) {
+        const response = await api(app, { cookies: sessionCookies() })
+          .post('/api/orders/submit')
+          .send({ ...validPayload, ...override });
+
+        expect(response.status, JSON.stringify(override)).toBe(400);
+      }
     });
 
     it('rejects an inscription longer than 4000 characters with 400', async () => {
@@ -88,12 +90,14 @@ describe('POST /api/orders/submit', () => {
       expect(response.status).toBe(201);
     });
 
-    it.each(['Polished', 'Matte', 'Honed'])('accepts the %s finish', async (finishType) => {
-      const response = await api(app, { cookies: sessionCookies() })
-        .post('/api/orders/submit')
-        .send({ ...validPayload, finishType });
+    it('accepts each of the three finishes', async () => {
+      for (const finishType of ['Polished', 'Matte', 'Honed']) {
+        const response = await api(app, { cookies: sessionCookies() })
+          .post('/api/orders/submit')
+          .send({ ...validPayload, finishType });
 
-      expect(response.status).toBe(201);
+        expect(response.status, finishType).toBe(201);
+      }
     });
 
     it('writes no rows at all when validation fails', async () => {
@@ -104,7 +108,7 @@ describe('POST /api/orders/submit', () => {
         .post('/api/orders/submit')
         .send({ ...validPayload, materialId: 'not-a-uuid' });
 
-      expect(queries.filter((q) => q.op === 'insert' && q.table !== 'audit_logs')).toHaveLength(0);
+      expect(queries.filter((q) => q.op === 'insert')).toHaveLength(0);
     });
   });
 

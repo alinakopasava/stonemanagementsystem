@@ -1,38 +1,45 @@
-@font-face {
-  font-family: 'Cinzel';
-  src: url('/fonts/cinzel-900.woff') format('woff');
-  font-weight: 900;
-  font-style: normal;
-  font-display: swap;
-}
+@import './presentation/design/tokens.css';
 
+/*
+  Engraving faces. These are loaded for the 3D inscription renderer as
+  well as the interface, which is why PT Serif earns its place as the
+  display face: the masthead uses the letterform the workshop cuts.
+*/
 @font-face {
-  font-family: 'Playfair Display';
-  src: url('/fonts/playfair-display-800.woff') format('woff');
-  font-weight: 800;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Cormorant Garamond';
-  src: url('/fonts/cormorant-garamond-700-italic.woff') format('woff');
+  font-family: 'PT Serif';
+  src: url('/fonts/pt-serif-700.woff') format('woff');
   font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Literata';
+  src: url('/fonts/literata-600.woff') format('woff');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Old Standard TT';
+  src: url('/fonts/old-standard-400-italic.woff') format('woff');
+  font-weight: 400;
   font-style: italic;
   font-display: swap;
 }
 
 @font-face {
-  font-family: 'Great Vibes';
-  src: url('/fonts/great-vibes-400.woff') format('woff');
-  font-weight: 400;
+  font-family: 'Caveat';
+  src: url('/fonts/caveat-700.woff') format('woff');
+  font-weight: 700;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
-  font-family: 'UnifrakturMaguntia';
-  src: url('/fonts/unifrakturmaguntia-400.woff') format('woff');
+  font-family: 'Ruslan Display';
+  src: url('/fonts/ruslan-display-400.woff') format('woff');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -42,19 +49,325 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color: #f3f4f6;
-  background: #0f172a;
-  font-family: Inter, system-ui, sans-serif;
+@layer base {
+  html,
+  body,
+  #root {
+    margin: 0;
+    min-height: 100%;
+  }
+
+  body {
+    background-color: rgb(var(--canvas));
+    color: rgb(var(--ink));
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* The shape lock has to survive the platform. iOS Safari rounds
+     inputs and buttons on its own unless appearance is reset. */
+  input,
+  textarea,
+  select,
+  button {
+    font: inherit;
+    border-radius: 0;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  select {
+    /* Restore the disclosure arrow the appearance reset removed. */
+    background-image: linear-gradient(45deg, transparent 50%, rgb(var(--ink-3)) 50%),
+      linear-gradient(135deg, rgb(var(--ink-3)) 50%, transparent 50%);
+    background-position: calc(100% - 18px) calc(50% + 2px), calc(100% - 13px) calc(50% + 2px);
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    padding-right: 2.25rem;
+  }
+
+  /* One focus treatment for the whole product. Visible on every ground
+     because it pairs the brand ring with a canvas-coloured offset. */
+  :focus-visible {
+    outline: 2px solid rgb(var(--focus));
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: rgb(var(--brand) / 0.18);
+  }
+
+  ::placeholder {
+    color: rgb(var(--ink-3));
+    opacity: 1;
+  }
 }
 
-html,
-body,
-#root {
-  margin: 0;
-  min-height: 100%;
+@layer components {
+  /*
+    Lapidary display type. Wide tracking and small caps are how letters
+    are laid out on a stone face, and it is the one place the interface
+    is allowed to be expressive.
+  */
+  .u-display {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+  }
+
+  .u-lapidary {
+    font-family: var(--font-display);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+  }
+
+  /* Field label. Sits above its input, never inside it. */
+  .u-label {
+    display: block;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.4;
+    color: rgb(var(--ink-2));
+  }
+
+  /* The single input treatment, shared by input, textarea and select. */
+  .u-field {
+    width: 100%;
+    background-color: rgb(var(--surface));
+    border: 1px solid rgb(var(--line-strong));
+    color: rgb(var(--ink));
+    padding: 0.625rem 0.75rem;
+    font-size: 0.9375rem;
+    transition: border-color 150ms ease;
+  }
+
+  .u-field:hover:not(:disabled) {
+    border-color: rgb(var(--ink-3));
+  }
+
+  .u-field:disabled {
+    background-color: rgb(var(--surface-2));
+    color: rgb(var(--ink-3));
+    cursor: not-allowed;
+  }
+
+  /*
+    Buttons. Two ranks only, so the primary action on any screen is
+    never in doubt. Both carry a 1px press translation for tactility.
+  */
+  .u-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.6875rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.25;
+    white-space: nowrap;
+    transition: background-color 150ms ease, border-color 150ms ease, transform 80ms ease;
+  }
+
+  .u-btn:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+
+  .u-btn:disabled {
+    cursor: not-allowed;
+    background-color: rgb(var(--surface-2));
+    border-color: rgb(var(--line));
+    color: rgb(var(--ink-3));
+  }
+
+  /* 9.9:1 against its own ground in light, 8.1:1 in dark. */
+  .u-btn-primary {
+    background-color: rgb(var(--brand));
+    border: 1px solid rgb(var(--brand));
+    color: rgb(var(--brand-ink));
+  }
+
+  .u-btn-primary:hover:not(:disabled) {
+    background-color: rgb(var(--brand-strong));
+    border-color: rgb(var(--brand-strong));
+  }
+
+  .u-btn-secondary {
+    background-color: transparent;
+    border: 1px solid rgb(var(--line-strong));
+    color: rgb(var(--ink));
+  }
+
+  .u-btn-secondary:hover:not(:disabled) {
+    border-color: rgb(var(--ink-3));
+    background-color: rgb(var(--surface-2));
+  }
+
+  /*
+    Configurator chrome. The control panel is dense product UI, so it gets a
+    label style of its own rather than borrowing the storefront's headings.
+  */
+  .u-group-label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: rgb(var(--ink-3));
+  }
+
+  /* One option in a picker: shape, finish, decoration, size preset. */
+  .u-chip {
+    border: 1px solid rgb(var(--line));
+    color: rgb(var(--ink-2));
+    transition: border-color 150ms ease, color 150ms ease, background-color 150ms ease;
+  }
+
+  .u-chip:hover {
+    border-color: rgb(var(--line-strong));
+    color: rgb(var(--ink));
+  }
+
+  .u-chip[aria-pressed='true'],
+  .u-chip-active {
+    border-color: rgb(var(--brand));
+    background-color: rgb(var(--brand-soft));
+    color: rgb(var(--brand));
+  }
+
+  /*
+    Vertical inner scrollers keep a bar, because a tall panel with no bar
+    hides how much is left. It is a hairline in the page's own palette.
+
+    The button rules are not optional: the moment any ::-webkit-scrollbar
+    rule exists, Chromium switches that scrollbar to custom rendering and
+    starts drawing the stepper arrows it normally hides. Suppressing them
+    explicitly is what keeps a "styled" bar from looking more default than
+    the default one.
+  */
+  .u-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--line-strong)) transparent;
+  }
+
+  .u-scroll::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .u-scroll::-webkit-scrollbar-button,
+  .u-scroll::-webkit-scrollbar-corner {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  .u-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .u-scroll::-webkit-scrollbar-thumb {
+    background-color: rgb(var(--line-strong));
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  .u-scroll::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(var(--ink-3));
+  }
+
+  /*
+    Horizontal galleries have no bar at all. The track carries its own
+    controls and a faded edge, which say the same thing without parking a
+    grey slab under the content.
+  */
+  .u-scroll-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .u-scroll-none::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  /*
+    Softens the hard clip at the end of a horizontal track, and doubles as the
+    "there is more this way" cue that a scroll label would otherwise have to
+    make in words.
+  */
+  .u-fade-e {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 5rem), transparent 100%);
+    mask-image: linear-gradient(to right, #000 calc(100% - 5rem), transparent 100%);
+  }
+
+  /* Skeleton shimmer for loading placeholders that match final shape. */
+  .u-skeleton {
+    background-color: rgb(var(--surface-2));
+    position: relative;
+    overflow: hidden;
+  }
+
+  .u-skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgb(var(--surface) / 0.7),
+      transparent
+    );
+    transform: translateX(-100%);
+    animation: scene-bar 1.4s ease-in-out infinite;
+  }
 }
 
-body {
-  background: radial-gradient(circle at top, #1e293b 0%, #0f172a 55%, #020617 100%);
+/*
+  A single fixed grain plane over the page. Flat token fills read slightly
+  clinical on their own; this gives them a surface without introducing a
+  second colour. It never scrolls and never takes a pointer event.
+*/
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0.5;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.055'/%3E%3C/svg%3E");
+}
+
+@media (prefers-color-scheme: dark) {
+  body::after {
+    mix-blend-mode: screen;
+    opacity: 0.32;
+  }
+}
+
+/*
+  MOTION_INTENSITY is 3: hover, focus and press only. There is no
+  scroll choreography to unwind, so honouring the preference is a
+  matter of stopping the two loaders and the press transform.
+*/
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .u-btn:active:not(:disabled) {
+    transform: none;
+  }
+
+  .u-skeleton::after {
+    display: none;
+  }
 }

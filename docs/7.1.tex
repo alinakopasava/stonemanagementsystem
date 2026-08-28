@@ -1,0 +1,27 @@
+Testy podzielono na pięć poziomów o rosnącym zakresie i malejącej liczbie przypadków, zgodnie z koncepcją piramidy testów. U podstawy znajdują się szybkie i deterministyczne testy jednostkowe czystych funkcji, na szczycie nieliczne testy systemowe wykonywane w prawdziwej przeglądarce, czyli najbliższe rzeczywistemu sposobowi korzystania z aplikacji. Im szerszy zakres testu, tym dłużej trwa jego wykonanie i tym trudniej wskazać przyczynę niepowodzenia, dlatego pojedynczą regułę biznesową sprawdzano możliwie nisko, a wyższym poziomom pozostawiono weryfikację współdziałania elementów. Poziomy zestawiono w tabeli~\ref{tab:poziomy-testow}.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Poziomy testów systemu SZK -- opracowanie własne}
+\label{tab:poziomy-testow}
+\begin{tabular}{|p{2.4cm}|p{4.4cm}|p{3.6cm}|p{2.6cm}|}
+\hline
+\textbf{Poziom} & \textbf{Przedmiot weryfikacji} & \textbf{Narzędzia} & \textbf{Środowisko} \\
+\hline
+Jednostkowy & Czyste funkcje logiki dziedzinowej, walidacji i bezpieczeństwa & Vitest & Node.js \\
+\hline
+Integracyjny -- API & Ścieżki HTTP backendu wraz z pośrednikami & Vitest, Supertest, atrapa klienta Supabase & Node.js \\
+\hline
+Integracyjny -- baza & Polityki Row Level Security oraz wyzwalacze bazy & Klient HTTP komunikujący się z PostgREST & Instancja Supabase \\
+\hline
+Komponentowy & Komponenty i strony aplikacji klienckiej & Vitest, React Testing Library & jsdom \\
+\hline
+Systemowy & Pełne ścieżki użytkownika w przeglądarce & Playwright & Chromium \\
+\hline
+\end{tabular}
+\end{table}
+
+Na wszystkich poziomach obowiązują dwie zasady. Pierwsza to determinizm: żaden test nie zależy od usługi sieciowej, zegara systemowego ani generatora liczb losowych, a serwis kursowy Narodowego Banku Republiki Białorusi i moduł uwierzytelniania Supabase zastąpiono atrapami o zachowaniu ustalanym w treści testu. Druga dotyczy wyniku oczekiwanego, który wyliczono niezależnie od kodu produkcyjnego -- ze wzoru wyceny, z treści wymagania albo z definicji polityki bezpieczeństwa. Dzięki temu test wykrywa błąd implementacji, zamiast go utrwalać.
+
+Testy API korzystają z atrapy klienta bazy danych, co pozwala odtworzyć sytuacje trudne do wywołania na działającej instancji, na przykład awarię zapisu w połowie operacji złożonej. Atrapa nie zna jednak reguł zapisanych w samej bazie, dlatego polityki Row Level Security sprawdzono osobno, kierując żądania z tokenem JWT wprost do interfejsu PostgREST, z pominięciem serwera Express. Adres bazy oraz klucz publiczny są widoczne w kodzie aplikacji klienckiej, więc napastnik może tę warstwę ominąć.

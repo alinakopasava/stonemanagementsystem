@@ -2,12 +2,7 @@ import type { CSSProperties } from 'react';
 import { useTranslation } from '@application/i18n/i18n-context';
 import type { TranslationKey } from '@application/i18n/translations';
 
-export type InscriptionStyleId =
-  | 'roman'
-  | 'elegant'
-  | 'script'
-  | 'classic'
-  | 'gothic';
+export type InscriptionStyleId = 'roman' | 'elegant' | 'script' | 'classic' | 'gothic';
 
 export interface InscriptionStyle {
   id: InscriptionStyleId;
@@ -25,7 +20,22 @@ export interface InscriptionStyle {
   };
 }
 
-/** Local font files keep the 3D engraving independent from CDN availability. */
+/**
+ * Local font files keep the 3D engraving independent from CDN availability.
+ *
+ * Two constraints picked these faces, and they pull against each other.
+ *
+ * Every face carries Latin, Latin Extended-A and Cyrillic, so one style renders
+ * the inscription in all three interface languages. That alone rules out most
+ * memorial lettering — Cinzel, UnifrakturMaguntia and the English roundhands
+ * have no Cyrillic at all.
+ *
+ * The second constraint is the stone. A letter here is cut, not printed, and a
+ * cut has a minimum width: the hairlines of a high-contrast face (Playfair at
+ * 800, Great Vibes, Cormorant) simply disappear at engraving depth, leaving the
+ * thick strokes stranded. So every face below is moderate-contrast with sturdy
+ * serifs and open counters — shapes that survive being carved.
+ */
 const FONT_PATH = '/fonts';
 
 export const INSCRIPTION_STYLES: InscriptionStyle[] = [
@@ -34,16 +44,18 @@ export const INSCRIPTION_STYLES: InscriptionStyle[] = [
     labelKey: 'inscription.style.roman',
     descriptionKey: 'inscription.style.roman.desc',
     css: {
-      fontFamily: '"Cinzel", "Playfair Display", serif',
-      fontWeight: 900,
+      fontFamily: '"PT Serif", serif',
+      fontWeight: 700,
       letterSpacing: '0.18em',
       textTransform: 'uppercase'
     },
     three: {
-      fontUrl: `${FONT_PATH}/cinzel-900.woff`,
+      // Drawn for Russian text and low in contrast, which is why it holds up
+      // set in capitals at the size a headstone name is cut.
+      fontUrl: `${FONT_PATH}/pt-serif-700.woff`,
       letterSpacing: 0.16,
       transform: 'uppercase',
-      fontScale: 1
+      fontScale: 1.02
     }
   },
   {
@@ -51,15 +63,17 @@ export const INSCRIPTION_STYLES: InscriptionStyle[] = [
     labelKey: 'inscription.style.classic',
     descriptionKey: 'inscription.style.classic.desc',
     css: {
-      fontFamily: '"Playfair Display", serif',
-      fontWeight: 800,
+      fontFamily: '"Literata", serif',
+      fontWeight: 600,
       letterSpacing: '0.04em'
     },
     three: {
-      fontUrl: `${FONT_PATH}/playfair-display-800.woff`,
+      // Wedge serifs and even stroke weight: the shapes stay whole when cut,
+      // where Playfair at 800 lost its hairlines entirely.
+      fontUrl: `${FONT_PATH}/literata-600.woff`,
       letterSpacing: 0.04,
       transform: 'none',
-      fontScale: 1
+      fontScale: 1.04
     }
   },
   {
@@ -67,16 +81,18 @@ export const INSCRIPTION_STYLES: InscriptionStyle[] = [
     labelKey: 'inscription.style.elegant',
     descriptionKey: 'inscription.style.elegant.desc',
     css: {
-      fontFamily: '"Cormorant Garamond", serif',
+      fontFamily: '"Old Standard TT", serif',
       fontStyle: 'italic',
-      fontWeight: 700,
+      fontWeight: 400,
       letterSpacing: '0.02em'
     },
     three: {
-      fontUrl: `${FONT_PATH}/cormorant-garamond-700-italic.woff`,
+      // Turn-of-the-century academic italic: the memorial-plaque voice, with
+      // far more body in the thin strokes than a Garamond italic has.
+      fontUrl: `${FONT_PATH}/old-standard-400-italic.woff`,
       letterSpacing: 0.02,
       transform: 'none',
-      fontScale: 1.22
+      fontScale: 1.18
     }
   },
   {
@@ -84,15 +100,17 @@ export const INSCRIPTION_STYLES: InscriptionStyle[] = [
     labelKey: 'inscription.style.script',
     descriptionKey: 'inscription.style.script.desc',
     css: {
-      fontFamily: '"Great Vibes", cursive',
-      fontWeight: 400,
+      fontFamily: '"Caveat", cursive',
+      fontWeight: 700,
       letterSpacing: '0.01em'
     },
     three: {
-      fontUrl: `${FONT_PATH}/great-vibes-400.woff`,
-      letterSpacing: 0.01,
+      // A near-monoline hand. A formal roundhand looks better on paper, but its
+      // hairlines are thinner than the cut and vanish into the stone.
+      fontUrl: `${FONT_PATH}/caveat-700.woff`,
+      letterSpacing: 0.02,
       transform: 'none',
-      fontScale: 1.45
+      fontScale: 1.32
     }
   },
   {
@@ -100,15 +118,15 @@ export const INSCRIPTION_STYLES: InscriptionStyle[] = [
     labelKey: 'inscription.style.gothic',
     descriptionKey: 'inscription.style.gothic.desc',
     css: {
-      fontFamily: '"UnifrakturMaguntia", serif',
+      fontFamily: '"Ruslan Display", serif',
       fontWeight: 400,
       letterSpacing: '0.04em'
     },
     three: {
-      fontUrl: `${FONT_PATH}/unifrakturmaguntia-400.woff`,
+      fontUrl: `${FONT_PATH}/ruslan-display-400.woff`,
       letterSpacing: 0.04,
       transform: 'none',
-      fontScale: 1.28
+      fontScale: 1.16
     }
   }
 ];
@@ -144,21 +162,21 @@ export const InscriptionStylePicker = ({
               type="button"
               onClick={() => onSelect(style.id)}
               className={[
-                'group flex flex-col gap-1 rounded-lg border p-3 text-left transition',
+                'group flex flex-col gap-1 border p-3 text-left transition',
                 isActive
-                  ? 'border-amber-300 bg-amber-300/5 ring-1 ring-amber-300'
-                  : 'border-slate-700 hover:border-slate-500'
+                  ? 'border-brand bg-brand-soft ring-1 ring-brand'
+                  : 'u-chip'
               ].join(' ')}
               aria-pressed={isActive}
             >
               <span
-                className="block truncate text-base text-gray-100"
+                className="block truncate text-base text-ink"
                 style={style.css}
                 title={previewText}
               >
                 {previewText}
               </span>
-              <span className="text-[10px] uppercase tracking-wider text-slate-400">
+              <span className="text-[10px] uppercase tracking-wider text-ink-3">
                 {t(style.labelKey)}
               </span>
             </button>
@@ -166,17 +184,14 @@ export const InscriptionStylePicker = ({
         })}
       </div>
 
-      <div className="rounded-lg border border-slate-700 bg-slate-950/60 p-4">
-        <p className="text-[10px] uppercase tracking-wider text-slate-500">
+      <div className="border border-line bg-canvas p-4">
+        <p className="text-[10px] uppercase tracking-wider text-ink-3">
           {t('designer.inscriptionStyle.preview')} · {t(selectedStyle.labelKey)}
         </p>
-        <p
-          className="mt-2 break-words text-2xl leading-snug text-amber-100"
-          style={selectedStyle.css}
-        >
+        <p className="mt-2 break-words text-2xl leading-snug text-brand" style={selectedStyle.css}>
           {previewText}
         </p>
-        <p className="mt-2 text-[11px] text-slate-500">{t(selectedStyle.descriptionKey)}</p>
+        <p className="mt-2 text-[11px] text-ink-3">{t(selectedStyle.descriptionKey)}</p>
       </div>
     </div>
   );

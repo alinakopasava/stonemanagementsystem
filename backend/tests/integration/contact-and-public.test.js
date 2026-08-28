@@ -9,8 +9,7 @@ const {
   sessionCookies,
   makeProfile,
   resetSupabaseMock,
-  setTables,
-  stubAuditLogs
+  setTables
 } = await import('../setup/harness.js');
 
 const validMessage = {
@@ -35,7 +34,6 @@ const captureContactInserts = () => {
 
 beforeEach(() => {
   resetSupabaseMock();
-  stubAuditLogs();
 });
 
 /* ------------------------------------------------------------------ */
@@ -43,58 +41,57 @@ beforeEach(() => {
 /* ------------------------------------------------------------------ */
 
 describe('POST /api/contact', () => {
-  it.each([
-    ['name', { name: '' }],
-    ['email', { email: '' }],
-    ['message', { message: '' }]
-  ])('rejects a missing %s with 400', async (_field, override) => {
+  it('rejects a missing name, address or message with 400', async () => {
     captureContactInserts();
 
-    const response = await api(app)
-      .post('/api/contact')
-      .send({ ...validMessage, ...override });
+    for (const override of [{ name: '' }, { email: '' }, { message: '' }]) {
+      const response = await api(app)
+        .post('/api/contact')
+        .send({ ...validMessage, ...override });
 
-    expect(response.status).toBe(400);
+      expect(response.status, JSON.stringify(override)).toBe(400);
+    }
   });
 
-  it.each([
-    'not-an-email',
-    'missing@domain',
-    '@example.com',
-    'spaces in@example.com'
-  ])('rejects the malformed address %s with 400', async (email) => {
+  it('rejects a malformed address with 400', async () => {
     captureContactInserts();
 
-    const response = await api(app)
-      .post('/api/contact')
-      .send({ ...validMessage, email });
+    const malformed = ['not-an-email', 'missing@domain', '@example.com', 'spaces in@example.com'];
 
-    expect(response.status).toBe(400);
+    for (const email of malformed) {
+      const response = await api(app)
+        .post('/api/contact')
+        .send({ ...validMessage, email });
+
+      expect(response.status, email).toBe(400);
+    }
   });
 
-  it.each([
-    ['name', 'name', 120],
-    ['email', 'email', 200],
-    ['phone', 'phone', 40],
-    ['message', 'message', 4000]
-  ])('enforces the %s length limit of %i characters', async (_label, field, limit) => {
+  it('enforces the length limit of every field', async () => {
     captureContactInserts();
 
     // A valid-looking value of exactly `limit` characters, and one character more.
-    const fill = (length) =>
+    const fill = (field, length) =>
       field === 'email'
         ? `${'a'.repeat(length - '@example.com'.length)}@example.com`
         : 'x'.repeat(length);
 
-    const atLimit = await api(app)
-      .post('/api/contact')
-      .send({ ...validMessage, [field]: fill(limit) });
-    const overLimit = await api(app)
-      .post('/api/contact')
-      .send({ ...validMessage, [field]: fill(limit + 1) });
+    for (const [field, limit] of [
+      ['name', 120],
+      ['email', 200],
+      ['phone', 40],
+      ['message', 4000]
+    ]) {
+      const atLimit = await api(app)
+        .post('/api/contact')
+        .send({ ...validMessage, [field]: fill(field, limit) });
+      const overLimit = await api(app)
+        .post('/api/contact')
+        .send({ ...validMessage, [field]: fill(field, limit + 1) });
 
-    expect(atLimit.status).toBe(201);
-    expect(overLimit.status).toBe(400);
+      expect(atLimit.status, `${field} at ${limit}`).toBe(201);
+      expect(overLimit.status, `${field} at ${limit + 1}`).toBe(400);
+    }
   });
 
   it('stores an empty phone number as an undefined value, not an empty string', async () => {
@@ -218,7 +215,6 @@ describe('public resources', () => {
               name: 'Gabbro-Diabase',
               category: 'Stone',
               price_per_m2: 420,
-              stock_status: true,
               image_url: null
             }
           ],

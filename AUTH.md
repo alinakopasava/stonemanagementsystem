@@ -29,7 +29,7 @@ Key ideas:
 - In development, Vite proxies `/api` to the backend so cookies are first-party. Leave `VITE_API_URL` unset.
 - `requireAuth` also accepts an `Authorization: Bearer <token>` header as a fallback for non-browser API clients (e.g. scripts using the backend directly). Bearer requests without a cookie bypass the CSRF origin check intentionally — they are stateless and carry no SameSite cookie. Do not use this path from browser code.
 - Express `requireAuth` verifies the JWT with Supabase, loads `profiles.role`, and creates a per-request client bound to that JWT. **Row Level Security is the last line of defense.**
-- Admin table operations use that user-scoped client (RLS). The service role is only for JWT verification, `auth.users` emails, contact-form inserts, audit logs, and the `profiles` backfill described below.
+- Admin table operations use that user-scoped client (RLS). The service role is only for JWT verification, `auth.users` emails, contact-form inserts, and the `profiles` backfill described below.
 - `ensureProfileExists` uses the service role to insert a missing `profiles` row when the sign-up trigger did not fire (e.g. an `auth.users` row that predates the trigger). `profiles` intentionally has no client INSERT policy, so this path cannot go through the user-scoped client. It hardcodes `role: 'klient'` and is idempotent — it never accepts a caller-supplied role.
 - The service role key never ships to the browser.
 
@@ -39,7 +39,7 @@ Enum `public.user_role`: `klient` (client), `monter` (installer), `admin`.
 
 - Self sign-up always creates a `klient`. The DB trigger ignores any requested role.
 - Promoting someone to `monter` or `admin` is an admin-only operation. Two ways to do it:
-  - `PATCH /api/admin/users/:id/role` from the admin UI — behind `requireAuth` + `requireRole('admin')`, and audit-logged.
+  - `PATCH /api/admin/users/:id/role` from the admin UI — behind `requireAuth` + `requireRole('admin')`.
   - Directly in the Supabase SQL editor (see below) — needed to create the *first* admin, since the endpoint requires an existing one.
 
   There is no self-service path: a `klient` cannot reach either.
@@ -47,7 +47,7 @@ Enum `public.user_role`: `klient` (client), `monter` (installer), `admin`.
 ## One-time setup
 
 1. **Rotate the service role key** in Supabase dashboard (Settings -> API) if it has ever been shared. The previous value must be considered compromised.
-2. **Run the SQL migrations** in Supabase SQL editor: `0001_auth_and_rls.sql`, `0002_contact_messages.sql`, `0003_auth_hardening.sql`. They are idempotent.
+2. **Run the SQL migrations** in Supabase SQL editor: `0001_auth_and_rls.sql` through `0009_installation_card_per_order.sql`, in order. They are idempotent.
 3. **Configure Auth** in Supabase dashboard (Authentication -> URL Configuration):
    - Site URL: `http://localhost:5173` (add your production URL later)
    - Redirect URLs: `http://localhost:5173/auth/callback`, `http://localhost:5173/auth/reset-password`
@@ -84,21 +84,20 @@ cd frontend && npm install --legacy-peer-deps && npm run dev
 |-------|-------------------|----------------------|-------|
 | `profiles` | read/update own row | read all | full |
 | `materials`, `products` | read | read | full |
-| `order_cards`, `order_details`, `orders` | read/insert own | read all, update status | full |
+| `order_cards`, `order_details`, `orders` | read/insert own | read all | full |
 | `installation_cards` | read own (via `orders.user_id`) | full except delete | full |
-| `audit_logs` | — | — | read |
 | `contact_messages` | — | — | full |
 
 See `supabase/migrations/` for the exact policies.
 
-> **Known gap — `monter` update scope.** The table above says installers may only
-> *update status* on `order_cards` / `orders`. The controllers enforce that, but the
-> RLS policies `order_cards_update_staff` and `orders_update_staff`
-> (`0001_auth_and_rls.sql`) grant `monter` an unrestricted `UPDATE` on every column.
-> Since RLS is meant to be the last line of defense, an installer calling Supabase
-> directly with their own JWT can currently rewrite price, client name, passport
-> fields and deadlines. Tightening this is a DB change — see the migration note in
-> the project README/handover before relying on RLS alone here.
+> **Closed in `0008_tighten_staff_writes.sql`.** Until then, the policies
+> `order_cards_update_staff` and `orders_update_staff` granted `monter` an
+> unrestricted `UPDATE` on every column, so an installer calling Supabase directly
+> with their own JWT could rewrite price, client name, passport fields and
+> deadlines. The replacement policies allow `UPDATE` to `admin` only, which is what
+> the code has always done: every endpoint that changes an order sits behind
+> `requireRole('admin')`, and the installer's own service only reads from `orders`.
+> Installers change `installation_cards`, and those permissions are unchanged.
 
 ## Promoting an admin / installer
 

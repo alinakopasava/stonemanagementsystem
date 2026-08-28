@@ -1,6 +1,6 @@
-import { Globe } from 'lucide-react';
 import { useTranslation } from '@application/i18n/i18n-context';
 import {
+  LANGUAGE_LABELS,
   LANGUAGE_SHORT,
   SUPPORTED_LANGUAGES,
   type Language
@@ -10,6 +10,11 @@ interface LanguageSwitcherProps {
   variant?: 'default' | 'compact';
 }
 
+/**
+ * The one full-radius control in the product. Everything else is square,
+ * because the shape system is cut stone; a switch is round so it reads as a
+ * single track with a moving selection rather than as three loose buttons.
+ */
 export const LanguageSwitcher = ({ variant = 'default' }: LanguageSwitcherProps) => {
   const { language, setLanguage, t } = useTranslation();
 
@@ -18,15 +23,12 @@ export const LanguageSwitcher = ({ variant = 'default' }: LanguageSwitcherProps)
   return (
     <div
       className={[
-        'inline-flex items-center gap-1 rounded-md border border-slate-700 p-0.5 text-xs',
-        isCompact ? 'bg-transparent' : 'bg-slate-900/60'
+        'inline-flex items-center rounded-full border border-line-strong p-0.5',
+        isCompact ? 'bg-transparent' : 'bg-surface'
       ].join(' ')}
       role="group"
       aria-label={t('header.language')}
     >
-      {!isCompact ? (
-        <Globe className="ml-1 h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
-      ) : null}
       {SUPPORTED_LANGUAGES.map((lang: Language) => {
         const isActive = lang === language;
         return (
@@ -35,11 +37,16 @@ export const LanguageSwitcher = ({ variant = 'default' }: LanguageSwitcherProps)
             type="button"
             onClick={() => setLanguage(lang)}
             aria-pressed={isActive}
+            /* The accessible name stays the code the button shows. The group
+               is already labelled "Language", so "PL" is unambiguous read
+               aloud, and the full name rides along as the tooltip. */
+            title={LANGUAGE_LABELS[lang]}
             className={[
-              'rounded px-2 py-1 font-medium transition',
+              // Roomier hit area on touch screens; the desktop bar keeps its size.
+              'rounded-full px-3 py-2 text-xs font-medium transition-colors sm:px-2.5 sm:py-1',
               isActive
-                ? 'bg-slate-800 text-white'
-                : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
+                ? 'bg-brand text-brand-ink'
+                : 'text-ink-3 hover:text-ink'
             ].join(' ')}
           >
             {LANGUAGE_SHORT[lang]}

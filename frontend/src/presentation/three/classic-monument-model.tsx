@@ -6,6 +6,7 @@ import type { Object3D } from 'three';
 import type { FinishType } from '@domain/entities/order-card';
 import {
   DEFAULT_INSCRIPTION_STYLE,
+  baseCharWidth,
   wordAwareLineCount,
   type BaseDimensionsCm,
   type InscriptionStyleHints,
@@ -33,8 +34,8 @@ export const ROUNDED_MODEL_URL = '/models/rounded-monument.glb';
 export const STELE_MODEL_URL = '/models/modern-stele-monument.glb';
 
 /** Native headstone width in the Blender GLB. The slab scales non-uniformly to
- *  the chosen size; overlays (text, photo, cross) stay in world space so letters
- *  are not squashed when width and height change independently. */
+ * the chosen size; overlays (text, photo, cross) stay in world space so letters
+ * are not squashed when width and height change independently. */
 const SOURCE_HEADSTONE_WIDTH_M = 0.679;
 
 const NON_STONE_NAME = /medalion|napis|imie|daty|ziemia|punkt|text/i;
@@ -60,7 +61,6 @@ const BAKED_INSCRIPTION_Y = 0.91;
 const BAKED_NAME_Y = 0.72;
 const BAKED_DATES_Y = 0.53;
 const TEXT_BLOCK_GAP = 0.028;
-
 
 /** Photo above stone face; live text sits above baked meshes. */
 const RENDER_ORDER_PHOTO = 3;
@@ -89,7 +89,6 @@ interface ClassicMonumentModelProps {
   tombstoneSlab?: TombstoneSlabVariant;
   slabThicknessCm?: number;
 }
-
 
 const isMesh = (object: Object3D): object is THREE.Mesh =>
   'isMesh' in object && (object as THREE.Mesh).isMesh === true;
@@ -252,7 +251,18 @@ export const ClassicMonumentModel = ({
 
   useEffect(() => {
     invalidate();
-  }, [invalidate, uploadedPhoto, stoneMaterial, engravedPhotoMaterial, inscription, name, dates, finish, dimensions, baseDimensions]);
+  }, [
+    invalidate,
+    uploadedPhoto,
+    stoneMaterial,
+    engravedPhotoMaterial,
+    inscription,
+    name,
+    dates,
+    finish,
+    dimensions,
+    baseDimensions
+  ]);
 
   useLayoutEffect(() => {
     albedoMap.wrapS = THREE.RepeatWrapping;
@@ -293,18 +303,11 @@ export const ClassicMonumentModel = ({
         child.receiveShadow = false;
       }
     });
-  }, [
-    model,
-    stoneMaterial,
-    medallionPhotoMaterial,
-    albedoMap,
-    showOvalMedallion,
-    nicheStyle
-  ]);
+  }, [model, stoneMaterial, medallionPhotoMaterial, albedoMap, showOvalMedallion, nicheStyle]);
 
-  const scaleX = (dimensions.widthCm / 100) / slabWidth;
-  const scaleY = (dimensions.heightCm / 100) / slabHeight;
-  const scaleZ = (dimensions.thicknessCm / 100) / slabDepth;
+  const scaleX = dimensions.widthCm / 100 / slabWidth;
+  const scaleY = dimensions.heightCm / 100 / slabHeight;
+  const scaleZ = dimensions.thicknessCm / 100 / slabDepth;
   const worldWidth = dimensions.widthCm / 100;
   const worldTextMaxWidth = worldWidth * 0.78;
   /** Letters follow the tighter axis so a 50 cm stele does not keep 60 cm type. */
@@ -318,7 +321,8 @@ export const ClassicMonumentModel = ({
   const nameTrimmed = transformText(name.trim());
   const datesTrimmed = dates.trim();
 
-  const charFactor = 0.7 + inscriptionStyle.letterSpacing * 0.9;
+  const charFactor =
+    baseCharWidth(`${inscriptionTrimmed}${nameTrimmed}`) + inscriptionStyle.letterSpacing * 0.9;
   const autoFit = (text: string, desired: number) => {
     if (!text) return desired;
     const longest = text.split(/\s+/).reduce((max, word) => Math.max(max, word.length), 1);
@@ -350,7 +354,9 @@ export const ClassicMonumentModel = ({
       : null,
     nameTrimmed ? { y: BAKED_NAME_Y * scaleY, h: nameHeight, key: 'name' as const } : null,
     datesTrimmed ? { y: BAKED_DATES_Y * scaleY, h: datesHeight, key: 'dates' as const } : null
-  ].filter((slot): slot is { y: number; h: number; key: 'header' | 'name' | 'dates' } => slot !== null);
+  ].filter(
+    (slot): slot is { y: number; h: number; key: 'header' | 'name' | 'dates' } => slot !== null
+  );
 
   const packFromCeiling = (ceiling: number) => {
     let cursor = ceiling;
@@ -372,8 +378,8 @@ export const ClassicMonumentModel = ({
 
   if (occupiesUpperBand && slots.length > 0) {
     /** Catalog/designer portraits sit in the upper band — keep the live text
-     *  immediately under the photo, not down in the plinth where the compact
-     *  catalog camera crops it away. */
+     * immediately under the photo, not down in the plinth where the compact
+     * catalog camera crops it away. */
     packFromCeiling(photoY - photoH / 2 - 0.05 * scaleY);
   } else {
     const linesOverlap = slots.some((slot, index) => {
@@ -385,7 +391,10 @@ export const ClassicMonumentModel = ({
       const totalHeight =
         slots.reduce((sum, slot) => sum + slot.h, 0) + blockGap * (slots.length - 1);
       packFromCeiling(
-        Math.min(BAKED_INSCRIPTION_Y * scaleY + 0.06 * scaleY, BAKED_NAME_Y * scaleY + totalHeight / 2)
+        Math.min(
+          BAKED_INSCRIPTION_Y * scaleY + 0.06 * scaleY,
+          BAKED_NAME_Y * scaleY + totalHeight / 2
+        )
       );
     }
   }
@@ -419,7 +428,9 @@ export const ClassicMonumentModel = ({
   const tombstoneSlabHeightM = Math.max(0.03, slabThicknessCm / 100);
   const tombstoneSlabWidthM = Math.max(baseWidthM * 1.25, worldWidth * 1.5);
   const tombstoneSlabDepthM =
-    tombstoneSlab === 'half' ? Math.max(baseDepthM * 1.15, slabDepth * scaleZ * 2.8) : Math.max(baseDepthM * 2, slabDepth * scaleZ * 5.5);
+    tombstoneSlab === 'half'
+      ? Math.max(baseDepthM * 1.15, slabDepth * scaleZ * 2.8)
+      : Math.max(baseDepthM * 2, slabDepth * scaleZ * 5.5);
   const tombstoneSlabOffsetZ =
     tombstoneSlab === 'half' ? tombstoneSlabDepthM * 0.32 : tombstoneSlabDepthM * 0.18;
   const monumentOffsetY = hasTombstoneSlab ? tombstoneSlabHeightM : 0;
@@ -451,159 +462,162 @@ export const ClassicMonumentModel = ({
         </mesh>
       ) : null}
       <group position={[0, monumentOffsetY, 0]}>
-      <mesh
-        position={[0, baseHeightM / 2, 0]}
-        material={stoneMaterial}
-        castShadow
-        receiveShadow
-      >
-        <boxGeometry args={[baseWidthM, baseHeightM, baseDepthM]} />
-      </mesh>
-      {showFlowerbed ? (
-        <group position={[0, 0, baseDepthM / 2 + flowerDepth / 2]}>
-          <mesh position={[0, 0.01, 0]} material={stoneMaterial} castShadow receiveShadow>
-            <boxGeometry args={[flowerbedWidth, 0.02, flowerDepth]} />
-          </mesh>
-          <mesh
-            position={[0, 0.02 + flowerHeight / 2, -flowerDepth / 2 + flowerbedWall / 2]}
-            material={stoneMaterial}
-            castShadow
-            receiveShadow
-          >
-            <boxGeometry args={[flowerbedWidth, flowerHeight, flowerbedWall]} />
-          </mesh>
-          <mesh
-            position={[0, 0.02 + flowerHeight / 2, flowerDepth / 2 - flowerbedWall / 2]}
-            material={stoneMaterial}
-            castShadow
-            receiveShadow
-          >
-            <boxGeometry args={[flowerbedWidth, flowerHeight, flowerbedWall]} />
-          </mesh>
-          <mesh
-            position={[-flowerbedWidth / 2 + flowerbedWall / 2, 0.02 + flowerHeight / 2, 0]}
-            material={stoneMaterial}
-            castShadow
-            receiveShadow
-          >
-            <boxGeometry args={[flowerbedWall, flowerHeight, flowerbedInnerDepth]} />
-          </mesh>
-          <mesh
-            position={[flowerbedWidth / 2 - flowerbedWall / 2, 0.02 + flowerHeight / 2, 0]}
-            material={stoneMaterial}
-            castShadow
-            receiveShadow
-          >
-            <boxGeometry args={[flowerbedWall, flowerHeight, flowerbedInnerDepth]} />
-          </mesh>
-          <mesh position={[0, 0.02 + flowerHeight * 0.68, 0]} receiveShadow>
-            <boxGeometry args={[flowerbedInnerWidth, 0.01, flowerbedInnerDepth]} />
-            <meshStandardMaterial color="#2a1d10" roughness={0.95} />
-          </mesh>
-        </group>
-      ) : null}
-      <group position={[0, slabOffsetY, 0]} scale={[scaleX, scaleY, scaleZ]}>
-        <primitive object={model} dispose={null} />
-      </group>
-      <group position={[0, slabOffsetY, 0]}>
-      {engravedPhotoMaterial ? (
-        <mesh
-          position={[
-            ENGRAVED_PHOTO.position[0],
-            photoY,
-            photoZ
-          ]}
-          material={engravedPhotoMaterial}
-          renderOrder={RENDER_ORDER_PHOTO}
-          frustumCulled={false}
-        >
-          <planeGeometry args={[photoW, photoH]} />
+        <mesh position={[0, baseHeightM / 2, 0]} material={stoneMaterial} castShadow receiveShadow>
+          <boxGeometry args={[baseWidthM, baseHeightM, baseDepthM]} />
         </mesh>
-      ) : null}
-      {isFramedPortrait ? (
-        <group position={[0, photoY, stoneFaceZ * scaleZ + 0.012]}>
-          <mesh material={stoneMaterial} position={[0, photoH / 2 + frameThickness / 2, 0]}>
-            <boxGeometry args={[photoW + frameThickness * 2, frameThickness, frameThickness]} />
-          </mesh>
-          <mesh material={stoneMaterial} position={[0, -photoH / 2 - frameThickness / 2, 0]}>
-            <boxGeometry args={[photoW + frameThickness * 2, frameThickness, frameThickness]} />
-          </mesh>
-          <mesh material={stoneMaterial} position={[-photoW / 2 - frameThickness / 2, 0, 0]}>
-            <boxGeometry args={[frameThickness, photoH, frameThickness]} />
-          </mesh>
-          <mesh material={stoneMaterial} position={[photoW / 2 + frameThickness / 2, 0, 0]}>
-            <boxGeometry args={[frameThickness, photoH, frameThickness]} />
-          </mesh>
-        </group>
-      ) : null}
-      {showFaceCross ? (
-        <group position={[0, photoY, 0]}>
-          <mesh
-            position={[0, 0, stoneFaceZ * scaleZ + faceCrossDepth / 2]}
-            castShadow
-            material={stoneMaterial}
-          >
-            <boxGeometry args={[faceCrossBeam, faceCrossH, faceCrossDepth]} />
-          </mesh>
-          <mesh
-            position={[0, faceCrossH / 2 - faceCrossH * 0.28, stoneFaceZ * scaleZ + faceCrossDepth / 2]}
-            castShadow
-            material={stoneMaterial}
-          >
-            <boxGeometry args={[faceCrossW, faceCrossBeam, faceCrossDepth]} />
-          </mesh>
-        </group>
-      ) : null}
-      {showCross ? (
-        <group position={[0, headstoneTopY * scaleY + standingCrossH / 2 - 0.005, 0]}>
-          <mesh castShadow material={stoneMaterial}>
-            <boxGeometry args={[SOURCE_HEADSTONE_WIDTH_M * 0.06 * scaleY, standingCrossH, 0.045]} />
-          </mesh>
-          <mesh
-            position={[0, SOURCE_HEADSTONE_WIDTH_M * 0.06 * scaleY, 0]}
-            castShadow
-            material={stoneMaterial}
-          >
-            <boxGeometry args={[SOURCE_HEADSTONE_WIDTH_M * 0.22 * scaleY, SOURCE_HEADSTONE_WIDTH_M * 0.06 * scaleY, 0.045]} />
-          </mesh>
-        </group>
-      ) : null}
-      <Suspense fallback={null}>
-        {inscriptionTrimmed ? (
-          <Text
-            {...commonTextProps}
-            position={[0, headerY, textZ]}
-            fontSize={headerSize}
-            outlineWidth={headerSize * 0.11}
-            lineHeight={TEXT_LINE_HEIGHT}
-          >
-            {inscriptionTrimmed}
-          </Text>
+        {showFlowerbed ? (
+          <group position={[0, 0, baseDepthM / 2 + flowerDepth / 2]}>
+            <mesh position={[0, 0.01, 0]} material={stoneMaterial} castShadow receiveShadow>
+              <boxGeometry args={[flowerbedWidth, 0.02, flowerDepth]} />
+            </mesh>
+            <mesh
+              position={[0, 0.02 + flowerHeight / 2, -flowerDepth / 2 + flowerbedWall / 2]}
+              material={stoneMaterial}
+              castShadow
+              receiveShadow
+            >
+              <boxGeometry args={[flowerbedWidth, flowerHeight, flowerbedWall]} />
+            </mesh>
+            <mesh
+              position={[0, 0.02 + flowerHeight / 2, flowerDepth / 2 - flowerbedWall / 2]}
+              material={stoneMaterial}
+              castShadow
+              receiveShadow
+            >
+              <boxGeometry args={[flowerbedWidth, flowerHeight, flowerbedWall]} />
+            </mesh>
+            <mesh
+              position={[-flowerbedWidth / 2 + flowerbedWall / 2, 0.02 + flowerHeight / 2, 0]}
+              material={stoneMaterial}
+              castShadow
+              receiveShadow
+            >
+              <boxGeometry args={[flowerbedWall, flowerHeight, flowerbedInnerDepth]} />
+            </mesh>
+            <mesh
+              position={[flowerbedWidth / 2 - flowerbedWall / 2, 0.02 + flowerHeight / 2, 0]}
+              material={stoneMaterial}
+              castShadow
+              receiveShadow
+            >
+              <boxGeometry args={[flowerbedWall, flowerHeight, flowerbedInnerDepth]} />
+            </mesh>
+            <mesh position={[0, 0.02 + flowerHeight * 0.68, 0]} receiveShadow>
+              <boxGeometry args={[flowerbedInnerWidth, 0.01, flowerbedInnerDepth]} />
+              <meshStandardMaterial color="#2a1d10" roughness={0.95} />
+            </mesh>
+          </group>
         ) : null}
-        {nameTrimmed ? (
-          <Text
-            {...commonTextProps}
-            position={[0, nameY, textZ]}
-            fontSize={nameSize}
-            outlineWidth={nameSize * 0.12}
-            lineHeight={TEXT_LINE_HEIGHT}
-          >
-            {nameTrimmed}
-          </Text>
-        ) : null}
-        {datesTrimmed ? (
-          <Text
-            {...commonTextProps}
-            position={[0, datesY, textZ]}
-            fontSize={datesSize}
-            outlineWidth={datesSize * 0.11}
-            lineHeight={TEXT_LINE_HEIGHT}
-          >
-            {datesTrimmed}
-          </Text>
-        ) : null}
-      </Suspense>
-      </group>
+        <group position={[0, slabOffsetY, 0]} scale={[scaleX, scaleY, scaleZ]}>
+          <primitive object={model} dispose={null} />
+        </group>
+        <group position={[0, slabOffsetY, 0]}>
+          {engravedPhotoMaterial ? (
+            <mesh
+              position={[ENGRAVED_PHOTO.position[0], photoY, photoZ]}
+              material={engravedPhotoMaterial}
+              renderOrder={RENDER_ORDER_PHOTO}
+              frustumCulled={false}
+            >
+              <planeGeometry args={[photoW, photoH]} />
+            </mesh>
+          ) : null}
+          {isFramedPortrait ? (
+            <group position={[0, photoY, stoneFaceZ * scaleZ + 0.012]}>
+              <mesh material={stoneMaterial} position={[0, photoH / 2 + frameThickness / 2, 0]}>
+                <boxGeometry args={[photoW + frameThickness * 2, frameThickness, frameThickness]} />
+              </mesh>
+              <mesh material={stoneMaterial} position={[0, -photoH / 2 - frameThickness / 2, 0]}>
+                <boxGeometry args={[photoW + frameThickness * 2, frameThickness, frameThickness]} />
+              </mesh>
+              <mesh material={stoneMaterial} position={[-photoW / 2 - frameThickness / 2, 0, 0]}>
+                <boxGeometry args={[frameThickness, photoH, frameThickness]} />
+              </mesh>
+              <mesh material={stoneMaterial} position={[photoW / 2 + frameThickness / 2, 0, 0]}>
+                <boxGeometry args={[frameThickness, photoH, frameThickness]} />
+              </mesh>
+            </group>
+          ) : null}
+          {showFaceCross ? (
+            <group position={[0, photoY, 0]}>
+              <mesh
+                position={[0, 0, stoneFaceZ * scaleZ + faceCrossDepth / 2]}
+                castShadow
+                material={stoneMaterial}
+              >
+                <boxGeometry args={[faceCrossBeam, faceCrossH, faceCrossDepth]} />
+              </mesh>
+              <mesh
+                position={[
+                  0,
+                  faceCrossH / 2 - faceCrossH * 0.28,
+                  stoneFaceZ * scaleZ + faceCrossDepth / 2
+                ]}
+                castShadow
+                material={stoneMaterial}
+              >
+                <boxGeometry args={[faceCrossW, faceCrossBeam, faceCrossDepth]} />
+              </mesh>
+            </group>
+          ) : null}
+          {showCross ? (
+            <group position={[0, headstoneTopY * scaleY + standingCrossH / 2 - 0.005, 0]}>
+              <mesh castShadow material={stoneMaterial}>
+                <boxGeometry
+                  args={[SOURCE_HEADSTONE_WIDTH_M * 0.06 * scaleY, standingCrossH, 0.045]}
+                />
+              </mesh>
+              <mesh
+                position={[0, SOURCE_HEADSTONE_WIDTH_M * 0.06 * scaleY, 0]}
+                castShadow
+                material={stoneMaterial}
+              >
+                <boxGeometry
+                  args={[
+                    SOURCE_HEADSTONE_WIDTH_M * 0.22 * scaleY,
+                    SOURCE_HEADSTONE_WIDTH_M * 0.06 * scaleY,
+                    0.045
+                  ]}
+                />
+              </mesh>
+            </group>
+          ) : null}
+          <Suspense fallback={null}>
+            {inscriptionTrimmed ? (
+              <Text
+                {...commonTextProps}
+                position={[0, headerY, textZ]}
+                fontSize={headerSize}
+                outlineWidth={headerSize * 0.11}
+                lineHeight={TEXT_LINE_HEIGHT}
+              >
+                {inscriptionTrimmed}
+              </Text>
+            ) : null}
+            {nameTrimmed ? (
+              <Text
+                {...commonTextProps}
+                position={[0, nameY, textZ]}
+                fontSize={nameSize}
+                outlineWidth={nameSize * 0.12}
+                lineHeight={TEXT_LINE_HEIGHT}
+              >
+                {nameTrimmed}
+              </Text>
+            ) : null}
+            {datesTrimmed ? (
+              <Text
+                {...commonTextProps}
+                position={[0, datesY, textZ]}
+                fontSize={datesSize}
+                outlineWidth={datesSize * 0.11}
+                lineHeight={TEXT_LINE_HEIGHT}
+              >
+                {datesTrimmed}
+              </Text>
+            ) : null}
+          </Suspense>
+        </group>
       </group>
     </>
   );

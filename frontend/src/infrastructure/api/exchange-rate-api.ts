@@ -1,7 +1,8 @@
 import { apiFetch } from '@infrastructure/api/api-client';
 
 export interface ExchangeRate {
-  source: 'nbrb' | 'fallback';
+  /** Official rate from Minsk, from Warsaw when Minsk is unreachable, or the one in the code. */
+  source: 'nbrb' | 'nbp' | 'fallback';
   date: string;
   scale: number;
   officialRate: number;
@@ -9,6 +10,10 @@ export interface ExchangeRate {
   bynPerPln: number;
   /** PLN for 1 BYN. */
   plnPerByn: number;
+  /** BYN for 1 USD. */
+  bynPerUsd: number;
+  /** USD for 1 BYN. */
+  usdPerByn: number;
 }
 
 export const fetchExchangeRate = async (): Promise<ExchangeRate> => {

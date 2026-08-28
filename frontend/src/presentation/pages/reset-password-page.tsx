@@ -23,10 +23,7 @@ export const ResetPasswordPage = () => {
     ...requirement,
     passed: requirement.test(password)
   }));
-  const canSubmit =
-    passwordMeetsPolicy(password) &&
-    password === confirm &&
-    !isSubmitting;
+  const canSubmit = passwordMeetsPolicy(password) && password === confirm && !isSubmitting;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -46,7 +43,7 @@ export const ResetPasswordPage = () => {
   if (isLoading) {
     return (
       <AuthShell title={t('resetPassword.title')} subtitle={t('resetPassword.subtitle')}>
-        <p className="text-sm text-slate-300">{t('app.loading')}</p>
+        <p className="text-sm text-ink-2">{t('app.loading')}</p>
       </AuthShell>
     );
   }
@@ -54,7 +51,7 @@ export const ResetPasswordPage = () => {
   if (!user) {
     return (
       <AuthShell title={t('resetPassword.title')} subtitle={t('resetPassword.invalidLink')}>
-        <Link to="/forgot-password" className="text-sm text-amber-300 hover:underline">
+        <Link to="/forgot-password" className="text-sm text-brand hover:underline">
           {t('resetPassword.requestNewLink')}
         </Link>
       </AuthShell>
@@ -65,14 +62,14 @@ export const ResetPasswordPage = () => {
     <AuthShell title={t('resetPassword.title')} subtitle={t('resetPassword.subtitle')}>
       <form className="space-y-4" onSubmit={handleSubmit} noValidate>
         <label className="block space-y-2">
-          <span className="text-sm text-slate-200">{t('resetPassword.newPassword')}</span>
+          <span className="u-label">{t('resetPassword.newPassword')}</span>
           <input
             type="password"
             autoComplete="new-password"
             required
             minLength={8}
             maxLength={PASSWORD_MAX_LENGTH}
-            className="w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-gray-100 focus:border-amber-300 focus:outline-none"
+            className="u-field"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
@@ -80,34 +77,31 @@ export const ResetPasswordPage = () => {
 
         <ul className="space-y-1 text-xs">
           {checks.map((check) => (
-            <li
-              key={check.id}
-              className={check.passed ? 'text-emerald-300' : 'text-slate-400'}
-            >
+            <li key={check.id} className={check.passed ? 'text-positive' : 'text-ink-3'}>
               {check.passed ? '\u2713' : '\u2022'} {t(check.labelKey)}
             </li>
           ))}
         </ul>
 
         <label className="block space-y-2">
-          <span className="text-sm text-slate-200">{t('resetPassword.confirmPassword')}</span>
+          <span className="u-label">{t('resetPassword.confirmPassword')}</span>
           <input
             type="password"
             autoComplete="new-password"
             required
             minLength={8}
             maxLength={PASSWORD_MAX_LENGTH}
-            className="w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-gray-100 focus:border-amber-300 focus:outline-none"
+            className="u-field"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
           />
           {confirm && password !== confirm ? (
-            <span className="text-xs text-red-300">{t('auth.passwordsMismatch')}</span>
+            <span className="text-xs text-critical">{t('auth.passwordsMismatch')}</span>
           ) : null}
         </label>
 
         {error ? (
-          <p className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+          <p className="border border-critical bg-critical-soft px-3 py-2 text-sm text-critical">
             {error}
           </p>
         ) : null}
@@ -115,7 +109,7 @@ export const ResetPasswordPage = () => {
         <button
           type="submit"
           disabled={!canSubmit}
-          className="w-full rounded-md bg-gray-100 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-white disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
+          className="u-btn u-btn-primary w-full py-2.5"
         >
           {isSubmitting ? t('resetPassword.submitting') : t('resetPassword.submit')}
         </button>

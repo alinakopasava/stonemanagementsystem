@@ -1,5 +1,4 @@
 import { useState, type FormEvent } from 'react';
-import { Mail, Phone, Send, User } from 'lucide-react';
 import { useTranslation } from '@application/i18n/i18n-context';
 import { submitContactMessage } from '@infrastructure/api/contact-api';
 import { isRateLimited } from '@infrastructure/api/api-client';
@@ -10,7 +9,13 @@ const initialForm = {
   name: '',
   email: '',
   phone: '',
-  message: ''
+  message: '',
+  /**
+   * Bot trap. Hidden from sight, from the tab order and from screen readers, so
+   * nothing but an automated form filler ever puts a value in it. The server
+   * drops any message that arrives with this field set.
+   */
+  website: ''
 };
 
 export const ContactForm = () => {
@@ -38,7 +43,8 @@ export const ContactForm = () => {
         name: form.name.trim(),
         email: form.email.trim(),
         phone: form.phone.trim() || undefined,
-        message: form.message.trim()
+        message: form.message.trim(),
+        website: form.website
       });
       setStatus('success');
       setFeedback(t('contact.success'));
@@ -52,98 +58,121 @@ export const ContactForm = () => {
   const isSubmitting = status === 'submitting';
 
   return (
-    <section className="mx-auto w-full max-w-6xl px-6 py-10" id="contact">
-      <div className="rounded-2xl border border-slate-700/60 bg-slate-900/70 p-6 md:p-8">
-        <h2 className="font-serif text-3xl text-gray-100">{t('contact.title')}</h2>
-        <p className="mt-2 max-w-2xl text-slate-300">{t('contact.subtitle')}</p>
+    <section className="py-16 sm:py-24" id="contact">
+      <div className="mx-auto w-full max-w-2xl px-4 text-center sm:px-6">
+        <h2 className="u-display text-3xl text-ink sm:text-4xl">{t('contact.title')}</h2>
+        <p className="mx-auto mt-3 max-w-prose text-ink-2">{t('contact.subtitle')}</p>
 
-        <form className="mt-6 grid gap-5 md:grid-cols-2" onSubmit={handleSubmit} noValidate>
-          <label className="space-y-2">
-            <span className="flex items-center gap-2 text-sm text-slate-200">
-              <User className="h-4 w-4 text-amber-300" />
-              {t('contact.fullName')}
-            </span>
+        <form
+          className="mt-10 grid gap-6 text-left sm:grid-cols-2"
+          onSubmit={handleSubmit}
+          noValidate
+        >
+          <div aria-hidden="true" className="hidden">
+            <label htmlFor="contact-website">Website</label>
             <input
+              id="contact-website"
+              type="text"
+              name="website"
+              tabIndex={-1}
+              autoComplete="off"
+              value={form.website}
+              onChange={updateField('website')}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="u-label" htmlFor="contact-name">
+              {t('contact.fullName')}
+            </label>
+            <input
+              id="contact-name"
               type="text"
               required
               autoComplete="name"
-              className="w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-gray-100 focus:border-amber-300 focus:outline-none"
+              className="u-field"
               value={form.name}
               onChange={updateField('name')}
               placeholder={t('contact.fullNamePlaceholder')}
               disabled={isSubmitting}
             />
-          </label>
+          </div>
 
-          <label className="space-y-2">
-            <span className="flex items-center gap-2 text-sm text-slate-200">
-              <Mail className="h-4 w-4 text-amber-300" />
+          <div className="flex flex-col gap-2">
+            <label className="u-label" htmlFor="contact-email">
               {t('contact.email')}
-            </span>
+            </label>
             <input
+              id="contact-email"
               type="email"
               required
               autoComplete="email"
-              className="w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-gray-100 focus:border-amber-300 focus:outline-none"
+              className="u-field"
               value={form.email}
               onChange={updateField('email')}
               placeholder={t('contact.emailPlaceholder')}
               disabled={isSubmitting}
             />
-          </label>
+          </div>
 
-          <label className="space-y-2 md:col-span-2">
-            <span className="flex items-center gap-2 text-sm text-slate-200">
-              <Phone className="h-4 w-4 text-amber-300" />
+          <div className="flex flex-col gap-2 sm:col-span-2">
+            <label className="u-label" htmlFor="contact-phone">
               {t('contact.phone')}{' '}
-              <span className="text-slate-500">{t('contact.phoneOptional')}</span>
-            </span>
+              <span className="font-normal text-ink-3">{t('contact.phoneOptional')}</span>
+            </label>
             <input
+              id="contact-phone"
               type="tel"
               autoComplete="tel"
-              className="w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-gray-100 focus:border-amber-300 focus:outline-none"
+              className="u-field"
               value={form.phone}
               onChange={updateField('phone')}
               placeholder={t('contact.phonePlaceholder')}
               disabled={isSubmitting}
             />
-          </label>
+          </div>
 
-          <label className="space-y-2 md:col-span-2">
-            <span className="text-sm text-slate-200">{t('contact.message')}</span>
+          <div className="flex flex-col gap-2 sm:col-span-2">
+            <label className="u-label" htmlFor="contact-message">
+              {t('contact.message')}
+            </label>
             <textarea
+              id="contact-message"
               required
               rows={6}
-              className="w-full resize-y rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-gray-100 focus:border-amber-300 focus:outline-none"
+              className="u-field resize-y"
               value={form.message}
               onChange={updateField('message')}
               placeholder={t('contact.messagePlaceholder')}
               disabled={isSubmitting}
             />
-          </label>
+          </div>
 
-          <div className="md:col-span-2 flex flex-wrap items-center justify-between gap-4">
-            {feedback ? (
-              <p
-                className={`text-sm ${
-                  status === 'success' ? 'text-emerald-300' : 'text-rose-300'
-                }`}
-                role={status === 'error' ? 'alert' : undefined}
-              >
-                {feedback}
-              </p>
-            ) : (
-              <p className="text-xs text-slate-400">{t('contact.privacyHint')}</p>
-            )}
+          {/* The outcome sits directly above the control that produced it,
+              so the reader does not have to hunt for it after submitting. */}
+          {feedback ? (
+            <p
+              className={[
+                'border px-4 py-3 text-sm sm:col-span-2',
+                status === 'success'
+                  ? 'border-positive bg-positive-soft text-positive'
+                  : 'border-critical bg-critical-soft text-critical'
+              ].join(' ')}
+              role={status === 'error' ? 'alert' : 'status'}
+            >
+              {feedback}
+            </p>
+          ) : null}
 
+          <div className="flex flex-col items-center gap-4 pt-2 text-center sm:col-span-2">
             <button
               type="submit"
-              className="inline-flex items-center gap-2 rounded-md bg-gray-100 px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-white disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
+              className="u-btn u-btn-primary w-full px-6 py-3.5 sm:w-auto"
               disabled={isSubmitting}
             >
-              <Send className="h-4 w-4" />
               {isSubmitting ? t('contact.sending') : t('contact.send')}
             </button>
+            <p className="max-w-prose text-xs text-ink-3">{t('contact.privacyHint')}</p>
           </div>
         </form>
       </div>

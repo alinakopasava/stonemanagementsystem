@@ -5,6 +5,8 @@ export interface ContactMessagePayload {
   email: string;
   phone?: string;
   message: string;
+  /** Honeypot: always empty from a real form. The server drops it if filled. */
+  website?: string;
 }
 
 interface ContactMessageResponse {

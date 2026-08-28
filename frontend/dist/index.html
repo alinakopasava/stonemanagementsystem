@@ -3,11 +3,40 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Signature Stone | Monument Catalog & Orders</title>
-    <script type="module" crossorigin src="/assets/index-C1jSH61T.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-B6Pf9Zad.css">
+    <!-- The ground is painted before React boots so the first frame is not a
+         white flash on a dark-mode device. Values track --canvas in
+         src/presentation/design/tokens.css. -->
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f0f1ee" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#101413" media="(prefers-color-scheme: dark)" />
+    <meta
+      name="description"
+      content="Design a monument online: choose the shape, stone, size and finish, and see the result in 3D before it is made."
+    />
+    <!-- The display face is used above the fold, so it is fetched alongside
+         the document rather than after the stylesheet parses. -->
+    <link
+      rel="preload"
+      href="/fonts/pt-serif-700.woff"
+      as="font"
+      type="font/woff"
+      crossorigin
+    />
+    <style>
+      html {
+        background: #f0f1ee;
+      }
+      @media (prefers-color-scheme: dark) {
+        html {
+          background: #101413;
+        }
+      }
+    </style>
+    <title>Signature Stone | Monument Catalog &amp; Orders</title>
+    <script type="module" crossorigin src="/assets/index-Bx8E3OHD.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BqPNGxeh.css">
   </head>
-  <body class="bg-slate-900">
-    <div id="root"></div>
+  <body>
+    <div id="root"></div>
   </body>
 </html>

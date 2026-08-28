@@ -34,5 +34,9 @@ export const monumentPriceByn = (
   shape?: MonumentShape
 ) => {
   const base = shape ? (SHAPE_BASE_PRICE_BYN[shape] ?? 0) : 0;
-  return Math.round((base + monumentAreaM2(dimensions) * pricePerM2) * 100) / 100;
+  // A stone with no catalogue rate drops out of the sum instead of turning the
+  // whole price into NaN: an incomplete figure the office completes by hand is
+  // less damaging than a broken price shown to the customer mid-order.
+  const rate = Number.isFinite(pricePerM2) ? pricePerM2 : 0;
+  return Math.round((base + monumentAreaM2(dimensions) * rate) * 100) / 100;
 };

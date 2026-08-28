@@ -9,8 +9,7 @@ const {
   sessionCookies,
   makeProfile,
   resetSupabaseMock,
-  setTables,
-  stubAuditLogs
+  setTables
 } = await import('../setup/harness.js');
 
 const ADMIN_ID = 'admin-1';
@@ -27,17 +26,8 @@ const asAdmin = () => {
   });
 };
 
-const auditEntries = () => {
-  const entries = [];
-  setTables({
-    audit_logs: { insert: (ctx) => (entries.push(ctx.payload), { data: { id: 'a' }, error: null }) }
-  });
-  return entries;
-};
-
 beforeEach(() => {
   resetSupabaseMock();
-  stubAuditLogs();
 });
 
 /* ------------------------------------------------------------------ */
@@ -90,9 +80,8 @@ describe('PATCH /api/admin/users/:id/role', () => {
     expect(writes).toHaveLength(0);
   });
 
-  it('changes another user\'s role and records it in the audit log', async () => {
+  it('changes another user\'s role', async () => {
     asAdmin();
-    const entries = auditEntries();
     setTables({
       profiles: {
         select: (ctx) =>
@@ -109,12 +98,6 @@ describe('PATCH /api/admin/users/:id/role', () => {
 
     expect(response.status).toBe(200);
     expect(response.body.data).toEqual({ id: 'other-user', role: 'monter' });
-
-    const entry = entries.find((e) => e.action === 'user.role_changed');
-    expect(entry).toBeDefined();
-    expect(entry.actor_id).toBe(ADMIN_ID);
-    expect(entry.entity_id).toBe('other-user');
-    expect(entry.metadata).toEqual({ role: 'monter' });
   });
 
   it('lets an admin keep their own admin role (the self-check is not a blanket ban)', async () => {
@@ -152,9 +135,8 @@ describe('PATCH /api/admin/orders/:id/status', () => {
     expect(response.status).toBe(400);
   });
 
-  it.each(['oczekujące', 'w_realizacji', 'zrealizowane', 'anulowane'])(
-    'accepts the %s status',
-    async (status) => {
+  it('accepts every status of the lifecycle', async () => {
+    for (const status of ['oczekujące', 'w_realizacji', 'zrealizowane', 'anulowane']) {
       asAdmin();
       setTables({
         orders: { update: () => ({ data: { id: 'order-1', status }, error: null }) }
@@ -167,7 +149,7 @@ describe('PATCH /api/admin/orders/:id/status', () => {
       expect(response.status).toBe(200);
       expect(response.body.data.status).toBe(status);
     }
-  );
+  });
 });
 
 /* ------------------------------------------------------------------ */
@@ -247,7 +229,6 @@ describe('POST /api/admin/order-cards/:id/convert', () => {
 
   it('answers 201 with the initial status on a correct conversion', async () => {
     asAdmin();
-    const entries = auditEntries();
     const inserts = [];
     setTables({
       ...cardFound(),
@@ -271,7 +252,6 @@ describe('POST /api/admin/order-cards/:id/convert', () => {
     // The order inherits the card's owner, not the acting admin.
     expect(inserts[0].user_id).toBe('user-1');
     expect(inserts[0].order_card_id).toBe('card-1');
-    expect(entries.some((e) => e.action === 'order_card.converted')).toBe(true);
   });
 });
 

@@ -15,14 +15,12 @@ const {
   hasAttr,
   resetSupabaseMock,
   setTables,
-  stubAuditLogs,
   ACCESS_COOKIE,
   REFRESH_COOKIE
 } = await import('../setup/harness.js');
 
 beforeEach(() => {
   resetSupabaseMock();
-  stubAuditLogs();
 });
 
 /* ------------------------------------------------------------------ */
@@ -144,19 +142,33 @@ const ADMIN_ENDPOINTS = [
   ['get', '/api/admin/users'],
   ['get', '/api/admin/orders'],
   ['get', '/api/admin/order-cards'],
-  ['get', '/api/admin/contact-messages']
+  ['get', '/api/admin/contact-messages'],
+  // Handing work to the crew is an office decision, not an installer's.
+  ['post', '/api/admin/orders/3f0d9a1e-4c2b-4f8a-9e7d-1b2c3d4e5f60/hand-over']
 ];
 
 describe('role-based access control', () => {
-  describe.each([['klient'], ['monter']])('a %s account', (role) => {
-    it.each(ADMIN_ENDPOINTS)('is refused %s %s with 403', async (method, path) => {
-      signInAs(role);
+  // Every admin endpoint is listed because each one is wrapped separately and a
+  // route left unguarded would go unnoticed; the second non-admin role is
+  // checked once rather than against the whole list, since the middleware only
+  // ever asks whether the role is in the list.
+  it('refuses a klient every admin endpoint with 403', async () => {
+    signInAs('klient');
 
+    for (const [method, path] of ADMIN_ENDPOINTS) {
       const response = await api(app, { cookies: sessionCookies() })[method](path);
 
-      expect(response.status).toBe(403);
+      expect(response.status, path).toBe(403);
       expect(response.body).toEqual({ message: 'Insufficient permissions.' });
-    });
+    }
+  });
+
+  it('refuses a monter the user list with 403, staff though they are', async () => {
+    signInAs('monter');
+
+    const response = await api(app, { cookies: sessionCookies() }).get('/api/admin/users');
+
+    expect(response.status).toBe(403);
   });
 
   it('lets an admin read the user list', async () => {
@@ -191,10 +203,17 @@ describe('role-based access control', () => {
 
   it('refuses a klient the same installation worklist with 403', async () => {
     signInAs('klient');
+    const client = api(app, { cookies: sessionCookies() });
 
-    const response = await api(app, { cookies: sessionCookies() }).get('/api/installation-cards');
+    expect((await client.get('/api/installation-cards')).status).toBe(403);
 
-    expect(response.status).toBe(403);
+    // Reading the worklist and writing a site report are guarded together —
+    // a client must not be able to file work they did not do.
+    const write = await client
+      .put('/api/installation-cards/3f0d9a1e-4c2b-4f8a-9e7d-1b2c3d4e5f60/report')
+      .send({ status: 'zrealizowane' });
+
+    expect(write.status).toBe(403);
   });
 
   it('answers 401, not 403, when the worklist is requested without a session', async () => {

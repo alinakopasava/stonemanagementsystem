@@ -91,6 +91,7 @@ export type TranslationKey =
   | 'designer.inscriptionStyle'
   | 'designer.inscriptionStyle.preview'
   | 'designer.estimatedCost'
+  | 'designer.rateStale'
   | 'designer.estimatedCostHint'
   | 'designer.placeOrder'
   | 'designer.signInToOrder'
@@ -284,8 +285,11 @@ export type TranslationKey =
   | 'configurator.signInButton'
   | 'configurator.success'
   | 'configurator.error'
-  | 'hero.imageAlt'
+  | 'hero.tagline'
+  | 'hero.motto'
   | 'featured.imageAlt'
+  | 'featured.scrollPrev'
+  | 'featured.scrollNext'
   | 'admin.common.refresh'
   | 'admin.common.loading'
   | 'admin.common.unknown'
@@ -308,6 +312,31 @@ export type TranslationKey =
   | 'admin.orders.status.inProgress'
   | 'admin.orders.status.completed'
   | 'admin.orders.status.cancelled'
+  | 'admin.orders.handOver'
+  | 'admin.orders.handingOver'
+  | 'admin.orders.handedOver'
+  | 'admin.orders.handOverError'
+  | 'admin.orders.notHandedOver'
+  | 'admin.field.clientSection'
+  | 'admin.field.orderSection'
+  | 'admin.field.configSection'
+  | 'admin.field.registeredName'
+  | 'admin.field.contractName'
+  | 'admin.field.phone'
+  | 'admin.field.email'
+  | 'admin.field.registeredAt'
+  | 'admin.field.price'
+  | 'admin.field.installationAddress'
+  | 'admin.field.contractDetails'
+  | 'admin.field.deadline'
+  | 'admin.field.passport'
+  | 'admin.field.updated'
+  | 'admin.field.orderCard'
+  | 'admin.field.category'
+  | 'admin.field.pricePerM2'
+  | 'admin.field.material'
+  | 'admin.field.notProvided'
+  | 'admin.field.submittedAt'
   | 'admin.orderCards.title'
   | 'admin.orderCards.subtitle'
   | 'admin.orderCards.loadError'
@@ -386,13 +415,63 @@ export type TranslationKey =
   | 'installer.filter.all'
   | 'installer.loadError'
   | 'installer.empty'
+  | 'installer.emptyFilter'
   | 'installer.cardNumber'
   | 'installer.unknownClient'
   | 'installer.address'
   | 'installer.noAddress'
   | 'installer.deadline'
   | 'installer.noDeadline'
-  | 'installer.noDetails';
+  | 'installer.noDetails'
+  | 'installer.reportSection'
+  | 'installer.workStatus'
+  | 'installer.workerComments'
+  | 'installer.workerCommentsPlaceholder'
+  | 'installer.photoEvidence'
+  | 'installer.choosePhoto'
+  | 'installer.uploading'
+  | 'installer.photoHint'
+  | 'installer.replacePhoto'
+  | 'installer.completedAt'
+  | 'installer.save'
+  | 'installer.saving'
+  | 'installer.saved'
+  | 'installer.saveError'
+  | 'installer.openPhoto'
+  | 'installer.notReported'
+  | 'myOrders.title'
+  | 'myOrders.subtitle'
+  | 'myOrders.refresh'
+  | 'myOrders.loading'
+  | 'myOrders.loadError'
+  | 'myOrders.empty'
+  | 'myOrders.emptyHint'
+  | 'myOrders.emptyCta'
+  | 'myOrders.submitted'
+  | 'myOrders.reference'
+  | 'myOrders.noDetails'
+  | 'myOrders.unknownMaterial'
+  | 'myOrders.configSection'
+  | 'myOrders.orderSection'
+  | 'myOrders.awaitingReview'
+  | 'myOrders.material'
+  | 'myOrders.category'
+  | 'myOrders.dimensions'
+  | 'myOrders.finish'
+  | 'myOrders.inscription'
+  | 'myOrders.price'
+  | 'myOrders.deadline'
+  | 'myOrders.address'
+  | 'myOrders.confirmedAt'
+  | 'myOrders.notProvided'
+  | 'myOrders.status.awaiting'
+  | 'myOrders.status.pending'
+  | 'myOrders.status.inProgress'
+  | 'myOrders.status.completed'
+  | 'myOrders.status.cancelled'
+  | 'header.myOrders'
+  | 'header.openMenu'
+  | 'header.closeMenu';
 
 type Dictionary = Record<TranslationKey, string>;
 
@@ -405,7 +484,7 @@ const en: Dictionary = {
   'header.signOutError': 'Could not sign out. Check your connection and try again.',
   'header.signedInAs': 'Signed in as',
   'header.admin': 'Admin',
-  'header.installer': 'Installations',
+  'header.installer': 'Installation cards',
   'header.account': 'Account',
   'header.language': 'Language',
 
@@ -473,6 +552,7 @@ const en: Dictionary = {
   'designer.dates': 'Dates',
   'designer.inscriptionStyle': 'Inscription style',
   'designer.inscriptionStyle.preview': 'Preview',
+  'designer.rateStale': 'The exchange rate could not be refreshed, so this conversion may be out of date. The price in roubles is exact.',
   'designer.estimatedCost': 'Estimated material cost',
   'designer.estimatedCostHint':
     'The final price may include engraving and installation. Our team will confirm it.',
@@ -491,7 +571,7 @@ const en: Dictionary = {
   'inscription.style.classic.desc': 'Elegant serif. Formal and balanced.',
   'inscription.style.elegant.desc': 'Refined italic serif. Soft and warm.',
   'inscription.style.script.desc': 'Flowing handwritten cursive.',
-  'inscription.style.gothic.desc': 'Traditional blackletter. Solemn and formal.',
+  'inscription.style.gothic.desc': 'Ornate old-world lettering. Solemn and formal.',
 
   'auth.email': 'Email',
   'auth.password': 'Password',
@@ -556,12 +636,12 @@ const en: Dictionary = {
 
   'catalog.title': 'Monument catalog',
   'catalog.subtitle': 'Choose a stone to preview prices, then browse the monument designs.',
-  'catalog.priceFrom': 'from {price} PLN / m²',
+  'catalog.priceFrom': 'from {price} USD / m²',
   'catalog.footer': 'Signature Stone. Memorial catalog.',
   'catalog.material.label': 'Stone material',
-  'catalog.material.pricePerM2': '{price} PLN / m²',
+  'catalog.material.pricePerM2': '{price} USD / m²',
   'catalog.designCta': 'Design in 3D',
-  'catalog.basePriceFrom': 'from {price} PLN',
+  'catalog.basePriceFrom': 'from {price} USD',
   'catalog.loading': 'Loading catalog…',
   'catalog.previewLoading': 'Loading 3D preview…',
   'catalog.previewError': 'Preview is taking too long. Scroll away and back to retry.',
@@ -648,24 +728,24 @@ const en: Dictionary = {
   'designer.presets.classic.label': 'Classic',
   'designer.presets.classic.inscription': 'Forever in our hearts',
   'designer.presets.classic.name': 'Maria Nowacka',
-  'designer.presets.classic.dates': '1948 — 2022',
+  'designer.presets.classic.dates': '1948 - 2022',
   'designer.presets.short.label': 'Short',
   'designer.presets.short.inscription': 'Rest in peace',
   'designer.presets.short.name': 'Mary Brown',
-  'designer.presets.short.dates': '1956 — 2021',
+  'designer.presets.short.dates': '1956 - 2021',
   'designer.presets.family.label': 'Family',
   'designer.presets.family.inscription': 'To our beloved Mother\nand Grandmother',
   'designer.presets.family.name': 'Sophia Green',
-  'designer.presets.family.dates': '1939 — 2019',
+  'designer.presets.family.dates': '1939 - 2019',
   'designer.presets.poetic.label': 'Poetic',
   'designer.presets.poetic.inscription': 'Your kindness and love\nremain with us',
   'designer.presets.poetic.name': 'Peter Walker',
-  'designer.presets.poetic.dates': '1962 — 2020',
+  'designer.presets.poetic.dates': '1962 - 2020',
 
   'designer.namePlaceholder': 'John A. Smith',
-  'designer.datesPlaceholder': '1942 — 2018',
-  'designer.pricePerM2Unit': 'PLN / m²',
-  'designer.priceUnit': 'PLN',
+  'designer.datesPlaceholder': '1942 - 2018',
+  'designer.pricePerM2Unit': 'USD / m²',
+  'designer.priceUnit': 'USD',
   'designer.units.cm': 'cm',
   'designer.tab.form': 'Form',
   'designer.tab.size': 'Dimensions',
@@ -690,8 +770,11 @@ const en: Dictionary = {
   'configurator.success': 'Order submitted.',
   'configurator.error': 'Failed to submit order.',
 
-  'hero.imageAlt': 'Monument design preview',
+  'hero.tagline': 'Premium monuments & professional installations',
+  'hero.motto': 'Honoring their legacy, caring for their resting place.',
   'featured.imageAlt': '{name} stone',
+  'featured.scrollPrev': 'Show previous stones',
+  'featured.scrollNext': 'Show next stones',
 
   'admin.common.refresh': 'Refresh',
   'admin.common.loading': 'Loading...',
@@ -699,6 +782,27 @@ const en: Dictionary = {
   'admin.common.cancel': 'Cancel',
   'admin.common.delete': 'Delete',
   'admin.common.close': 'Close',
+
+  'admin.field.clientSection': 'Customer',
+  'admin.field.orderSection': 'Order and contract',
+  'admin.field.configSection': 'What the customer configured',
+  'admin.field.registeredName': 'Registered name',
+  'admin.field.contractName': 'Name on contract',
+  'admin.field.phone': 'Phone',
+  'admin.field.email': 'Email',
+  'admin.field.registeredAt': 'Registered',
+  'admin.field.price': 'Price',
+  'admin.field.installationAddress': 'Installation address',
+  'admin.field.contractDetails': 'Contract details',
+  'admin.field.deadline': 'Deadline',
+  'admin.field.passport': 'Passport',
+  'admin.field.updated': 'Updated',
+  'admin.field.orderCard': 'Order card',
+  'admin.field.category': 'Category',
+  'admin.field.pricePerM2': 'Price/m²',
+  'admin.field.material': 'Material',
+  'admin.field.notProvided': 'Not provided',
+  'admin.field.submittedAt': 'Submitted',
 
   'admin.orders.title': 'Orders',
   'admin.orders.subtitle': 'All customer orders. Update the status as work progresses.',
@@ -716,6 +820,11 @@ const en: Dictionary = {
   'admin.orders.status.inProgress': 'In progress',
   'admin.orders.status.completed': 'Completed',
   'admin.orders.status.cancelled': 'Cancelled',
+  'admin.orders.handOver': 'Hand over to installer',
+  'admin.orders.handingOver': 'Handing over...',
+  'admin.orders.handedOver': 'With the installer',
+  'admin.orders.handOverError': 'Failed to hand the order over.',
+  'admin.orders.notHandedOver': 'Not handed over',
 
   'admin.orderCards.title': 'Order cards',
   'admin.orderCards.subtitle':
@@ -799,14 +908,64 @@ const en: Dictionary = {
   'installer.readOnly': 'Read-only view',
   'installer.filter.all': 'All',
   'installer.loadError': 'Failed to load installation cards.',
-  'installer.empty': 'No installation cards match this filter.',
+  'installer.empty': 'No jobs handed over to the crew yet.',
+  'installer.emptyFilter': 'No jobs match this filter.',
   'installer.cardNumber': 'Order',
   'installer.unknownClient': 'Client not provided',
   'installer.address': 'Installation address',
   'installer.noAddress': 'Address not provided',
   'installer.deadline': 'Deadline',
   'installer.noDeadline': 'Date not scheduled',
-  'installer.noDetails': 'No monument details.'
+  'installer.noDetails': 'No monument details.',
+  'installer.reportSection': 'Installation report',
+  'installer.workStatus': 'Work status',
+  'installer.workerComments': 'Crew notes',
+  'installer.workerCommentsPlaceholder': 'What was done, what is still missing...',
+  'installer.photoEvidence': 'Photo evidence',
+  'installer.choosePhoto': 'Choose a photo',
+  'installer.uploading': 'Uploading...',
+  'installer.photoHint': 'JPEG, PNG or WebP, up to 8 MB',
+  'installer.replacePhoto': 'Replace photo',
+  'installer.completedAt': 'Completed at',
+  'installer.save': 'Save report',
+  'installer.saving': 'Saving...',
+  'installer.saved': 'Report saved',
+  'installer.saveError': 'Failed to save the report.',
+  'installer.openPhoto': 'Open photo',
+  'installer.notReported': 'Not reported yet',
+  'myOrders.title': 'My orders',
+  'myOrders.subtitle': 'Everything you have ordered, newest first.',
+  'myOrders.refresh': 'Refresh',
+  'myOrders.loading': 'Loading your orders...',
+  'myOrders.loadError': 'Failed to load your orders.',
+  'myOrders.empty': 'You have no orders yet.',
+  'myOrders.emptyHint': 'Design a monument in the configurator and your order will show up here.',
+  'myOrders.emptyCta': 'Open the configurator',
+  'myOrders.submitted': 'Submitted:',
+  'myOrders.reference': 'Reference',
+  'myOrders.noDetails': 'No configuration saved for this order.',
+  'myOrders.unknownMaterial': 'Unknown material',
+  'myOrders.configSection': 'Your configuration',
+  'myOrders.orderSection': 'Order',
+  'myOrders.awaitingReview': 'We have received your order and will confirm the price and the deadline shortly.',
+  'myOrders.material': 'Material',
+  'myOrders.category': 'Category',
+  'myOrders.dimensions': 'Dimensions',
+  'myOrders.finish': 'Finish',
+  'myOrders.inscription': 'Inscription',
+  'myOrders.price': 'Price',
+  'myOrders.deadline': 'Deadline',
+  'myOrders.address': 'Installation address',
+  'myOrders.confirmedAt': 'Confirmed',
+  'myOrders.notProvided': 'Not agreed yet',
+  'myOrders.status.awaiting': 'Order received',
+  'myOrders.status.pending': 'Collecting details',
+  'myOrders.status.inProgress': 'In progress',
+  'myOrders.status.completed': 'Completed',
+  'myOrders.status.cancelled': 'Cancelled',
+  'header.myOrders': 'My orders',
+  'header.openMenu': 'Open menu',
+  'header.closeMenu': 'Close menu',
 };
 
 const pl: Dictionary = {
@@ -818,7 +977,7 @@ const pl: Dictionary = {
   'header.signOutError': 'Nie udało się wylogować. Sprawdź połączenie i spróbuj ponownie.',
   'header.signedInAs': 'Zalogowano jako',
   'header.admin': 'Administracja',
-  'header.installer': 'Montaże',
+  'header.installer': 'Karty instalacyjne',
   'header.account': 'Konto',
   'header.language': 'Język',
 
@@ -886,6 +1045,7 @@ const pl: Dictionary = {
   'designer.dates': 'Daty',
   'designer.inscriptionStyle': 'Styl napisu',
   'designer.inscriptionStyle.preview': 'Podgląd',
+  'designer.rateStale': 'Nie udało się odświeżyć kursu, więc przeliczenie może być nieaktualne. Cena w rublach jest dokładna.',
   'designer.estimatedCost': 'Szacowany koszt materiału',
   'designer.estimatedCostHint':
     'Cena końcowa może obejmować grawer i montaż. Nasz zespół ją potwierdzi.',
@@ -904,7 +1064,7 @@ const pl: Dictionary = {
   'inscription.style.classic.desc': 'Elegancka antykwa. Formalna i wyważona.',
   'inscription.style.elegant.desc': 'Wyrafinowana kursywa. Miękka i ciepła.',
   'inscription.style.script.desc': 'Płynne pismo ręczne.',
-  'inscription.style.gothic.desc': 'Tradycyjna fraktura. Uroczysta i dostojna.',
+  'inscription.style.gothic.desc': 'Ozdobne pismo dawne. Uroczyste i dostojne.',
 
   'auth.email': 'E-mail',
   'auth.password': 'Hasło',
@@ -1057,29 +1217,29 @@ const pl: Dictionary = {
   'designer.photo.crop': 'Kadr na pomnik',
   'designer.photo.crop.reset': 'Resetuj kadr',
   'designer.photo.crop.hint':
-    'Przeciągnij, aby przesunąć. Kółko myszy lub suwak — przybliżenie. Ramka pokazuje obszar widoczny na kamieniu.',
+    'Przeciągnij, aby przesunąć. Kółko myszy lub suwak: przybliżenie. Ramka pokazuje obszar widoczny na kamieniu.',
   'designer.photo.crop.zoom': 'Przybliżenie',
 
   'designer.presets.title': 'Gotowe teksty',
   'designer.presets.classic.label': 'Klasyczny',
   'designer.presets.classic.inscription': 'Na zawsze w naszych sercach',
   'designer.presets.classic.name': 'Maria Nowacka',
-  'designer.presets.classic.dates': '1948 — 2022',
+  'designer.presets.classic.dates': '1948 - 2022',
   'designer.presets.short.label': 'Krótki',
   'designer.presets.short.inscription': 'Spoczywaj w pokoju',
   'designer.presets.short.name': 'Maria Nowak',
-  'designer.presets.short.dates': '1956 — 2021',
+  'designer.presets.short.dates': '1956 - 2021',
   'designer.presets.family.label': 'Rodzinny',
   'designer.presets.family.inscription': 'Kochanej Mamie\ni Babci',
   'designer.presets.family.name': 'Zofia Zielińska',
-  'designer.presets.family.dates': '1939 — 2019',
+  'designer.presets.family.dates': '1939 - 2019',
   'designer.presets.poetic.label': 'Poetycki',
   'designer.presets.poetic.inscription': 'Twoje dobro i miłość\npozostaną z nami',
   'designer.presets.poetic.name': 'Piotr Wiśniewski',
-  'designer.presets.poetic.dates': '1962 — 2020',
+  'designer.presets.poetic.dates': '1962 - 2020',
 
   'designer.namePlaceholder': 'Jan Kowalski',
-  'designer.datesPlaceholder': '1942 — 2018',
+  'designer.datesPlaceholder': '1942 - 2018',
   'designer.pricePerM2Unit': 'PLN / m²',
   'designer.priceUnit': 'PLN',
   'designer.units.cm': 'cm',
@@ -1106,8 +1266,11 @@ const pl: Dictionary = {
   'configurator.success': 'Zamówienie złożone.',
   'configurator.error': 'Nie udało się złożyć zamówienia.',
 
-  'hero.imageAlt': 'Podgląd projektu pomnika',
+  'hero.tagline': 'Pomniki z najwyższej półki i profesjonalny montaż',
+  'hero.motto': 'Czcimy ich pamięć, dbamy o miejsce spoczynku.',
   'featured.imageAlt': 'Kamień {name}',
+  'featured.scrollPrev': 'Pokaż poprzednie kamienie',
+  'featured.scrollNext': 'Pokaż następne kamienie',
 
   'admin.common.refresh': 'Odśwież',
   'admin.common.loading': 'Wczytywanie...',
@@ -1115,6 +1278,27 @@ const pl: Dictionary = {
   'admin.common.cancel': 'Anuluj',
   'admin.common.delete': 'Usuń',
   'admin.common.close': 'Zamknij',
+
+  'admin.field.clientSection': 'Klient',
+  'admin.field.orderSection': 'Zamówienie i umowa',
+  'admin.field.configSection': 'Co skonfigurował klient',
+  'admin.field.registeredName': 'Imię z rejestracji',
+  'admin.field.contractName': 'Imię i nazwisko z umowy',
+  'admin.field.phone': 'Telefon',
+  'admin.field.email': 'E-mail',
+  'admin.field.registeredAt': 'Rejestracja',
+  'admin.field.price': 'Cena',
+  'admin.field.installationAddress': 'Adres montażu',
+  'admin.field.contractDetails': 'Szczegóły umowy',
+  'admin.field.deadline': 'Termin',
+  'admin.field.passport': 'Paszport',
+  'admin.field.updated': 'Aktualizacja',
+  'admin.field.orderCard': 'Karta zamówienia',
+  'admin.field.category': 'Kategoria',
+  'admin.field.pricePerM2': 'Cena/m²',
+  'admin.field.material': 'Materiał',
+  'admin.field.notProvided': 'Nie podano',
+  'admin.field.submittedAt': 'Złożono',
 
   'admin.orders.title': 'Zamówienia',
   'admin.orders.subtitle':
@@ -1133,6 +1317,11 @@ const pl: Dictionary = {
   'admin.orders.status.inProgress': 'W realizacji',
   'admin.orders.status.completed': 'Zrealizowane',
   'admin.orders.status.cancelled': 'Anulowane',
+  'admin.orders.handOver': 'Przekaż do montera',
+  'admin.orders.handingOver': 'Przekazywanie...',
+  'admin.orders.handedOver': 'U montera',
+  'admin.orders.handOverError': 'Nie udało się przekazać zamówienia.',
+  'admin.orders.notHandedOver': 'Nieprzekazane',
 
   'admin.orderCards.title': 'Karty zamówień',
   'admin.orderCards.subtitle':
@@ -1222,14 +1411,64 @@ const pl: Dictionary = {
   'installer.readOnly': 'Widok tylko do odczytu',
   'installer.filter.all': 'Wszystkie',
   'installer.loadError': 'Nie udało się wczytać kart instalacyjnych.',
-  'installer.empty': 'Brak kart instalacyjnych pasujących do filtra.',
+  'installer.empty': 'Biuro nie przekazało jeszcze żadnego zlecenia.',
+  'installer.emptyFilter': 'Żadne zlecenie nie pasuje do filtra.',
   'installer.cardNumber': 'Zamówienie',
   'installer.unknownClient': 'Nie podano klienta',
   'installer.address': 'Adres montażu',
   'installer.noAddress': 'Nie podano adresu',
   'installer.deadline': 'Termin',
   'installer.noDeadline': 'Nie ustalono terminu',
-  'installer.noDetails': 'Brak szczegółów pomnika.'
+  'installer.noDetails': 'Brak szczegółów pomnika.',
+  'installer.reportSection': 'Raport montażu',
+  'installer.workStatus': 'Status prac',
+  'installer.workerComments': 'Uwagi montera',
+  'installer.workerCommentsPlaceholder': 'Co zrobione, czego brakuje...',
+  'installer.photoEvidence': 'Dowód zdjęciowy',
+  'installer.choosePhoto': 'Wybierz zdjęcie',
+  'installer.uploading': 'Wysyłanie...',
+  'installer.photoHint': 'JPEG, PNG lub WebP, do 8 MB',
+  'installer.replacePhoto': 'Zmień zdjęcie',
+  'installer.completedAt': 'Zakończono',
+  'installer.save': 'Zapisz raport',
+  'installer.saving': 'Zapisywanie...',
+  'installer.saved': 'Raport zapisany',
+  'installer.saveError': 'Nie udało się zapisać raportu.',
+  'installer.openPhoto': 'Otwórz zdjęcie',
+  'installer.notReported': 'Brak raportu',
+  'myOrders.title': 'Moje zamówienia',
+  'myOrders.subtitle': 'Wszystko, co zamówiłeś, od najnowszych.',
+  'myOrders.refresh': 'Odśwież',
+  'myOrders.loading': 'Wczytywanie zamówień...',
+  'myOrders.loadError': 'Nie udało się wczytać zamówień.',
+  'myOrders.empty': 'Nie masz jeszcze żadnych zamówień.',
+  'myOrders.emptyHint': 'Zaprojektuj pomnik w konfiguratorze, a zamówienie pojawi się tutaj.',
+  'myOrders.emptyCta': 'Przejdź do konfiguratora',
+  'myOrders.submitted': 'Złożone:',
+  'myOrders.reference': 'Numer',
+  'myOrders.noDetails': 'Brak zapisanej konfiguracji dla tego zamówienia.',
+  'myOrders.unknownMaterial': 'Nieznany materiał',
+  'myOrders.configSection': 'Twoja konfiguracja',
+  'myOrders.orderSection': 'Zamówienie',
+  'myOrders.awaitingReview': 'Przyjęliśmy zamówienie. Wkrótce potwierdzimy cenę i termin.',
+  'myOrders.material': 'Materiał',
+  'myOrders.category': 'Kategoria',
+  'myOrders.dimensions': 'Wymiary',
+  'myOrders.finish': 'Wykończenie',
+  'myOrders.inscription': 'Napis',
+  'myOrders.price': 'Cena',
+  'myOrders.deadline': 'Termin',
+  'myOrders.address': 'Adres montażu',
+  'myOrders.confirmedAt': 'Potwierdzone',
+  'myOrders.notProvided': 'Jeszcze nieustalone',
+  'myOrders.status.awaiting': 'Zamówienie przyjęte',
+  'myOrders.status.pending': 'Zbieranie informacji',
+  'myOrders.status.inProgress': 'W realizacji',
+  'myOrders.status.completed': 'Zrealizowane',
+  'myOrders.status.cancelled': 'Anulowane',
+  'header.myOrders': 'Moje zamówienia',
+  'header.openMenu': 'Otwórz menu',
+  'header.closeMenu': 'Zamknij menu',
 };
 
 const ru: Dictionary = {
@@ -1241,7 +1480,7 @@ const ru: Dictionary = {
   'header.signOutError': 'Не удалось выйти. Проверьте подключение и повторите попытку.',
   'header.signedInAs': 'Вы вошли как',
   'header.admin': 'Администрирование',
-  'header.installer': 'Монтажи',
+  'header.installer': 'Карты монтажа',
   'header.account': 'Аккаунт',
   'header.language': 'Язык',
 
@@ -1268,7 +1507,7 @@ const ru: Dictionary = {
     'Выберите форму, камень, размеры и отделку в одном месте. Увидите результат до изготовления.',
   'landing.hero.designerCta': 'Открыть 3D-конструктор',
   'landing.hero.contactCta': 'Связаться с нами',
-  'landing.footer': 'Signature Stone. Проектируете онлайн — изготавливаем мы.',
+  'landing.footer': 'Signature Stone. Проектируете онлайн. Изготавливаем мы.',
 
   'contact.title': 'Связаться с нами',
   'contact.subtitle':
@@ -1309,6 +1548,7 @@ const ru: Dictionary = {
   'designer.dates': 'Даты',
   'designer.inscriptionStyle': 'Стиль надписи',
   'designer.inscriptionStyle.preview': 'Просмотр',
+  'designer.rateStale': 'Курс не удалось обновить, поэтому пересчёт может быть неактуальным. Цена в рублях точная.',
   'designer.estimatedCost': 'Ориентировочная стоимость материала',
   'designer.estimatedCostHint':
     'Итоговая цена может включать гравировку и установку. Команда подтвердит её отдельно.',
@@ -1327,7 +1567,7 @@ const ru: Dictionary = {
   'inscription.style.classic.desc': 'Элегантная антиква. Официальная и уравновешенная.',
   'inscription.style.elegant.desc': 'Утончённый курсив. Мягкий и тёплый.',
   'inscription.style.script.desc': 'Плавный рукописный почерк.',
-  'inscription.style.gothic.desc': 'Традиционная фрактура. Торжественная и строгая.',
+  'inscription.style.gothic.desc': 'Декоративное старинное письмо. Торжественное и строгое.',
 
   'auth.email': 'Эл. почта',
   'auth.password': 'Пароль',
@@ -1479,29 +1719,29 @@ const ru: Dictionary = {
   'designer.photo.crop': 'Кадр на памятник',
   'designer.photo.crop.reset': 'Сбросить кадр',
   'designer.photo.crop.hint':
-    'Перетащите для смещения. Колёсико или ползунок — масштаб. Рамка показывает область на камне.',
+    'Перетащите для смещения. Колёсико или ползунок: масштаб. Рамка показывает область на камне.',
   'designer.photo.crop.zoom': 'Масштаб',
 
   'designer.presets.title': 'Готовые тексты',
   'designer.presets.classic.label': 'Классический',
   'designer.presets.classic.inscription': 'Навсегда в наших сердцах',
   'designer.presets.classic.name': 'Мария Новацкая',
-  'designer.presets.classic.dates': '1948 — 2022',
+  'designer.presets.classic.dates': '1948 - 2022',
   'designer.presets.short.label': 'Короткий',
   'designer.presets.short.inscription': 'Покойся с миром',
   'designer.presets.short.name': 'Мария Петрова',
-  'designer.presets.short.dates': '1956 — 2021',
+  'designer.presets.short.dates': '1956 - 2021',
   'designer.presets.family.label': 'Семейный',
   'designer.presets.family.inscription': 'Любимой маме\nи бабушке',
   'designer.presets.family.name': 'Софья Орлова',
-  'designer.presets.family.dates': '1939 — 2019',
+  'designer.presets.family.dates': '1939 - 2019',
   'designer.presets.poetic.label': 'Поэтичный',
   'designer.presets.poetic.inscription': 'Твоя доброта и любовь\nостаются с нами',
   'designer.presets.poetic.name': 'Пётр Смирнов',
-  'designer.presets.poetic.dates': '1962 — 2020',
+  'designer.presets.poetic.dates': '1962 - 2020',
 
   'designer.namePlaceholder': 'Иван Иванов',
-  'designer.datesPlaceholder': '1942 — 2018',
+  'designer.datesPlaceholder': '1942 - 2018',
   'designer.pricePerM2Unit': 'BYN / м²',
   'designer.priceUnit': 'BYN',
   'designer.units.cm': 'см',
@@ -1528,8 +1768,11 @@ const ru: Dictionary = {
   'configurator.success': 'Заказ отправлен.',
   'configurator.error': 'Не удалось отправить заказ.',
 
-  'hero.imageAlt': 'Превью проекта памятника',
+  'hero.tagline': 'Премиальные памятники и профессиональный монтаж',
+  'hero.motto': 'Чтим их память, заботимся о месте упокоения.',
   'featured.imageAlt': 'Камень {name}',
+  'featured.scrollPrev': 'Показать предыдущие камни',
+  'featured.scrollNext': 'Показать следующие камни',
 
   'admin.common.refresh': 'Обновить',
   'admin.common.loading': 'Загрузка...',
@@ -1537,6 +1780,27 @@ const ru: Dictionary = {
   'admin.common.cancel': 'Отмена',
   'admin.common.delete': 'Удалить',
   'admin.common.close': 'Закрыть',
+
+  'admin.field.clientSection': 'Клиент',
+  'admin.field.orderSection': 'Заказ и договор',
+  'admin.field.configSection': 'Что настроил клиент',
+  'admin.field.registeredName': 'Имя при регистрации',
+  'admin.field.contractName': 'ФИО по договору',
+  'admin.field.phone': 'Телефон',
+  'admin.field.email': 'Эл. почта',
+  'admin.field.registeredAt': 'Регистрация',
+  'admin.field.price': 'Цена',
+  'admin.field.installationAddress': 'Адрес установки',
+  'admin.field.contractDetails': 'Детали договора',
+  'admin.field.deadline': 'Срок',
+  'admin.field.passport': 'Паспорт',
+  'admin.field.updated': 'Обновлено',
+  'admin.field.orderCard': 'Карта заказа',
+  'admin.field.category': 'Категория',
+  'admin.field.pricePerM2': 'Цена/м²',
+  'admin.field.material': 'Материал',
+  'admin.field.notProvided': 'Не указано',
+  'admin.field.submittedAt': 'Отправлено',
 
   'admin.orders.title': 'Заказы',
   'admin.orders.subtitle': 'Все заказы клиентов. Меняйте статус по ходу работы.',
@@ -1554,6 +1818,11 @@ const ru: Dictionary = {
   'admin.orders.status.inProgress': 'В работе',
   'admin.orders.status.completed': 'Выполнен',
   'admin.orders.status.cancelled': 'Отменён',
+  'admin.orders.handOver': 'Передать монтажнику',
+  'admin.orders.handingOver': 'Передача...',
+  'admin.orders.handedOver': 'У монтажника',
+  'admin.orders.handOverError': 'Не удалось передать заказ.',
+  'admin.orders.notHandedOver': 'Не передано',
 
   'admin.orderCards.title': 'Карточки заказов',
   'admin.orderCards.subtitle':
@@ -1643,14 +1912,64 @@ const ru: Dictionary = {
   'installer.readOnly': 'Только чтение',
   'installer.filter.all': 'Все',
   'installer.loadError': 'Не удалось загрузить карты монтажа.',
-  'installer.empty': 'Нет карт монтажа, соответствующих фильтру.',
+  'installer.empty': 'Офис пока не передал ни одного заказа.',
+  'installer.emptyFilter': 'Ни один заказ не подходит под фильтр.',
   'installer.cardNumber': 'Заказ',
   'installer.unknownClient': 'Клиент не указан',
   'installer.address': 'Адрес монтажа',
   'installer.noAddress': 'Адрес не указан',
   'installer.deadline': 'Срок',
   'installer.noDeadline': 'Дата не назначена',
-  'installer.noDetails': 'Нет данных о памятнике.'
+  'installer.noDetails': 'Нет данных о памятнике.',
+  'installer.reportSection': 'Отчёт о монтаже',
+  'installer.workStatus': 'Статус работ',
+  'installer.workerComments': 'Заметки монтажника',
+  'installer.workerCommentsPlaceholder': 'Что сделано, чего не хватает...',
+  'installer.photoEvidence': 'Фотоподтверждение',
+  'installer.choosePhoto': 'Выбрать фото',
+  'installer.uploading': 'Загрузка...',
+  'installer.photoHint': 'JPEG, PNG или WebP, до 8 МБ',
+  'installer.replacePhoto': 'Заменить фото',
+  'installer.completedAt': 'Завершено',
+  'installer.save': 'Сохранить отчёт',
+  'installer.saving': 'Сохранение...',
+  'installer.saved': 'Отчёт сохранён',
+  'installer.saveError': 'Не удалось сохранить отчёт.',
+  'installer.openPhoto': 'Открыть фото',
+  'installer.notReported': 'Отчёта пока нет',
+  'myOrders.title': 'Мои заказы',
+  'myOrders.subtitle': 'Всё, что вы заказали, начиная с последнего.',
+  'myOrders.refresh': 'Обновить',
+  'myOrders.loading': 'Загрузка заказов...',
+  'myOrders.loadError': 'Не удалось загрузить заказы.',
+  'myOrders.empty': 'У вас пока нет заказов.',
+  'myOrders.emptyHint': 'Соберите памятник в конструкторе, и заказ появится здесь.',
+  'myOrders.emptyCta': 'Открыть конструктор',
+  'myOrders.submitted': 'Отправлено:',
+  'myOrders.reference': 'Номер',
+  'myOrders.noDetails': 'Для этого заказа нет сохранённой конфигурации.',
+  'myOrders.unknownMaterial': 'Неизвестный материал',
+  'myOrders.configSection': 'Ваша конфигурация',
+  'myOrders.orderSection': 'Заказ',
+  'myOrders.awaitingReview': 'Мы получили заказ и скоро подтвердим цену и срок.',
+  'myOrders.material': 'Материал',
+  'myOrders.category': 'Категория',
+  'myOrders.dimensions': 'Размеры',
+  'myOrders.finish': 'Обработка',
+  'myOrders.inscription': 'Надпись',
+  'myOrders.price': 'Цена',
+  'myOrders.deadline': 'Срок',
+  'myOrders.address': 'Адрес монтажа',
+  'myOrders.confirmedAt': 'Подтверждено',
+  'myOrders.notProvided': 'Пока не согласовано',
+  'myOrders.status.awaiting': 'Заказ принят',
+  'myOrders.status.pending': 'Сбор информации',
+  'myOrders.status.inProgress': 'В работе',
+  'myOrders.status.completed': 'Выполнен',
+  'myOrders.status.cancelled': 'Отменён',
+  'header.myOrders': 'Мои заказы',
+  'header.openMenu': 'Открыть меню',
+  'header.closeMenu': 'Закрыть меню',
 };
 
 export const dictionaries: Record<Language, Dictionary> = { en, pl, ru };

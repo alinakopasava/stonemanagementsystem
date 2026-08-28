@@ -19,14 +19,12 @@ const {
   attrValue,
   resetSupabaseMock,
   setTables,
-  stubAuditLogs,
   ACCESS_COOKIE,
   REFRESH_COOKIE
 } = await import('../setup/harness.js');
 
 beforeEach(() => {
   resetSupabaseMock();
-  stubAuditLogs();
 });
 
 /* ------------------------------------------------------------------ */
@@ -89,21 +87,6 @@ describe('POST /api/auth/sign-in', () => {
       expect(attrValue(jar[name], 'samesite')).toBe('lax');
     }
   });
-
-  it('writes a failure audit entry that records no password', async () => {
-    const entries = [];
-    setTables({ audit_logs: { insert: (ctx) => (entries.push(ctx.payload), { data: { id: 'a' }, error: null }) } });
-    authClientSpies.signInWithPassword.mockResolvedValue({
-      data: { session: null, user: null },
-      error: { message: 'Invalid login credentials' }
-    });
-
-    await api(app).post('/api/auth/sign-in').send(credentials);
-
-    expect(entries).toHaveLength(1);
-    expect(entries[0].action).toBe('auth.sign_in_failed');
-    expect(JSON.stringify(entries[0])).not.toContain('Correct123');
-  });
 });
 
 /* ------------------------------------------------------------------ */
@@ -149,7 +132,9 @@ describe('POST /api/auth/forgot-password', () => {
 describe('POST /api/auth/sign-up', () => {
   const valid = {
     email: 'nowa@example.com',
-    password: 'Password123',
+    // Not 'Password123': the policy now rejects breached passwords, and this
+    // fixture is about the sign-up path, not about the policy.
+    password: 'Zielony8Kamien',
     firstName: 'Anna',
     lastName: 'Kowalska',
     phoneNumber: '+48111222333'
@@ -167,13 +152,47 @@ describe('POST /api/auth/sign-up', () => {
     expect(createSupabaseAuthClient).not.toHaveBeenCalled();
   });
 
-  it.each([
-    ['too short', 'Ab1'],
-    ['no digit', 'Password'],
-    ['no uppercase', 'password123'],
-    ['no lowercase', 'PASSWORD123']
-  ])('rejects a password that is %s with 400 without calling the auth module', async (_label, password) => {
-    const response = await api(app).post('/api/auth/sign-up').send({ ...valid, password });
+  it('rejects a weak password with 400 without calling the auth module', async () => {
+    const weak = ['Ab1', 'Passw0r', 'Password', 'password123', 'PASSWORD123', ''];
+
+    for (const password of weak) {
+      const response = await api(app).post('/api/auth/sign-up').send({ ...valid, password });
+
+      expect(response.status, `"${password}"`).toBe(400);
+    }
+
+    expect(authClientSpies.signUp).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The two ends of the length range, checked through the route rather than
+   * against the rule in isolation. The policy is written out once on each side
+   * of the system — the sign-up form in the client app and this service — so
+   * the boundary is asserted here as well: were the two to drift apart, the
+   * interface would advertise a password the server then refuses, or worse,
+   * accept one it should not.
+   */
+  it('accepts a password of exactly 128 characters', async () => {
+    authClientSpies.signUp.mockResolvedValue({
+      data: { user: { id: 'user-9' }, session: null },
+      error: null
+    });
+    const atLimit = `Aa1${'x'.repeat(125)}`;
+    expect(atLimit).toHaveLength(128);
+
+    const response = await api(app).post('/api/auth/sign-up').send({ ...valid, password: atLimit });
+
+    // Guards against a strict `<` at the upper bound.
+    expect(response.status).toBe(201);
+  });
+
+  it('rejects a password of 129 characters before reaching the auth module', async () => {
+    const overLimit = `Aa1${'x'.repeat(126)}`;
+    expect(overLimit).toHaveLength(129);
+
+    const response = await api(app)
+      .post('/api/auth/sign-up')
+      .send({ ...valid, password: overLimit });
 
     expect(response.status).toBe(400);
     expect(authClientSpies.signUp).not.toHaveBeenCalled();
@@ -298,10 +317,8 @@ describe('POST /api/auth/reset-password', () => {
     expect(userClientSpies.auth.updateUser).not.toHaveBeenCalled();
   });
 
-  it('accepts a compliant password and records it in the audit log', async () => {
+  it('accepts a compliant password', async () => {
     signedInAs({ id: 'user-1' });
-    const entries = [];
-    setTables({ audit_logs: { insert: (ctx) => (entries.push(ctx.payload), { data: { id: 'a' }, error: null }) } });
     userClientSpies.auth.updateUser.mockResolvedValue({
       data: { user: { id: 'user-1' } },
       error: null
@@ -312,6 +329,5 @@ describe('POST /api/auth/reset-password', () => {
       .send({ password: 'BrandNew123' });
 
     expect(response.status).toBe(200);
-    expect(entries.some((e) => e.action === 'auth.password_reset')).toBe(true);
   });
 });

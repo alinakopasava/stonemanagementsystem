@@ -57,7 +57,7 @@ export const SignInPage = () => {
       footer={
         <>
           {t('signIn.newHere')}{' '}
-          <Link to="/sign-up" className="text-amber-300 hover:underline">
+          <Link to="/sign-up" className="text-brand hover:underline">
             {t('signIn.createAccount')}
           </Link>
         </>
@@ -65,22 +65,22 @@ export const SignInPage = () => {
     >
       <form className="space-y-4" onSubmit={handleSubmit} noValidate>
         <label className="block space-y-2">
-          <span className="text-sm text-slate-200">{t('auth.email')}</span>
+          <span className="u-label">{t('auth.email')}</span>
           <input
             type="email"
             autoComplete="email"
             required
             maxLength={254}
-            className="w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-gray-100 focus:border-amber-300 focus:outline-none"
+            className="u-field"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
         </label>
 
         <label className="block space-y-2">
-          <span className="flex items-center justify-between text-sm text-slate-200">
+          <span className="flex items-center justify-between text-sm text-ink-2">
             {t('auth.password')}
-            <Link to="/forgot-password" className="text-xs text-slate-400 hover:text-amber-300">
+            <Link to="/forgot-password" className="text-xs text-ink-3 hover:text-brand">
               {t('signIn.forgot')}
             </Link>
           </span>
@@ -89,14 +89,14 @@ export const SignInPage = () => {
             autoComplete="current-password"
             required
             maxLength={128}
-            className="w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-gray-100 focus:border-amber-300 focus:outline-none"
+            className="u-field"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
         </label>
 
         {error ? (
-          <p className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+          <p className="border border-critical bg-critical-soft px-3 py-2 text-sm text-critical">
             {error}
           </p>
         ) : null}
@@ -104,7 +104,7 @@ export const SignInPage = () => {
         <button
           type="submit"
           disabled={!canSubmit}
-          className="w-full rounded-md bg-gray-100 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-white disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
+          className="u-btn u-btn-primary w-full py-2.5"
         >
           {isSubmitting ? t('signIn.submitting') : t('signIn.submit')}
         </button>

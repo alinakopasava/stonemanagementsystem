@@ -33,8 +33,7 @@ export const signUpController = async (req, res) => {
       firstName: req.body?.firstName,
       lastName: req.body?.lastName,
       phoneNumber: req.body?.phoneNumber,
-      ip: getClientIp(req),
-      userAgent: getUserAgent(req)
+      ip: getClientIp(req)
     });
     if (result.session) {
       setSessionCookies(res, result.session);
@@ -53,10 +52,7 @@ export const signOutController = async (req, res) => {
     // No refresh token needed: admin.signOut(accessToken, 'global') revokes the
     // whole session family, refresh tokens included.
     await revokeSession({
-      accessToken: req.cookies?.[ACCESS_COOKIE] || req.accessToken,
-      actorId: req.user?.id ?? null,
-      ip: getClientIp(req),
-      userAgent: getUserAgent(req)
+      accessToken: req.cookies?.[ACCESS_COOKIE] || req.accessToken
     });
     clearSessionCookies(res);
     return res.status(200).json({ ok: true });
@@ -69,9 +65,7 @@ export const signOutController = async (req, res) => {
 export const forgotPasswordController = async (req, res) => {
   try {
     await requestPasswordReset({
-      email: req.body?.email,
-      ip: getClientIp(req),
-      userAgent: getUserAgent(req)
+      email: req.body?.email
     });
     return res.status(200).json({ ok: true });
   } catch (error) {
@@ -83,9 +77,7 @@ export const establishSessionController = async (req, res) => {
   try {
     const session = await establishSessionFromTokens({
       accessToken: req.body?.accessToken,
-      refreshToken: req.body?.refreshToken,
-      ip: getClientIp(req),
-      userAgent: getUserAgent(req)
+      refreshToken: req.body?.refreshToken
     });
     setSessionCookies(res, session);
     return res.status(200).json({ ok: true });
@@ -100,8 +92,7 @@ export const resetPasswordController = async (req, res) => {
       accessToken: req.accessToken,
       password: req.body?.password,
       actorId: req.user?.id ?? null,
-      ip: getClientIp(req),
-      userAgent: getUserAgent(req)
+      ip: getClientIp(req)
     });
     return res.status(200).json({ ok: true });
   } catch (error) {

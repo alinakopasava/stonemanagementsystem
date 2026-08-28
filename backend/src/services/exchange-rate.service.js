@@ -1,14 +1,40 @@
 const NBRB_PLN_URL = 'https://api.nbrb.by/exrates/rates/PLN?parammode=2';
+const NBRB_USD_URL = 'https://api.nbrb.by/exrates/rates/USD?parammode=2';
+/**
+ * The Polish central bank, used only when the Belarusian one cannot be reached.
+ *
+ * Both are official sources, so the price stays defensible either way; the
+ * second one exists because a network that cannot route to `.by` at all — a
+ * corporate firewall is enough — would otherwise leave the catalogue on a rate
+ * frozen at whatever was last written into the code. NBP carries BYN in table
+ * B, which is published weekly rather than daily, and USD in table A.
+ */
+const NBP_BYN_URL = 'https://api.nbp.pl/api/exchangerates/rates/b/byn/?format=json';
+const NBP_USD_URL = 'https://api.nbp.pl/api/exchangerates/rates/a/usd/?format=json';
 const CACHE_TTL_MS = 60 * 60 * 1000;
+/**
+ * How long to leave the bank alone after a failed attempt.
+ *
+ * Without this, an unreachable service costs every single request the full
+ * eight-second timeout and prints the same warning again — which is what a
+ * blocked network looks like from the outside: a hung page and a wall of logs.
+ */
+const RETRY_AFTER_FAILURE_MS = 5 * 60 * 1000;
 
-/** Last known official relation: 10 PLN = 8.0182 BYN (NBRB, 2026-08-17). Used only if the API is down. */
+/**
+ * Last known official relations, used only if both banks are unreachable:
+ * 10 PLN = 8.0182 BYN (NBRB, 2026-08-17) and 1 USD = 3.0399 BYN (derived from
+ * NBP tables A and B, 2026-08-27).
+ */
 const FALLBACK = {
   source: 'fallback',
   date: '2026-08-17',
   scale: 10,
   officialRate: 8.0182,
   bynPerPln: 0.80182,
-  plnPerByn: 10 / 8.0182
+  plnPerByn: 10 / 8.0182,
+  bynPerUsd: 3.0399,
+  usdPerByn: 1 / 3.0399
 };
 
 let cache = {
@@ -16,37 +42,142 @@ let cache = {
   payload: null
 };
 
-const toPayload = (scale, officialRate, date, source) => ({
+/** When the last attempt failed, and the attempt still in flight, if any. */
+let lastFailureAt = 0;
+let inFlight = null;
+
+/**
+ * Prices are held in BYN, so both pairs are expressed against the rouble:
+ * `scale` złoty cost `officialRate` roubles, and one dollar costs `bynPerUsd`.
+ */
+const toPayload = ({ scale, officialRate, bynPerUsd, date, source }) => ({
   source,
   date,
   scale,
   officialRate,
   bynPerPln: officialRate / scale,
-  plnPerByn: scale / officialRate
+  plnPerByn: scale / officialRate,
+  bynPerUsd,
+  usdPerByn: 1 / bynPerUsd
 });
 
+const getJson = async (url, bank) => {
+  const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+  if (!response.ok) {
+    throw new Error(`${bank} responded ${response.status}`);
+  }
+  return response.json();
+};
+
+const fetchFromNbrb = async () => {
+  // Both pairs at once: two round trips in sequence would double the wait.
+  const [pln, usd] = await Promise.all([
+    getJson(NBRB_PLN_URL, 'NBRB'),
+    getJson(NBRB_USD_URL, 'NBRB')
+  ]);
+
+  const scale = Number(pln.Cur_Scale);
+  const officialRate = Number(pln.Cur_OfficialRate);
+  // The dollar is quoted per unit, so its scale has to be divided out as well.
+  const bynPerUsd = Number(usd.Cur_OfficialRate) / Number(usd.Cur_Scale);
+  if (
+    !Number.isFinite(scale) ||
+    scale <= 0 ||
+    !Number.isFinite(officialRate) ||
+    officialRate <= 0 ||
+    !Number.isFinite(bynPerUsd) ||
+    bynPerUsd <= 0
+  ) {
+    throw new Error('NBRB returned an invalid rate');
+  }
+
+  return toPayload({
+    scale,
+    officialRate,
+    bynPerUsd,
+    date: String(pln.Date ?? '').slice(0, 10),
+    source: 'nbrb'
+  });
+};
+
+const fetchFromNbp = async () => {
+  const [byn, usd] = await Promise.all([
+    getJson(NBP_BYN_URL, 'NBP'),
+    getJson(NBP_USD_URL, 'NBP')
+  ]);
+
+  // NBP quotes both pairs against the złoty, the other way round from NBRB.
+  const plnPerByn = Number(byn?.rates?.[0]?.mid);
+  const plnPerUsd = Number(usd?.rates?.[0]?.mid);
+  if (!Number.isFinite(plnPerByn) || plnPerByn <= 0 || !Number.isFinite(plnPerUsd) || plnPerUsd <= 0) {
+    throw new Error('NBP returned an invalid rate');
+  }
+
+  return toPayload({
+    scale: 1,
+    officialRate: 1 / plnPerByn,
+    bynPerUsd: plnPerUsd / plnPerByn,
+    date: String(byn.rates[0].effectiveDate ?? '').slice(0, 10),
+    source: 'nbp'
+  });
+};
+
+/** Minsk first, because that is the rate the customer is billed in. */
+const fetchRate = async () => {
+  try {
+    return await fetchFromNbrb();
+  } catch (nbrbError) {
+    try {
+      return await fetchFromNbp();
+    } catch (nbpError) {
+      throw new Error(`${nbrbError.message}; NBP: ${nbpError.message}`);
+    }
+  }
+};
+
 export const getPlnExchangeRate = async () => {
-  if (cache.payload && Date.now() - cache.fetchedAt < CACHE_TTL_MS) {
+  const now = Date.now();
+
+  if (cache.payload && now - cache.fetchedAt < CACHE_TTL_MS) {
     return cache.payload;
   }
 
+  // A recent attempt already failed: answer from what we have rather than
+  // waiting out the timeout again on every request.
+  if (lastFailureAt && now - lastFailureAt < RETRY_AFTER_FAILURE_MS) {
+    return cache.payload ?? FALLBACK;
+  }
+
+  // Callers arriving while a request is open share it instead of opening their
+  // own — a page that mounts twice must not cost two timeouts, and the warning
+  // below belongs to the attempt, so it is printed once however many waited.
+  inFlight ??= fetchRate().catch((error) => {
+    lastFailureAt = Date.now();
+    // Every failure is reported, not only the first one. The retry gate above
+    // already stops us attempting more than once per RETRY_AFTER_FAILURE_MS,
+    // so this cannot flood the log — and a silent fall back to a rate frozen
+    // in the source is how a customer ends up quoted last year's conversion.
+    console.warn(
+      `Exchange rate unavailable, serving ${cache.payload ? 'the cached rate' : 'the built-in fallback'} ` +
+        `(next attempt in ${RETRY_AFTER_FAILURE_MS / 60000} min):`,
+      error.message
+    );
+    throw error;
+  });
+
+  // Hold on to our own promise: the `finally` below runs in every caller that
+  // shared this attempt, and a late one must not clear a newer attempt that
+  // someone else has since started.
+  const attempt = inFlight;
+
   try {
-    const response = await fetch(NBRB_PLN_URL, { signal: AbortSignal.timeout(8000) });
-    if (!response.ok) {
-      throw new Error(`NBRB responded ${response.status}`);
-    }
-    const body = await response.json();
-    const scale = Number(body.Cur_Scale);
-    const officialRate = Number(body.Cur_OfficialRate);
-    if (!Number.isFinite(scale) || scale <= 0 || !Number.isFinite(officialRate) || officialRate <= 0) {
-      throw new Error('NBRB returned an invalid PLN rate');
-    }
-    const payload = toPayload(scale, officialRate, String(body.Date ?? '').slice(0, 10), 'nbrb');
+    const payload = await attempt;
     cache = { fetchedAt: Date.now(), payload };
+    lastFailureAt = 0;
     return payload;
-  } catch (error) {
-    if (cache.payload) return cache.payload;
-    console.warn('NBRB PLN rate unavailable, using fallback:', error.message);
-    return FALLBACK;
+  } catch {
+    return cache.payload ?? FALLBACK;
+  } finally {
+    if (inFlight === attempt) inFlight = null;
   }
 };

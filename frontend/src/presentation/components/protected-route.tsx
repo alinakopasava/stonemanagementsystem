@@ -16,7 +16,7 @@ export const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) 
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-900 text-slate-200">
+      <div className="flex min-h-[100dvh] items-center justify-center bg-surface text-ink-2">
         {t('app.loading')}
       </div>
     );

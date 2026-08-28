@@ -9,6 +9,7 @@ import {
   listOrdersController,
   listUsersController,
   updateContactMessageStatusController,
+  handOverOrderController,
   updateOrderStatusController,
   updateUserRoleController
 } from '../controllers/admin.controller.js';
@@ -22,6 +23,7 @@ adminRouter.patch('/users/:id/role', updateUserRoleController);
 
 adminRouter.get('/orders', listOrdersController);
 adminRouter.patch('/orders/:id/status', updateOrderStatusController);
+adminRouter.post('/orders/:id/hand-over', handOverOrderController);
 
 adminRouter.get('/order-cards', listOrderCardsController);
 adminRouter.post('/order-cards/:id/convert', convertOrderCardController);

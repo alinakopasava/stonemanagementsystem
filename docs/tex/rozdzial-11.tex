@@ -1,0 +1,58 @@
+\chapter{Słownik pojęć}
+\label{cha:slownik}
+
+Rozdział zawiera wyjaśnienie pojęć technicznych i branżowych pojawiających się w pracy. Zebrano je w jednym miejscu, aby ułatwić lekturę osobom nieznającym specyfiki branży kamieniarskiej lub terminologii związanej z tworzeniem aplikacji internetowych.
+
+\begin{description}
+
+\item[API] Interfejs programistyczny aplikacji; zbiór adresów, pod którymi jeden program udostępnia dane i operacje innemu programowi.
+
+\item[Atrapa (mock)] Uproszczony zamiennik prawdziwego modułu, używany w testach. Zachowuje się tak, jak nakaże mu test, dzięki czemu można odtworzyć sytuacje trudne do wywołania na działającym systemie.
+
+\item[Cross-site request forgery (CSRF)] Atak polegający na tym, że obca witryna wysyła żądanie do aplikacji, w której ofiara jest zalogowana, licząc na to, że przeglądarka automatycznie dołączy ciasteczka sesji.
+
+\item[Cross-site scripting (XSS)] Atak polegający na wstrzyknięciu obcego kodu wykonywanego w przeglądarce ofiary, na przykład w celu wykradzenia tokenu sesji.
+
+\item[Endpoint] Pojedynczy adres udostępniany przez serwer, pod którym można wykonać określoną operację.
+
+\item[HttpOnly] Atrybut ciasteczka sprawiający, że jego wartość jest niedostępna dla kodu wykonywanego w przeglądarce, a przeglądarka dołącza je wyłącznie do żądań sieciowych.
+
+\item[Inskrypcja] Napis wykonywany na tablicy nagrobnej, zawierający najczęściej imię, nazwisko oraz daty.
+
+\item[JWT (JSON Web Token)] Podpisany token przenoszący informację o tożsamości użytkownika, weryfikowalny bez odpytywania bazy danych.
+
+\item[jsdom] Programowa imitacja przeglądarki działająca w środowisku Node.js, pozwalająca uruchamiać testy interfejsu bez otwierania prawdziwego okna.
+
+\item[Karta zamówienia] Projekt przygotowany przez klienta w konfiguratorze i zapisany w systemie. Nie jest jeszcze zamówieniem produkcyjnym; staje się nim po decyzji pracownika biura.
+
+\item[Middleware (pośrednik)] Fragment kodu serwera wykonywany przed właściwą obsługą żądania, na przykład sprawdzający tożsamość użytkownika lub liczbę żądań z danego adresu.
+
+\item[Migracja] Skrypt zmieniający strukturę bazy danych, zapisany w repozytorium, dzięki czemu identyczną bazę można odtworzyć na innym komputerze.
+
+\item[Monter] Pracownik zakładu wykonujący montaż pomnika na cmentarzu. W systemie jest to jedna z trzech ról użytkownika.
+
+\item[Ograniczanie liczby żądań (rate limiting)] Mechanizm odrzucający żądania, gdy z jednego adresu przyjdzie ich w krótkim czasie więcej, niż przewiduje limit.
+
+\item[ORM] Biblioteka odwzorowująca tabele bazy danych na obiekty języka programowania. W projekcie świadomie z niej zrezygnowano.
+
+\item[PostgREST] Usługa udostępniająca tabele bazy PostgreSQL bezpośrednio przez interfejs HTTP, wykorzystywana przez platformę Supabase.
+
+\item[React] Biblioteka języka JavaScript służąca do budowania interfejsów użytkownika z niezależnych komponentów.
+
+\item[REST] Styl budowy interfejsów sieciowych oparty na adresach zasobów i standardowych metodach protokołu HTTP.
+
+\item[Row Level Security (RLS)] Mechanizm bazy PostgreSQL pozwalający określić, które wiersze tabeli widzi i może zmieniać dany użytkownik. Reguły działają w samej bazie, niezależnie od kodu aplikacji.
+
+\item[Stela] Kształt tablicy nagrobnej w formie pionowej płyty o prostych krawędziach, wyższej niż szersza.
+
+\item[Supabase] Platforma udostępniająca bazę PostgreSQL wraz z gotowym modułem kont i sesji oraz interfejsem HTTP do danych.
+
+\item[Three.js] Biblioteka języka JavaScript służąca do wyświetlania grafiki trójwymiarowej w przeglądarce.
+
+\item[TypeScript] Język programowania rozszerzający JavaScript o statyczne typowanie, wykrywające część błędów przed uruchomieniem programu.
+
+\item[Wyrocznia testu] Wartość oczekiwana, z którą test porównuje wynik. Wyliczana niezależnie od sprawdzanego kodu, na przykład ze wzoru lub z treści wymagania.
+
+\item[Wyzwalacz (trigger)] Procedura uruchamiana automatycznie przez bazę danych w reakcji na zapis, na przykład tworząca profil użytkownika przy zakładaniu konta.
+
+\end{description}

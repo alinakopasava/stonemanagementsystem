@@ -36,7 +36,6 @@ const materials: Material[] = STONE_NAMES.map((name, index) => ({
   name,
   category: 'Stone',
   pricePerM2: 400 + index * 50,
-  stockStatus: true,
   imageUrl: `/images/materials/${index}.jpg`
 }));
 
@@ -113,7 +112,10 @@ describe('CatalogPage', () => {
 
     await user.click(await screen.findByRole('button', { name: /marble|marmur|мрамор/i }));
 
-    await waitFor(() => expect(previews[0]).toHaveAttribute('data-material', 'Marble'));
+    // Every card follows the picker, not just the one whose price is checked.
+    await waitFor(() => {
+      for (const preview of previews) expect(preview).toHaveAttribute('data-material', 'Marble');
+    });
     await waitFor(() => expect(firstCard.textContent).not.toBe(before));
 
     const expected = monumentPriceByn(
@@ -124,21 +126,9 @@ describe('CatalogPage', () => {
     expect(digitsIn(firstCard)).toContain(expected.toFixed(2).replace('.', ''));
   });
 
-  it('shows a waiting message instead of empty cards when no stone has loaded', async () => {
+  it('renders no previews at all until a stone has loaded', async () => {
     renderWithProviders(<CatalogPage materials={[]} />);
 
     expect(screen.queryAllByTestId('monument-viewer')).toHaveLength(0);
-  });
-
-  it('feeds the chosen stone into every preview at once', async () => {
-    const { user } = renderWithProviders(<CatalogPage materials={materials} />);
-
-    await user.click(await screen.findByRole('button', { name: /marble|marmur|мрамор/i }));
-
-    await waitFor(() => {
-      for (const preview of screen.getAllByTestId('monument-viewer')) {
-        expect(preview).toHaveAttribute('data-material', 'Marble');
-      }
-    });
   });
 });

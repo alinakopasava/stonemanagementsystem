@@ -9,8 +9,7 @@ const {
   sessionCookies,
   makeProfile,
   resetSupabaseMock,
-  setTables,
-  stubAuditLogs
+  setTables
 } = await import('../setup/harness.js');
 
 /**
@@ -33,7 +32,6 @@ const burst = async (count, send) => {
 
 beforeEach(() => {
   resetSupabaseMock();
-  stubAuditLogs();
 });
 
 /* ------------------------------------------------------------------ */
@@ -73,7 +71,9 @@ describe('rate limiting', () => {
     const responses = await burst(4, (client) =>
       client.post('/api/auth/sign-up').send({
         email: 'nowa@example.com',
-        password: 'Password123',
+        // Not 'Password123': the policy now rejects breached passwords, and this
+    // fixture is about the sign-up path, not about the policy.
+    password: 'Zielony8Kamien',
         firstName: 'Anna',
         lastName: 'Kowalska'
       })

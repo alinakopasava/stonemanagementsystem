@@ -7,7 +7,6 @@ interface MaterialRowDto {
   name: string;
   category: string | null;
   price_per_m2: number | string | null;
-  stock_status: boolean | null;
   image_url: string | null;
 }
 
@@ -16,7 +15,6 @@ const toMaterial = (row: MaterialRowDto): Material => ({
   name: row.name,
   category: row.category ?? 'Stone',
   pricePerM2: Number(row.price_per_m2 ?? 0),
-  stockStatus: row.stock_status ?? true,
   imageUrl: row.image_url ?? materialImageUrl(row.name)
 });
 

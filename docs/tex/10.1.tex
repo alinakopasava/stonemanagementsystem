@@ -1,0 +1,12 @@
+\section{Wnioski}
+\label{sec:wnioski}
+
+Podstawowy cel projektu został osiągnięty. Dane techniczne pomnika przechodzą całą drogę od konfiguracji przygotowanej przez klienta, przez decyzję handlową podjętą w biurze, aż po widok montażowy otwierany przez montera w terenie, i na żadnym etapie nie są przepisywane ręcznie. Właśnie ten brak ciągłości informacji zdiagnozowano w analizie procesów zakładu jako główne źródło pomyłek, a jego usunięcie potwierdza piąta ścieżka testów systemowych.
+
+Sprawdziło się przeniesienie reguł bezpieczeństwa do samej bazy danych. Adres bazy oraz klucz publiczny są widoczne w kodzie aplikacji klienckiej, więc zabezpieczenie oparte wyłącznie na kodzie serwera dałoby się ominąć. Polityki Row Level Security oraz wyzwalacz nadający rolę przy rejestracji sprawiają, że nawet bezpośrednie odpytanie bazy nie pozwala odczytać cudzych zamówień ani nadać sobie uprawnień administratora. Analogicznie sprawdziło się trzymanie sesji wyłącznie w ciasteczkach niedostępnych dla kodu wykonywanego w przeglądarce.
+
+Wartość testów okazała się większa, niż zakładano na początku. Zestaw 237 przypadków ujawnił dwa błędy, których nie dałoby się wychwycić przeglądem kodu, ponieważ jeden zależał od konfiguracji komputera, a drugi od danych, które w bazie jeszcze nie wystąpiły. Testy zabezpieczają też prace przyszłe: pozwalają rozszerzać słowniki materiałów i kształtów oraz dodawać funkcje panelu administracyjnego bez obawy o naruszenie reguł już działających.
+
+Najwięcej trudności sprawiła część trójwymiarowa. Wygenerowanie geometrii trzynastu kształtów tablicy, tekstur kamienia i inskrypcji po stronie przeglądarki, przy zachowaniu płynności na urządzeniu mobilnym, wymagało kilku podejść. Cennym doświadczeniem okazało się także rozdzielenie logiki dziedzinowej od komponentów interfejsu: dopiero po wyodrębnieniu funkcji takich jak wycena czy kadrowanie fotografii dało się je rzetelnie przetestować, a przy okazji zniknęło powielanie tych samych obliczeń w kilku miejscach.
+
+Przyjęty stos technologiczny okazał się trafny dla projektu tej wielkości. Supabase pozwoliło zrezygnować z samodzielnego budowania modułu kont i sesji, a jednocześnie zachować pełną kontrolę nad bazą relacyjną i jej politykami. Osobnym wnioskiem organizacyjnym jest to, że wyraźna granica między warstwą serwerową a aplikacją kliencką umożliwiła równoległą pracę dwóch osób bez wzajemnego blokowania się.

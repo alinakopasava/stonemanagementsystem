@@ -79,7 +79,7 @@ export const SignUpPage = () => {
       footer={
         <>
           {t('signUp.haveAccount')}{' '}
-          <Link to="/sign-in" className="text-amber-300 hover:underline">
+          <Link to="/sign-in" className="text-brand hover:underline">
             {t('signIn.submit')}
           </Link>
         </>
@@ -88,27 +88,27 @@ export const SignUpPage = () => {
       <form className="space-y-4" onSubmit={handleSubmit} noValidate>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block space-y-2">
-            <span className="text-sm text-slate-200">{t('auth.firstName')}</span>
+            <span className="u-label">{t('auth.firstName')}</span>
             <input
               type="text"
               autoComplete="given-name"
               required
               minLength={2}
               maxLength={80}
-              className="w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-gray-100 focus:border-amber-300 focus:outline-none"
+              className="u-field"
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
             />
           </label>
           <label className="block space-y-2">
-            <span className="text-sm text-slate-200">{t('auth.lastName')}</span>
+            <span className="u-label">{t('auth.lastName')}</span>
             <input
               type="text"
               autoComplete="family-name"
               required
               minLength={2}
               maxLength={80}
-              className="w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-gray-100 focus:border-amber-300 focus:outline-none"
+              className="u-field"
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
             />
@@ -116,39 +116,39 @@ export const SignUpPage = () => {
         </div>
 
         <label className="block space-y-2">
-          <span className="text-sm text-slate-200">{t('auth.phoneOptional')}</span>
+          <span className="u-label">{t('auth.phoneOptional')}</span>
           <input
             type="tel"
             autoComplete="tel"
             maxLength={32}
-            className="w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-gray-100 focus:border-amber-300 focus:outline-none"
+            className="u-field"
             value={phoneNumber}
             onChange={(e) => setPhoneNumber(e.target.value)}
           />
         </label>
 
         <label className="block space-y-2">
-          <span className="text-sm text-slate-200">{t('auth.email')}</span>
+          <span className="u-label">{t('auth.email')}</span>
           <input
             type="email"
             autoComplete="email"
             required
             maxLength={254}
-            className="w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-gray-100 focus:border-amber-300 focus:outline-none"
+            className="u-field"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
         </label>
 
         <label className="block space-y-2">
-          <span className="text-sm text-slate-200">{t('auth.password')}</span>
+          <span className="u-label">{t('auth.password')}</span>
           <input
             type="password"
             autoComplete="new-password"
             required
             minLength={8}
             maxLength={PASSWORD_MAX_LENGTH}
-            className="w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-gray-100 focus:border-amber-300 focus:outline-none"
+            className="u-field"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
@@ -156,31 +156,31 @@ export const SignUpPage = () => {
 
         <ul className="space-y-1 text-xs">
           {checks.map((c) => (
-            <li key={c.id} className={c.passed ? 'text-emerald-300' : 'text-slate-400'}>
+            <li key={c.id} className={c.passed ? 'text-positive' : 'text-ink-3'}>
               {c.passed ? '\u2713' : '\u2022'} {t(c.labelKey)}
             </li>
           ))}
         </ul>
 
         <label className="block space-y-2">
-          <span className="text-sm text-slate-200">{t('auth.confirmPassword')}</span>
+          <span className="u-label">{t('auth.confirmPassword')}</span>
           <input
             type="password"
             autoComplete="new-password"
             required
             minLength={8}
             maxLength={PASSWORD_MAX_LENGTH}
-            className="w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-gray-100 focus:border-amber-300 focus:outline-none"
+            className="u-field"
             value={passwordConfirm}
             onChange={(e) => setPasswordConfirm(e.target.value)}
           />
           {passwordConfirm && !passwordsMatch ? (
-            <span className="text-xs text-red-300">{t('auth.passwordsMismatch')}</span>
+            <span className="text-xs text-critical">{t('auth.passwordsMismatch')}</span>
           ) : null}
         </label>
 
         {error ? (
-          <p className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+          <p className="border border-critical bg-critical-soft px-3 py-2 text-sm text-critical">
             {error}
           </p>
         ) : null}
@@ -188,7 +188,7 @@ export const SignUpPage = () => {
         <button
           type="submit"
           disabled={!canSubmit}
-          className="w-full rounded-md bg-gray-100 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-white disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
+          className="u-btn u-btn-primary w-full py-2.5"
         >
           {isSubmitting ? t('signUp.submitting') : t('signUp.submit')}
         </button>

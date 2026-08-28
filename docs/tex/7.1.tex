@@ -1,0 +1,31 @@
+\section{Plan testów}
+\label{sec:strategia-testow}
+
+Testy podzieliłam na pięć poziomów, zgodnie z ideą piramidy testów. Na dole jest ich najwięcej i są najprostsze, na górze najmniej, ale sprawdzają całą aplikację naraz. Im szerszy test, tym dłużej trwa i tym trudniej znaleźć przyczynę błędu, więc każdą regułę sprawdzałam możliwie nisko.
+
+\begin{table}[htbp]
+\centering
+\caption{Poziomy testów systemu SZK -- opracowanie własne}
+\label{tab:poziomy-testow}
+\begin{tabular}{|p{0.15\textwidth}|p{0.26\textwidth}|p{0.31\textwidth}|p{0.09\textwidth}|}
+\hline
+\textbf{Poziom} & \textbf{Co sprawdza} & \textbf{Narzędzia} & \textbf{Przypadki} \\
+\hline
+Jednostkowy & Pojedyncze funkcje: obliczenia, walidację, bezpieczeństwo & Vitest & 107 \\
+\hline
+Integracyjny API & Ścieżki HTTP backendu razem z pośrednikami & Vitest, Supertest, atrapa Supabase & 81 \\
+\hline
+Integracyjny baza & Polityki Row Level Security i wyzwalacze & Klient HTTP i PostgREST & 16 \\
+\hline
+Komponentowy & Komponenty i strony aplikacji klienckiej & Vitest, React Testing Library, MSW & 26 \\
+\hline
+Systemowy & Całe ścieżki użytkownika w przeglądarce & Playwright & 7 \\
+\hline
+\end{tabular}
+\end{table}
+
+Razem wyszły 237 przypadków. 214 z nich działa bez internetu i bez bazy danych, w kilkanaście sekund. Dwa poziomy potrzebują testowej bazy Supabase, więc uruchamiam je osobno.
+
+Przyjęłam trzy zasady. Żaden test nie zależy od sieci, zegara ani losowości -- kurs walutowy i logowanie zastąpiłam atrapami. Wynik oczekiwany liczę sama, ze wzoru albo z treści wymagania; nie wpisuję do testu tego, co akurat zwraca kod, bo wtedy test potwierdzałby błąd zamiast go wykrywać. Nie powtarzam wyżej tego, co sprawdziłam niżej.
+
+Testy API używają atrapy bazy, dzięki czemu mogę wywołać sytuacje trudne do odtworzenia na prawdziwej bazie: błąd zapisu w połowie operacji albo brak profilu użytkownika. Atrapa nie sprawdza jednak reguł zapisanych w samej bazie, więc polityki RLS testuję osobno, wysyłając zapytania prosto do PostgREST. Adres bazy i klucz publiczny widać w kodzie aplikacji klienckiej, więc ktoś może ominąć serwer Express.
