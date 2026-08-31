@@ -13,6 +13,7 @@ import {
   listContactMessages,
   updateContactMessageStatus
 } from '../services/contact.service.js';
+import { buildWorkSheetPdf } from '../services/work-sheet.service.js';
 import { sendError } from '../http/errors.js';
 import { getClientIp } from '../http/client-ip.js';
 
@@ -143,5 +144,28 @@ export const deleteOrderCardController = async (req, res) => {
     return res.status(200).json({ data: result });
   } catch (error) {
     return sendError(res, error, 'Failed to delete order card.');
+  }
+};
+
+/**
+ * The workshop's copy of a job, as a file the office can attach to an e-mail.
+ *
+ * `Content-Disposition: attachment` rather than `inline`: the point is a file
+ * on disk to forward, not another tab to look at.
+ */
+export const workSheetController = async (req, res) => {
+  try {
+    const { bytes, filename } = await buildWorkSheetPdf({
+      supabase: req.supabase,
+      orderId: req.params.id,
+      language: typeof req.query.lang === 'string' ? req.query.lang : undefined
+    });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', bytes.length);
+    return res.status(200).send(bytes);
+  } catch (error) {
+    return sendError(res, error, 'Failed to build the work sheet.');
   }
 };

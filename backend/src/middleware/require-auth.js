@@ -42,23 +42,31 @@ export const requireAuth = async (req, res, next) => {
 
     if (!token) {
       const refreshed = await refreshAccessToken(req.cookies?.[REFRESH_COOKIE]);
-      if (!refreshed) {
+      if (!refreshed.session) {
+        if (refreshed.reason === 'unavailable') {
+          return res.status(503).json({ message: 'Authentication service unavailable.' });
+        }
         return res.status(401).json({ message: 'Not authenticated.' });
       }
-      setSessionCookies(res, refreshed);
-      token = refreshed.access_token;
+      setSessionCookies(res, refreshed.session);
+      token = refreshed.session.access_token;
     }
 
     let { data, error } = await supabaseAdmin.auth.getUser(token);
 
     if (error || !data?.user) {
       const refreshed = await refreshAccessToken(req.cookies?.[REFRESH_COOKIE]);
-      if (!refreshed) {
+      if (!refreshed.session) {
+        // Cookies are only worth destroying when the session itself is gone.
+        // A momentary outage must leave the customer signed in.
+        if (refreshed.reason === 'unavailable') {
+          return res.status(503).json({ message: 'Authentication service unavailable.' });
+        }
         clearSessionCookies(res);
         return res.status(401).json({ message: 'Invalid or expired session.' });
       }
-      setSessionCookies(res, refreshed);
-      token = refreshed.access_token;
+      setSessionCookies(res, refreshed.session);
+      token = refreshed.session.access_token;
       ({ data, error } = await supabaseAdmin.auth.getUser(token));
       if (error || !data?.user) {
         clearSessionCookies(res);

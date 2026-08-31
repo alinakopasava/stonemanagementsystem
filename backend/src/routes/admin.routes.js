@@ -11,7 +11,8 @@ import {
   updateContactMessageStatusController,
   handOverOrderController,
   updateOrderStatusController,
-  updateUserRoleController
+  updateUserRoleController,
+  workSheetController
 } from '../controllers/admin.controller.js';
 
 export const adminRouter = Router();
@@ -24,6 +25,7 @@ adminRouter.patch('/users/:id/role', updateUserRoleController);
 adminRouter.get('/orders', listOrdersController);
 adminRouter.patch('/orders/:id/status', updateOrderStatusController);
 adminRouter.post('/orders/:id/hand-over', handOverOrderController);
+adminRouter.get('/orders/:id/work-sheet.pdf', workSheetController);
 
 adminRouter.get('/order-cards', listOrderCardsController);
 adminRouter.post('/order-cards/:id/convert', convertOrderCardController);

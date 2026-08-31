@@ -89,7 +89,7 @@ export const establishSessionController = async (req, res) => {
 export const resetPasswordController = async (req, res) => {
   try {
     await updatePassword({
-      accessToken: req.accessToken,
+      userId: req.user?.id,
       password: req.body?.password,
       actorId: req.user?.id ?? null,
       ip: getClientIp(req)
