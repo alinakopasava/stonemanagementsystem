@@ -1,9 +1,5 @@
 import { env } from '../config/env.js';
-import {
-  createSupabaseAuthClient,
-  supabaseAdmin,
-  supabaseForUser
-} from '../config/supabase.js';
+import { createSupabaseAuthClient, supabaseAdmin } from '../config/supabase.js';
 import { PublicError } from '../http/errors.js';
 import { checkPassword } from './password-policy.js';
 import { logSecurityEvent } from './security-log.js';
@@ -155,7 +151,20 @@ export const establishSessionFromTokens = async ({
   return refreshData.session;
 };
 
-export const updatePassword = async ({ accessToken, password, actorId, ip }) => {
+/**
+ * Sets a new password for an already-authenticated caller.
+ *
+ * The write goes through the admin client rather than a user-scoped one. A
+ * user-scoped client here carries the caller's JWT as a request header, which
+ * is all PostgREST needs but not what a password change needs: that call reads
+ * the session the client holds in memory, and a per-request client built on the
+ * server holds none. It answered "Auth session missing" every time, which the
+ * browser saw as a plain 400 and reported as a failed password change.
+ *
+ * Whose password gets changed is decided by `userId`, taken from the JWT that
+ * `requireAuth` already verified, so the caller can only ever change their own.
+ */
+export const updatePassword = async ({ userId, password, actorId, ip }) => {
   const passwordCheck = checkPassword(password);
   if (!passwordCheck.ok) {
     throw new PublicError(
@@ -166,9 +175,13 @@ export const updatePassword = async ({ accessToken, password, actorId, ip }) => 
     );
   }
 
-  const userClient = supabaseForUser(accessToken);
-  const { error } = await userClient.auth.updateUser({ password });
+  if (!userId) {
+    throw new PublicError('Not authenticated.', 401);
+  }
+
+  const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, { password });
   if (error) {
+    console.error('[auth] Password update failed:', error);
     logSecurityEvent('auth.password_reset_failed', { actorId, ip });
     throw new PublicError('Could not update password.', 400);
   }
@@ -186,18 +199,70 @@ export const revokeSession = async ({ accessToken }) => {
   }
 };
 
+/*
+ * One refresh at a time per token.
+ *
+ * Supabase refresh tokens are single-use: a successful refresh rotates the
+ * token and retires the one that was sent. A browser does not open one page
+ * at a time, so when the access token expires the requests already in flight
+ * all arrive carrying the same refresh cookie. Without this map each of them
+ * would spend that token on its own refresh, one would win, and the rest
+ * would come back "Already Used" and be treated as a dead session, which is
+ * how a perfectly valid login ended up reported as failed until the customer
+ * clicked again.
+ *
+ * The entry is dropped as soon as the call settles, so a token really is
+ * refreshed once per burst and never held longer than the request that
+ * asked for it.
+ */
+const refreshesInFlight = new Map();
+
+const isTransient = (error) =>
+  error?.name === 'AuthRetryableFetchError' || (typeof error?.status === 'number' && error.status >= 500);
+
+const performRefresh = async (refreshToken) => {
+  const authClient = createSupabaseAuthClient();
+  try {
+    const { data, error } = await authClient.auth.refreshSession({
+      refresh_token: refreshToken
+    });
+    if (error || !data?.session) {
+      // Supabase being unreachable is not the same as the customer being
+      // logged out, and must not cost them their cookies.
+      return { session: null, reason: isTransient(error) ? 'unavailable' : 'invalid' };
+    }
+    return { session: data.session, reason: null };
+  } catch (error) {
+    console.error('[auth] Refresh request failed:', error);
+    return { session: null, reason: 'unavailable' };
+  }
+};
+
+/**
+ * Exchanges a refresh token for a fresh session.
+ *
+ * @returns {Promise<{session: object|null, reason: 'invalid'|'unavailable'|null}>}
+ *   `reason` tells the caller whether the session is genuinely gone
+ *   (`invalid`) or whether the attempt should simply be retried later
+ *   (`unavailable`).
+ */
 export const refreshAccessToken = async (refreshToken) => {
   if (!refreshToken) {
-    return null;
+    return { session: null, reason: 'invalid' };
   }
-  const authClient = createSupabaseAuthClient();
-  const { data, error } = await authClient.auth.refreshSession({
-    refresh_token: refreshToken
-  });
-  if (error || !data.session) {
-    return null;
+
+  const pending = refreshesInFlight.get(refreshToken);
+  if (pending) {
+    return pending;
   }
-  return data.session;
+
+  const run = performRefresh(refreshToken);
+  refreshesInFlight.set(refreshToken, run);
+  try {
+    return await run;
+  } finally {
+    refreshesInFlight.delete(refreshToken);
+  }
 };
 
 /**

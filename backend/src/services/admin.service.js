@@ -1,8 +1,10 @@
 import { supabaseAdmin } from '../config/supabase.js';
 import { PublicError } from '../http/errors.js';
+import { assertUuid } from '../http/ids.js';
+import { ACCOUNT_COLUMNS, loadAuthEmails, loadClientProfiles } from './customer-directory.js';
+import { signMonumentPhoto } from './monument-photo.service.js';
+import { signInstallationPhoto } from './installation-card.service.js';
 import { logSecurityEvent } from './security-log.js';
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const ALLOWED_ROLES = new Set(['klient', 'monter', 'admin']);
 const ALLOWED_ORDER_STATUSES = new Set([
@@ -12,6 +14,39 @@ const ALLOWED_ORDER_STATUSES = new Set([
   'anulowane'
 ]);
 
+/**
+ * How long each field of the conversion form may be.
+ *
+ * Two of these hold identity-document data, which is the narrowest thing this
+ * system stores: a series is a handful of characters and a number is nine. A
+ * field with no ceiling accepts whatever fits in the request body — 100 kB of
+ * it — and stores that under a heading saying "passport number", which is
+ * exactly what data minimisation is supposed to prevent. The address and the
+ * contract notes are prose, so they get room to be prose and no more.
+ */
+const CONVERT_FIELD_MAX_LENGTH = {
+  installation_address: 500,
+  contract_details: 2000,
+  client_full_name: 160,
+  passport_series: 16,
+  passport_number: 32
+};
+
+/**
+ * Trims an optional text field to `null` when empty, rejecting it when it runs
+ * past its limit. Truncating silently would be worse than refusing: half a
+ * passport number looks like a whole one.
+ */
+const optionalText = (value, field) => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (trimmed.length > CONVERT_FIELD_MAX_LENGTH[field]) {
+    throw new PublicError(`Field ${field} is too long.`);
+  }
+  return trimmed;
+};
+
 const ORDER_SELECT = `
   id,
   status,
@@ -20,16 +55,20 @@ const ORDER_SELECT = `
   contract_details,
   deadline,
   client_full_name,
-  passport_series,
-  passport_number,
   created_at,
   updated_at,
   user_id,
   order_card_id,
+  order_identity_documents (
+    passport_series,
+    passport_number
+  ),
   installation_cards (
     id,
     status,
-    completion_timestamp
+    completion_timestamp,
+    worker_comments,
+    photo_evidence_url
   ),
   order_cards (
     id,
@@ -41,10 +80,74 @@ const ORDER_SELECT = `
       dimensions,
       inscription_text,
       finish_type,
+      shape,
+      inscription_style,
+      slab_variant,
+      slab_thickness_cm,
+      base_height_cm,
+      base_width_cm,
+      base_depth_cm,
+      decoration,
+      has_cross,
+      has_flowerbed,
+      photo_path,
       materials ( id, name, category, price_per_m2 )
     )
   )
 `;
+
+/**
+ * The portrait the customer attached, as a link the panel can render.
+ *
+ * FK17 asks for the photograph to be "powiązana z kartą i widoczna w panelu
+ * administracyjnym" — visible to the office, not only bundled into the work
+ * sheet. The column holds an object path in a private bucket, so what the
+ * panel needs is a signed link, minted per read.
+ */
+const withPhotoUrl = async (details) => {
+  const rows = Array.isArray(details) ? details : details ? [details] : [];
+  return Promise.all(
+    rows.map(async (detail) => ({
+      ...detail,
+      photo_url: await signMonumentPhoto(detail?.photo_path)
+    }))
+  );
+};
+
+/**
+ * What the crew wrote down on site.
+ *
+ * FM2 asks for the report to be "widoczny w panelu administracyjnym"; before
+ * this the office got only the card's id, status and completion time, so the
+ * comments and the site photograph — the whole content of the report — stopped
+ * at the installer's own screen.
+ */
+const toInstallationReport = async (rows) => {
+  const row = Array.isArray(rows) ? rows[0] : rows;
+  if (!row) return null;
+  return {
+    id: row.id,
+    status: row.status ?? null,
+    workerComments: row.worker_comments ?? null,
+    photoUrl: await signInstallationPhoto(row.photo_evidence_url),
+    completionTimestamp: row.completion_timestamp ?? null
+  };
+};
+
+/**
+ * The identity document of an order, as two flat fields.
+ *
+ * PostgREST hands an embedded relation back as an object or a single-element
+ * array depending on how it reads the key, and an order with no document on
+ * file has no row at all — all three cases mean the same thing here.
+ */
+const toIdentityDocument = (rows) => {
+  const row = Array.isArray(rows) ? rows[0] : rows;
+  return {
+    passport_series: row?.passport_series ?? null,
+    passport_number: row?.passport_number ?? null
+  };
+};
 
 /**
  * The client behind an order, as they registered themselves.
@@ -56,22 +159,6 @@ const ORDER_SELECT = `
  * here by the `profiles_select_self_or_staff` policy, so this still goes
  * through the RLS-bound client rather than the service role.
  */
-const loadClientProfiles = async ({ supabase, userIds }) => {
-  const wanted = [...new Set((userIds ?? []).filter(Boolean))];
-  if (wanted.length === 0) return new Map();
-
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, first_name, last_name, phone_number, role, created_at')
-    .in('id', wanted);
-
-  if (error) {
-    throw new Error('Failed to load client profiles.');
-  }
-
-  return new Map((data ?? []).map((p) => [p.id, p]));
-};
-
 /** Shapes what is known about the person an order or a card belongs to. */
 const toClient = (userId, profile, email) => ({
   id: userId ?? null,
@@ -82,26 +169,6 @@ const toClient = (userId, profile, email) => ({
   role: profile?.role ?? null,
   registeredAt: profile?.created_at ?? null
 });
-
-const loadAuthEmails = async () => {
-  const emailById = new Map();
-  const perPage = 1000;
-  for (let page = 1; page <= 50; page += 1) {
-    const { data: usersData, error: listError } = await supabaseAdmin.auth.admin.listUsers({
-      page,
-      perPage
-    });
-    if (listError) {
-      throw new Error('Failed to list auth users.');
-    }
-    const users = usersData?.users ?? [];
-    for (const user of users) {
-      emailById.set(user.id, user.email ?? null);
-    }
-    if (users.length < perPage) break;
-  }
-  return emailById;
-};
 
 export const listUsers = async ({ supabase }) => {
   const { data: profiles, error } = await supabase
@@ -165,14 +232,28 @@ export const listOrders = async ({ supabase }) => {
   const orders = data ?? [];
   const userIds = orders.map((o) => o.user_id);
   const [profileById, emailById] = await Promise.all([
-    loadClientProfiles({ supabase, userIds }),
+    loadClientProfiles({ supabase, userIds, columns: ACCOUNT_COLUMNS }),
     userIds.some(Boolean) ? loadAuthEmails() : Promise.resolve(new Map())
   ]);
 
-  return orders.map((order) => ({
-    ...order,
-    client: toClient(order.user_id, profileById.get(order.user_id), emailById.get(order.user_id))
-  }));
+  return Promise.all(
+    orders.map(async ({ order_identity_documents: documents, installation_cards: cards, ...order }) => ({
+      ...order,
+      // Flattened back onto the order so the response keeps the shape it had
+      // before 0014 moved these two fields into a table of their own. The
+      // separation exists to give them their own RLS policies, not to make the
+      // office read them from somewhere else.
+      ...toIdentityDocument(documents),
+      installation_report: await toInstallationReport(cards),
+      order_cards: order.order_cards
+        ? {
+            ...order.order_cards,
+            order_details: await withPhotoUrl(order.order_cards.order_details)
+          }
+        : null,
+      client: toClient(order.user_id, profileById.get(order.user_id), emailById.get(order.user_id))
+    }))
+  );
 };
 
 export const updateOrderStatus = async ({ supabase, orderId, status }) => {
@@ -207,6 +288,17 @@ export const listOrderCards = async ({ supabase, converted } = {}) => {
         dimensions,
         inscription_text,
         finish_type,
+        shape,
+        inscription_style,
+        slab_variant,
+        slab_thickness_cm,
+        base_height_cm,
+        base_width_cm,
+        base_depth_cm,
+        decoration,
+          has_cross,
+        has_flowerbed,
+        photo_path,
         materials ( id, name, category, price_per_m2 )
       )
     `
@@ -242,19 +334,20 @@ export const listOrderCards = async ({ supabase, converted } = {}) => {
   if (userIds.length > 0) {
     [userEmailById, profileById] = await Promise.all([
       loadAuthEmails(),
-      loadClientProfiles({ supabase, userIds })
+      loadClientProfiles({ supabase, userIds, columns: ACCOUNT_COLUMNS })
     ]);
   }
 
-  const enriched = (cards ?? []).map((card) => ({
+  const enriched = await Promise.all((cards ?? []).map(async (card) => ({
     ...card,
+    order_details: await withPhotoUrl(card.order_details),
     user_email: card.user_id ? userEmailById.get(card.user_id) ?? null : null,
     // Everything the customer themselves supplied: the configuration above and
     // the contact details they registered with. Nothing here was typed by the
     // office — that only appears once the card becomes an order.
     client: toClient(card.user_id, profileById.get(card.user_id), userEmailById.get(card.user_id)),
     converted_order: ordersByCardId.get(card.id) ?? null
-  }));
+  })));
 
   if (converted === true) {
     return enriched.filter((c) => c.converted_order !== null);
@@ -303,29 +396,14 @@ export const convertOrderCardToOrder = async ({
     throw new PublicError('Invalid price.');
   }
 
-  const installationAddress =
-    typeof payload?.installation_address === 'string'
-      ? payload.installation_address.trim() || null
-      : null;
-  const contractDetails =
-    typeof payload?.contract_details === 'string'
-      ? payload.contract_details.trim() || null
-      : null;
+  const installationAddress = optionalText(payload?.installation_address, 'installation_address');
+  const contractDetails = optionalText(payload?.contract_details, 'contract_details');
   const deadline =
     typeof payload?.deadline === 'string' && payload.deadline ? payload.deadline : null;
 
-  const clientFullName =
-    typeof payload?.client_full_name === 'string'
-      ? payload.client_full_name.trim() || null
-      : null;
-  const passportSeries =
-    typeof payload?.passport_series === 'string'
-      ? payload.passport_series.trim() || null
-      : null;
-  const passportNumber =
-    typeof payload?.passport_number === 'string'
-      ? payload.passport_number.trim() || null
-      : null;
+  const clientFullName = optionalText(payload?.client_full_name, 'client_full_name');
+  const passportSeries = optionalText(payload?.passport_series, 'passport_series');
+  const passportNumber = optionalText(payload?.passport_number, 'passport_number');
 
   const { data: order, error: insertError } = await supabase
     .from('orders')
@@ -337,12 +415,10 @@ export const convertOrderCardToOrder = async ({
       installation_address: installationAddress,
       contract_details: contractDetails,
       deadline,
-      client_full_name: clientFullName,
-      passport_series: passportSeries,
-      passport_number: passportNumber
+      client_full_name: clientFullName
     })
     .select(
-      'id, status, price, installation_address, contract_details, deadline, client_full_name, passport_series, passport_number, created_at, updated_at, user_id, order_card_id'
+      'id, status, price, installation_address, contract_details, deadline, client_full_name, created_at, updated_at, user_id, order_card_id'
     )
     .single();
 
@@ -350,13 +426,64 @@ export const convertOrderCardToOrder = async ({
     throw new Error('Failed to create order.');
   }
 
-  return order;
+  // No document, no row: an order without one is the normal case for a contract
+  // signed on the strength of something else, and a row of nulls would claim a
+  // record exists where none does.
+  if (passportSeries || passportNumber) {
+    const { error: documentError } = await supabase
+      .from('order_identity_documents')
+      .insert({
+        order_id: order.id,
+        passport_series: passportSeries,
+        passport_number: passportNumber
+      });
+
+    if (documentError) {
+      // The order and its document are one act. Leaving the order behind would
+      // consume the card's one conversion and give the office no way to retry.
+      await supabase.from('orders').delete().eq('id', order.id);
+      throw new Error('Failed to create order.');
+    }
+  }
+
+  return { ...order, passport_series: passportSeries, passport_number: passportNumber };
 };
 
+/**
+ * Removes an order card that never became an order.
+ *
+ * A card that was already converted is off limits. An order that falls through
+ * is retired by setting its status to `anulowane`, which keeps the record and
+ * its history where the customer and the office can still see it; deletion
+ * exists only for cards the office decided not to turn into anything.
+ *
+ * The rule is enforced twice. Here, so a request that skips the interface meets
+ * the same wall the browser puts up. And in the database, where
+ * `orders.order_card_id` carries no `on delete cascade` — deliberately, see
+ * 0017 — so a delete that got this far would still be refused rather than
+ * taking the production order down with the card.
+ *
+ * The card's own configuration is a different matter: `order_details` does
+ * cascade, because a row of dimensions belongs to the card and means nothing
+ * without it.
+ */
 export const deleteOrderCard = async ({ supabase, orderCardId }) => {
   if (!orderCardId) {
     throw new PublicError('Missing order card id.');
   }
+
+  const { data: existing, error: existingError } = await supabase
+    .from('orders')
+    .select('id')
+    .eq('order_card_id', orderCardId)
+    .maybeSingle();
+  if (existingError) {
+    throw new Error('Failed to check existing order.');
+  }
+  if (existing) {
+    throw new PublicError('This order card has already been converted into an order.', 409);
+  }
+
   const { error } = await supabase.from('order_cards').delete().eq('id', orderCardId);
   if (error) {
     throw new Error('Failed to delete order card.');
@@ -380,9 +507,7 @@ export const handOverOrderToInstaller = async ({
   supabase,
   orderId
 }) => {
-  if (typeof orderId !== 'string' || !UUID_RE.test(orderId)) {
-    throw new PublicError('Invalid order id.');
-  }
+  assertUuid(orderId, 'Invalid order id.');
 
   const { data: order, error: orderError } = await supabase
     .from('orders')

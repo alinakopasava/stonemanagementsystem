@@ -1,13 +1,15 @@
-const NBRB_PLN_URL = 'https://api.nbrb.by/exrates/rates/PLN?parammode=2';
-const NBRB_USD_URL = 'https://api.nbrb.by/exrates/rates/USD?parammode=2';
 /**
- * The Polish central bank, used only when the Belarusian one cannot be reached.
+ * The Polish central bank, the one source of rates.
  *
- * Both are official sources, so the price stays defensible either way; the
- * second one exists because a network that cannot route to `.by` at all — a
- * corporate firewall is enough — would otherwise leave the catalogue on a rate
- * frozen at whatever was last written into the code. NBP carries BYN in table
- * B, which is published weekly rather than daily, and USD in table A.
+ * Prices are held in BYN, so the obvious place to ask would be the Belarusian
+ * central bank — and the service did ask it first, until it turned out that
+ * `api.nbrb.by` is unreachable from the networks this application runs on.
+ * Every price then paid a timeout before falling through to Warsaw, which is
+ * a cost for no benefit.
+ *
+ * NBP publishes both pairs against the złoty: BYN in table B, republished
+ * weekly, and USD in table A, daily. The dollar rate the catalogue needs is
+ * therefore a cross rate — złoty per dollar divided by złoty per rouble.
  */
 const NBP_BYN_URL = 'https://api.nbp.pl/api/exchangerates/rates/b/byn/?format=json';
 const NBP_USD_URL = 'https://api.nbp.pl/api/exchangerates/rates/a/usd/?format=json';
@@ -22,9 +24,9 @@ const CACHE_TTL_MS = 60 * 60 * 1000;
 const RETRY_AFTER_FAILURE_MS = 5 * 60 * 1000;
 
 /**
- * Last known official relations, used only if both banks are unreachable:
- * 10 PLN = 8.0182 BYN (NBRB, 2026-08-17) and 1 USD = 3.0399 BYN (derived from
- * NBP tables A and B, 2026-08-27).
+ * Last known official relations, used only if the bank is unreachable:
+ * 10 PLN = 8.0182 BYN and 1 USD = 3.0399 BYN, both read from the NBP tables
+ * in August 2026. A slightly stale price beats a catalogue with no prices.
  */
 const FALLBACK = {
   source: 'fallback',
@@ -69,44 +71,14 @@ const getJson = async (url, bank) => {
   return response.json();
 };
 
-const fetchFromNbrb = async () => {
-  // Both pairs at once: two round trips in sequence would double the wait.
-  const [pln, usd] = await Promise.all([
-    getJson(NBRB_PLN_URL, 'NBRB'),
-    getJson(NBRB_USD_URL, 'NBRB')
-  ]);
-
-  const scale = Number(pln.Cur_Scale);
-  const officialRate = Number(pln.Cur_OfficialRate);
-  // The dollar is quoted per unit, so its scale has to be divided out as well.
-  const bynPerUsd = Number(usd.Cur_OfficialRate) / Number(usd.Cur_Scale);
-  if (
-    !Number.isFinite(scale) ||
-    scale <= 0 ||
-    !Number.isFinite(officialRate) ||
-    officialRate <= 0 ||
-    !Number.isFinite(bynPerUsd) ||
-    bynPerUsd <= 0
-  ) {
-    throw new Error('NBRB returned an invalid rate');
-  }
-
-  return toPayload({
-    scale,
-    officialRate,
-    bynPerUsd,
-    date: String(pln.Date ?? '').slice(0, 10),
-    source: 'nbrb'
-  });
-};
-
 const fetchFromNbp = async () => {
   const [byn, usd] = await Promise.all([
     getJson(NBP_BYN_URL, 'NBP'),
     getJson(NBP_USD_URL, 'NBP')
   ]);
 
-  // NBP quotes both pairs against the złoty, the other way round from NBRB.
+  // Both pairs are quoted against the złoty, so the rouble figures the
+  // catalogue works in are derived from them.
   const plnPerByn = Number(byn?.rates?.[0]?.mid);
   const plnPerUsd = Number(usd?.rates?.[0]?.mid);
   if (!Number.isFinite(plnPerByn) || plnPerByn <= 0 || !Number.isFinite(plnPerUsd) || plnPerUsd <= 0) {
@@ -122,18 +94,7 @@ const fetchFromNbp = async () => {
   });
 };
 
-/** Minsk first, because that is the rate the customer is billed in. */
-const fetchRate = async () => {
-  try {
-    return await fetchFromNbrb();
-  } catch (nbrbError) {
-    try {
-      return await fetchFromNbp();
-    } catch (nbpError) {
-      throw new Error(`${nbrbError.message}; NBP: ${nbpError.message}`);
-    }
-  }
-};
+const fetchRate = fetchFromNbp;
 
 export const getPlnExchangeRate = async () => {
   const now = Date.now();

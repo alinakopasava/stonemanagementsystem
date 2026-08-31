@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { supabaseAdmin } from '../config/supabase.js';
 import { PublicError } from '../http/errors.js';
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { assertUuid } from '../http/ids.js';
+import { assertUploadedImage, signStoredImage, storeImageWithRollback } from './image-upload.js';
+import { loadAuthEmails, loadClientProfiles } from './customer-directory.js';
 
 /** The same lifecycle the order itself uses, so one vocabulary covers both. */
 const ALLOWED_WORK_STATUSES = new Set([
@@ -14,41 +14,24 @@ const ALLOWED_WORK_STATUSES = new Set([
 
 const MAX_COMMENT_LENGTH = 2000;
 const PHOTO_BUCKET = 'installation-photos';
-const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
-const SIGNED_URL_TTL_SECONDS = 60 * 60;
-
-/**
- * Accepted image types and how each one starts on disk.
- *
- * The declared Content-Type is caller-supplied, so it decides nothing on its
- * own: the first bytes have to agree with it, or a script renamed to .jpg
- * would land in the bucket wearing an image label.
- */
-const IMAGE_TYPES = [
-  { mime: 'image/jpeg', ext: 'jpg', magic: [0xff, 0xd8, 0xff] },
-  { mime: 'image/png', ext: 'png', magic: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] },
-  { mime: 'image/webp', ext: 'webp', magic: [0x52, 0x49, 0x46, 0x46] }
-];
-
-const startsWith = (buffer, magic) =>
-  buffer.length >= magic.length && magic.every((byte, i) => buffer[i] === byte);
-
 /**
  * Everything an installer needs to carry out a job, and nothing that only
  * identifies the customer as a person.
  *
- * The list deliberately omits `passport_series` and `passport_number`: those
- * exist for the contract the office signs, and an installation crew has no use
- * for them. Everything else the administrator can see is here, because the
- * whole point of the worklist is that technical data reaches the installer
- * without being retyped by hand.
+ * Requirement FM1 names what the crew gets: the installation address, the
+ * deadline, the technical specification and the customer's contact details.
+ * Everything outside that list is omitted rather than filtered later.
+ *
+ * `passport_series` and `passport_number` are gone from the table entirely
+ * since `0014`, and no policy opens the new one to `monter`. `price` and
+ * `contract_details` are still readable by the office and still absent here:
+ * they belong to the commercial agreement, and an installation crew standing
+ * at a graveside has no use for either.
  */
 const INSTALLATION_ORDER_SELECT = `
   id,
   status,
-  price,
   installation_address,
-  contract_details,
   deadline,
   client_full_name,
   created_at,
@@ -76,21 +59,9 @@ const INSTALLATION_ORDER_SELECT = `
   )
 `;
 
-/**
- * A short-lived link to a photograph in the private bucket.
- *
- * The column stores the object path, not an address: a signed link expires,
- * so one pasted into a chat stops working instead of staying a permanent
- * public window onto a customer's grave.
- */
-const signPhoto = async (path) => {
-  if (!path) return null;
-  const { data, error } = await supabaseAdmin.storage
-    .from(PHOTO_BUCKET)
-    .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
-  if (error) return null;
-  return data?.signedUrl ?? null;
-};
+/** A short-lived link to a photograph in the private bucket. */
+export const signInstallationPhoto = (path) => signStoredImage(PHOTO_BUCKET, path);
+const signPhoto = signInstallationPhoto;
 
 /** PostgREST returns the reverse side of a foreign key as an array. */
 const toReport = async (rows) => {
@@ -104,43 +75,6 @@ const toReport = async (rows) => {
     workerComments: row.worker_comments ?? null,
     completionTimestamp: row.completion_timestamp ?? null
   };
-};
-
-/** Name and telephone as the customer registered them — how the crew reaches them. */
-const loadClientProfiles = async ({ supabase, userIds }) => {
-  const wanted = [...new Set((userIds ?? []).filter(Boolean))];
-  if (wanted.length === 0) return new Map();
-
-  // `profiles_select_self_or_staff` lets a monter read these, so the RLS-bound
-  // client is enough and the service role stays out of this path.
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, first_name, last_name, phone_number')
-    .in('id', wanted);
-
-  if (error) {
-    throw new Error('Failed to load client profiles.');
-  }
-
-  return new Map((data ?? []).map((p) => [p.id, p]));
-};
-
-/** Addresses live in `auth.users`, which only the service role can read. */
-const loadAuthEmails = async () => {
-  const emailById = new Map();
-  const perPage = 1000;
-  for (let page = 1; page <= 50; page += 1) {
-    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
-    if (error) {
-      throw new Error('Failed to list auth users.');
-    }
-    const users = data?.users ?? [];
-    for (const user of users) {
-      emailById.set(user.id, user.email ?? null);
-    }
-    if (users.length < perPage) break;
-  }
-  return emailById;
 };
 
 /**
@@ -180,9 +114,7 @@ export const listInstallationCards = async ({ supabase }) => {
       orderId: order.id,
       orderCardId: order.order_card_id ?? null,
       status: order.status ?? 'oczekujące',
-      price: order.price ?? null,
       installationAddress: order.installation_address ?? null,
-      contractDetails: order.contract_details ?? null,
       deadline: order.deadline ?? null,
       clientFullName: order.client_full_name ?? null,
       createdAt: order.created_at ?? null,
@@ -216,9 +148,7 @@ export const saveInstallationReport = async ({
   orderId,
   payload
 }) => {
-  if (typeof orderId !== 'string' || !UUID_RE.test(orderId)) {
-    throw new PublicError('Invalid order id.');
-  }
+  assertUuid(orderId, 'Invalid order id.');
 
   const status = typeof payload?.status === 'string' ? payload.status.trim() : '';
   if (!ALLOWED_WORK_STATUSES.has(status)) {
@@ -296,21 +226,8 @@ export const saveInstallationPhoto = async ({
   body,
   contentType
 }) => {
-  if (typeof orderId !== 'string' || !UUID_RE.test(orderId)) {
-    throw new PublicError('Invalid order id.');
-  }
-  if (!Buffer.isBuffer(body) || body.length === 0) {
-    throw new PublicError('No photo was uploaded.');
-  }
-  if (body.length > MAX_PHOTO_BYTES) {
-    throw new PublicError('Photo is too large.', 413);
-  }
-
-  const declared = String(contentType ?? '').split(';')[0].trim().toLowerCase();
-  const type = IMAGE_TYPES.find((candidate) => candidate.mime === declared);
-  if (!type || !startsWith(body, type.magic)) {
-    throw new PublicError('Only JPEG, PNG and WebP photos are accepted.');
-  }
+  assertUuid(orderId, 'Invalid order id.');
+  const type = assertUploadedImage({ body, contentType });
 
   const { data: order, error: orderError } = await supabase
     .from('orders')
@@ -338,37 +255,33 @@ export const saveInstallationPhoto = async ({
     throw new PublicError('This order has not been handed over to the crew yet.', 409);
   }
 
-  const path = `${orderId}/${randomUUID()}.${type.ext}`;
-  const { error: uploadError } = await supabaseAdmin.storage
-    .from(PHOTO_BUCKET)
-    .upload(path, body, { contentType: type.mime, upsert: false });
-  if (uploadError) {
-    throw new Error('Failed to store the photo.');
-  }
+  const saved = await storeImageWithRollback({
+    bucket: PHOTO_BUCKET,
+    path: `${orderId}/${randomUUID()}.${type.ext}`,
+    body,
+    type,
+    previousPath: existing.photo_evidence_url,
+    save: async (uploaded) => {
+      // A photograph arriving while the job is still only handed over means the
+      // crew has started; anything further along keeps the status it has.
+      const row = {
+        photo_evidence_url: uploaded,
+        ...(existing.status === 'oczekujące' ? { status: 'w_realizacji' } : {})
+      };
 
-  // A photograph arriving while the job is still only handed over means the
-  // crew has started; anything further along keeps the status it has.
-  const row = {
-    photo_evidence_url: path,
-    ...(existing.status === 'oczekujące' ? { status: 'w_realizacji' } : {})
-  };
+      const { data, error } = await supabase
+        .from('installation_cards')
+        .update(row)
+        .eq('id', existing.id)
+        .select('id, status, photo_evidence_url, worker_comments, completion_timestamp')
+        .single();
 
-  const { data: saved, error: saveError } = await supabase
-    .from('installation_cards')
-    .update(row)
-    .eq('id', existing.id)
-    .select('id, status, photo_evidence_url, worker_comments, completion_timestamp')
-    .single();
-
-  if (saveError) {
-    // Nothing points at the object now, so it must not stay in the bucket.
-    await supabaseAdmin.storage.from(PHOTO_BUCKET).remove([path]);
-    throw new Error('Failed to save the installation card.');
-  }
-
-  if (existing?.photo_evidence_url && existing.photo_evidence_url !== path) {
-    await supabaseAdmin.storage.from(PHOTO_BUCKET).remove([existing.photo_evidence_url]);
-  }
+      if (error) {
+        throw new Error('Failed to save the installation card.');
+      }
+      return data;
+    }
+  });
 
   return toReport(saved);
 };
