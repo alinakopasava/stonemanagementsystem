@@ -95,6 +95,41 @@ describe('GET /api/installation-cards', () => {
     expect(response.body.data[0].orderId).toBe('order-handed-over');
   });
 
+  /**
+   * FM1 lists what the crew is entitled to: the installation address, the
+   * deadline, the technical specification and the customer's contact details.
+   * Price and contract terms belong to the agreement between the office and
+   * the customer; the worklist must not carry them, and the check is on the
+   * response rather than on the interface so hiding a field in the markup
+   * cannot pass for removing it.
+   */
+  it('leaves the commercial terms out of the worklist', async () => {
+    setTables({ orders: { select: () => ({ data: [ORDER_WITH_CARD], error: null }) } });
+
+    const response = await api(app, { cookies: sessionCookies() }).get('/api/installation-cards');
+
+    const job = response.body.data[0];
+    expect(job).not.toHaveProperty('price');
+    expect(job).not.toHaveProperty('contractDetails');
+    expect(job.installationAddress).toBe('ul. Kwiatowa 1, Mińsk');
+    expect(job.deadline).toBe('2026-12-01');
+  });
+
+  it('does not ask the database for the commercial terms either', async () => {
+    setTables({ orders: { select: () => ({ data: [], error: null }) } });
+    const queries = [];
+    onQuery((ctx) => queries.push(ctx));
+
+    await api(app, { cookies: sessionCookies() }).get('/api/installation-cards');
+
+    const orderQuery = queries.find((q) => q.table === 'orders');
+    // `price` on its own line is the order's own column. The catalogue rate
+    // inside the embedded `materials ( ... price_per_m2 )` is a different
+    // thing: it is public, readable without signing in at all.
+    expect(orderQuery.columns).not.toMatch(/^\s*price\s*,/m);
+    expect(orderQuery.columns).not.toContain('contract_details');
+  });
+
   it('reports the handed-over job as not yet worked on', async () => {
     setTables({ orders: { select: () => ({ data: [ORDER_WITH_CARD], error: null }) } });
 

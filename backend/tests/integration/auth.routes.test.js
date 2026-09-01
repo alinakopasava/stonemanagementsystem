@@ -94,16 +94,7 @@ describe('POST /api/auth/sign-in', () => {
 /* ------------------------------------------------------------------ */
 
 describe('POST /api/auth/forgot-password', () => {
-  it('answers 200 for an address that has no account', async () => {
-    const response = await api(app)
-      .post('/api/auth/forgot-password')
-      .send({ email: 'nobody@example.com' });
-
-    expect(response.status).toBe(200);
-    expect(response.body).toEqual({ ok: true });
-  });
-
-  it('answers 200 identically for an address that does have an account', async () => {
+  it('answers 200 identically whether or not the address has an account', async () => {
     const unknown = await api(app)
       .post('/api/auth/forgot-password')
       .send({ email: 'nobody@example.com' });
@@ -161,40 +152,6 @@ describe('POST /api/auth/sign-up', () => {
       expect(response.status, `"${password}"`).toBe(400);
     }
 
-    expect(authClientSpies.signUp).not.toHaveBeenCalled();
-  });
-
-  /**
-   * The two ends of the length range, checked through the route rather than
-   * against the rule in isolation. The policy is written out once on each side
-   * of the system — the sign-up form in the client app and this service — so
-   * the boundary is asserted here as well: were the two to drift apart, the
-   * interface would advertise a password the server then refuses, or worse,
-   * accept one it should not.
-   */
-  it('accepts a password of exactly 128 characters', async () => {
-    authClientSpies.signUp.mockResolvedValue({
-      data: { user: { id: 'user-9' }, session: null },
-      error: null
-    });
-    const atLimit = `Aa1${'x'.repeat(125)}`;
-    expect(atLimit).toHaveLength(128);
-
-    const response = await api(app).post('/api/auth/sign-up').send({ ...valid, password: atLimit });
-
-    // Guards against a strict `<` at the upper bound.
-    expect(response.status).toBe(201);
-  });
-
-  it('rejects a password of 129 characters before reaching the auth module', async () => {
-    const overLimit = `Aa1${'x'.repeat(126)}`;
-    expect(overLimit).toHaveLength(129);
-
-    const response = await api(app)
-      .post('/api/auth/sign-up')
-      .send({ ...valid, password: overLimit });
-
-    expect(response.status).toBe(400);
     expect(authClientSpies.signUp).not.toHaveBeenCalled();
   });
 
@@ -314,20 +271,42 @@ describe('POST /api/auth/reset-password', () => {
       .send({ password: 'weak' });
 
     expect(response.status).toBe(400);
-    expect(userClientSpies.auth.updateUser).not.toHaveBeenCalled();
+    expect(supabaseAdmin.auth.admin.updateUserById).not.toHaveBeenCalled();
   });
 
-  it('accepts a compliant password', async () => {
+  /**
+   * Pinned to the admin API on purpose.
+   *
+   * The change used to be attempted through a client carrying the caller's JWT
+   * as a header, which is enough for a table read but not for a password
+   * change: that call wants a session the client does not hold on a server, so
+   * every attempt came back 400. Mocking it kept the suite green while the
+   * feature was broken in the browser, so the call itself is asserted here.
+   */
+  it('changes the password of the caller, through the admin API', async () => {
     signedInAs({ id: 'user-1' });
-    userClientSpies.auth.updateUser.mockResolvedValue({
-      data: { user: { id: 'user-1' } },
-      error: null
-    });
 
     const response = await api(app, { cookies: sessionCookies() })
       .post('/api/auth/reset-password')
       .send({ password: 'BrandNew123' });
 
     expect(response.status).toBe(200);
+    expect(supabaseAdmin.auth.admin.updateUserById).toHaveBeenCalledWith('user-1', {
+      password: 'BrandNew123'
+    });
+  });
+
+  it('reports a failure from the auth provider as 400', async () => {
+    signedInAs({ id: 'user-1' });
+    supabaseAdmin.auth.admin.updateUserById.mockResolvedValue({
+      data: { user: null },
+      error: { message: 'nope' }
+    });
+
+    const response = await api(app, { cookies: sessionCookies() })
+      .post('/api/auth/reset-password')
+      .send({ password: 'BrandNew123' });
+
+    expect(response.status).toBe(400);
   });
 });

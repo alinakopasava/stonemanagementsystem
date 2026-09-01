@@ -208,6 +208,20 @@ describe('POST /api/admin/order-cards/:id/convert', () => {
     expect(response.status).toBe(400);
   });
 
+  it('answers 400 when an identity field runs past its limit', async () => {
+    asAdmin();
+    setTables({
+      ...cardFound(),
+      orders: { select: () => ({ data: null, error: null }) }
+    });
+
+    const response = await api(app, { cookies: sessionCookies() })
+      .post('/api/admin/order-cards/card-1/convert')
+      .send({ price: 2500, passport_number: 'X'.repeat(33) });
+
+    expect(response.status).toBe(400);
+  });
+
   it('stores an empty price as an undefined value', async () => {
     asAdmin();
     const inserts = [];
@@ -225,6 +239,35 @@ describe('POST /api/admin/order-cards/:id/convert', () => {
 
     expect(response.status).toBe(201);
     expect(inserts[0].price).toBeNull();
+  });
+
+  /**
+   * The order and its identity document are one act, and PostgREST cannot wrap
+   * them in a transaction. A failed second write therefore has to undo the
+   * first, or the card would burn its one conversion on an order the office
+   * cannot complete.
+   */
+  it('withdraws the order when the identity document cannot be stored', async () => {
+    asAdmin();
+    const deletes = [];
+    setTables({
+      ...cardFound(),
+      orders: {
+        select: () => ({ data: null, error: null }),
+        insert: (ctx) => ({ data: { id: 'order-1', ...ctx.payload }, error: null }),
+        delete: (ctx) => (deletes.push(ctx.filters), { data: null, error: null })
+      },
+      order_identity_documents: {
+        insert: () => ({ data: null, error: { message: 'write failed' } })
+      }
+    });
+
+    const response = await api(app, { cookies: sessionCookies() })
+      .post('/api/admin/order-cards/card-1/convert')
+      .send({ price: 2500, passport_series: 'AB', passport_number: '1234567' });
+
+    expect(response.status).toBe(500);
+    expect(deletes).toHaveLength(1);
   });
 
   it('answers 201 with the initial status on a correct conversion', async () => {
@@ -252,6 +295,47 @@ describe('POST /api/admin/order-cards/:id/convert', () => {
     // The order inherits the card's owner, not the acting admin.
     expect(inserts[0].user_id).toBe('user-1');
     expect(inserts[0].order_card_id).toBe('card-1');
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* 7.3.4  Card deletion vs. order cancellation                          */
+/* ------------------------------------------------------------------ */
+
+describe('DELETE /api/admin/order-cards/:id', () => {
+  it('answers 409 and deletes nothing when the card already became an order', async () => {
+    asAdmin();
+    const deletes = [];
+    setTables({
+      orders: { select: () => ({ data: { id: 'order-1' }, error: null }) },
+      order_cards: { delete: (ctx) => (deletes.push(ctx), { data: null, error: null }) }
+    });
+
+    const response = await api(app, { cookies: sessionCookies() }).delete(
+      '/api/admin/order-cards/card-1'
+    );
+
+    expect(response.status).toBe(409);
+    // The order card cascades into orders, so a delete that got through here
+    // would silently destroy the production order. A finished order is
+    // retired with the `anulowane` status instead, never removed.
+    expect(deletes).toHaveLength(0);
+  });
+
+  it('deletes a card that was never converted', async () => {
+    asAdmin();
+    const deletes = [];
+    setTables({
+      orders: { select: () => ({ data: null, error: null }) },
+      order_cards: { delete: (ctx) => (deletes.push(ctx), { data: null, error: null }) }
+    });
+
+    const response = await api(app, { cookies: sessionCookies() }).delete(
+      '/api/admin/order-cards/card-1'
+    );
+
+    expect(response.status).toBe(200);
+    expect(deletes).toHaveLength(1);
   });
 });
 
@@ -311,5 +395,108 @@ describe('GET /api/admin/order-cards', () => {
 
     expect(response.status).toBe(200);
     expect(response.body.data).toHaveLength(2);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* What the office is entitled to see                                   */
+/* ------------------------------------------------------------------ */
+
+describe('GET /api/admin/orders', () => {
+  /**
+   * FM2: "Raport zapisywany jest wraz ze znacznikiem czasu zakończenia
+   * i widoczny jest w panelu administracyjnym." Before this the office read
+   * the installation card's id and status and nothing else, so the comments
+   * and the site photograph — the entire content of the report — stopped at
+   * the installer's screen and the telephone call stayed exactly where it was.
+   */
+  it('carries the crew report back to the office', async () => {
+    asAdmin();
+    setTables({
+      orders: {
+        select: () => ({
+          data: [
+            {
+              id: 'order-1',
+              status: 'zrealizowane',
+              user_id: 'user-1',
+              order_identity_documents: [],
+              installation_cards: [
+                {
+                  id: 'inst-1',
+                  status: 'zrealizowane',
+                  completion_timestamp: '2026-09-01T12:00:00Z',
+                  worker_comments: 'Zamontowano, podłoże wyrównane.',
+                  photo_evidence_url: 'order-1/evidence.jpg'
+                }
+              ],
+              order_cards: null
+            }
+          ],
+          error: null
+        })
+      }
+    });
+
+    const response = await api(app, { cookies: sessionCookies() }).get('/api/admin/orders');
+
+    const report = response.body.data[0].installation_report;
+    expect(report.workerComments).toBe('Zamontowano, podłoże wyrównane.');
+    expect(report.completionTimestamp).toBe('2026-09-01T12:00:00Z');
+    // A path is not fetchable on its own: the bucket is private, so the panel
+    // needs a link minted for this read.
+    expect(report.photoUrl).toContain('order-1/evidence.jpg');
+  });
+});
+
+describe('GET /api/admin/order-cards', () => {
+  /**
+   * FK17: "Fotografia jest powiązana z kartą i widoczna w panelu
+   * administracyjnym." The upload path stored `order_details.photo_path` from
+   * the start, but nothing read it back except the work sheet, so the office
+   * could not see what the engraver was being sent.
+   */
+  it('signs the customer portrait for the office', async () => {
+    asAdmin();
+    setTables({
+      order_cards: {
+        select: () => ({
+          data: [
+            {
+              id: 'card-1',
+              user_id: 'user-1',
+              order_details: [{ id: 'detail-1', photo_path: 'card-1/portrait.png' }]
+            }
+          ],
+          error: null
+        })
+      },
+      orders: { select: () => ({ data: [], error: null }) }
+    });
+
+    const response = await api(app, { cookies: sessionCookies() }).get('/api/admin/order-cards');
+
+    const [detail] = response.body.data[0].order_details;
+    expect(detail.photo_path).toBe('card-1/portrait.png');
+    expect(detail.photo_url).toContain('card-1/portrait.png');
+  });
+
+  it('leaves the photo link null when no portrait was attached', async () => {
+    asAdmin();
+    setTables({
+      order_cards: {
+        select: () => ({
+          data: [
+            { id: 'card-2', user_id: 'user-2', order_details: [{ id: 'detail-2', photo_path: null }] }
+          ],
+          error: null
+        })
+      },
+      orders: { select: () => ({ data: [], error: null }) }
+    });
+
+    const response = await api(app, { cookies: sessionCookies() }).get('/api/admin/order-cards');
+
+    expect(response.body.data[0].order_details[0].photo_url).toBeNull();
   });
 });

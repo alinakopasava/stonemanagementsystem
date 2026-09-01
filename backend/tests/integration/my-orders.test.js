@@ -81,24 +81,17 @@ describe('GET /api/orders/mine', () => {
     expect(response.status).toBe(401);
   });
 
-  it('answers with an empty list when the customer has ordered nothing', async () => {
-    signedInAs({ id: 'user-1' });
-    setTables({ order_cards: { select: () => ({ data: [], error: null }) } });
-
-    const response = await api(app, { cookies: sessionCookies() }).get('/api/orders/mine');
-
-    expect(response.status).toBe(200);
-    expect(response.body.data).toEqual([]);
-  });
-
-  it('does not go looking for orders when there are no cards to match them to', async () => {
+  it('answers with an empty list without going looking for orders', async () => {
     signedInAs({ id: 'user-1' });
     setTables({ order_cards: { select: () => ({ data: [], error: null }) } });
     const queries = [];
     onQuery((ctx) => queries.push(ctx));
 
-    await api(app, { cookies: sessionCookies() }).get('/api/orders/mine');
+    const response = await api(app, { cookies: sessionCookies() }).get('/api/orders/mine');
 
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual([]);
+    // And no second round trip: with no cards there is nothing to match orders to.
     expect(queries.filter((q) => q.table === 'orders')).toHaveLength(0);
   });
 

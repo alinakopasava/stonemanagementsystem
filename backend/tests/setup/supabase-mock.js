@@ -110,13 +110,52 @@ const makeFrom = (client) => vi.fn((table) => new QueryBuilder(table, client));
 const defaultAuthResult = { data: { user: null, session: null }, error: null };
 
 /** Service-role client: JWT verification, auth.users listing, contact writes. */
+/**
+ * Storage, as one bucket that answers every name.
+ *
+ * The service role is the only thing allowed to write to Storage, so both
+ * upload paths — the installer's site photo and the customer's portrait — go
+ * through here. Tests assert against these spies rather than a real bucket;
+ * `storageSpies.upload.mock.calls` shows what would have been written.
+ */
+const storageBucket = {
+  upload: vi.fn(async (path) => ({ data: { path }, error: null })),
+  remove: vi.fn(async () => ({ data: [], error: null })),
+  download: vi.fn(async () => ({ data: null, error: { message: 'not stubbed' } })),
+  createSignedUrl: vi.fn(async (path) => ({
+    data: { signedUrl: `https://storage.test/${path}?token=signed` },
+    error: null
+  }))
+};
+
+/** A one-pixel PNG, so a downloaded portrait is a real image the PDF can embed. */
+const PIXEL_PNG = Buffer.from(
+  '89504e470d0a1a0a0000000d4948445200000001000000010802000000907753de0000000c49444154789c63f8cfc0000003010100c9fe92ef0000000049454e44ae426082',
+  'hex'
+);
+
+const defaultStorageBehaviour = () => {
+  storageBucket.upload.mockImplementation(async (path) => ({ data: { path }, error: null }));
+  storageBucket.remove.mockImplementation(async () => ({ data: [], error: null }));
+  storageBucket.download.mockImplementation(async () => ({
+    data: { arrayBuffer: async () => PIXEL_PNG },
+    error: null
+  }));
+  storageBucket.createSignedUrl.mockImplementation(async (path) => ({
+    data: { signedUrl: `https://storage.test/${path}?token=signed` },
+    error: null
+  }));
+};
+
 export const supabaseAdmin = {
   from: makeFrom('admin'),
+  storage: { from: vi.fn(() => storageBucket) },
   auth: {
     getUser: vi.fn(async () => defaultAuthResult),
     admin: {
       signOut: vi.fn(async () => ({ error: null })),
-      listUsers: vi.fn(async () => ({ data: { users: [] }, error: null }))
+      listUsers: vi.fn(async () => ({ data: { users: [] }, error: null })),
+      updateUserById: vi.fn(async () => defaultAuthResult)
     }
   }
 };
@@ -156,6 +195,9 @@ export const supabaseForUser = vi.fn(() => userClient);
 
 /** The anon auth client's spies — assert the auth module was (not) reached. */
 export const authClientSpies = authClient.auth;
+
+/** The storage bucket's spies — assert what reached (or never reached) the bucket. */
+export const storageSpies = storageBucket;
 export const userClientSpies = userClient;
 
 /**
@@ -177,11 +219,18 @@ export const resetSupabaseMock = () => {
   state.onQuery = [];
 
   supabaseAdmin.from.mockClear();
+  supabaseAdmin.storage.from.mockClear();
+  storageBucket.upload.mockClear();
+  storageBucket.remove.mockClear();
+  storageBucket.createSignedUrl.mockClear();
+  storageBucket.download.mockClear();
+  defaultStorageBehaviour();
   supabaseAdmin.auth.getUser.mockReset().mockResolvedValue(defaultAuthResult);
   supabaseAdmin.auth.admin.signOut.mockReset().mockResolvedValue({ error: null });
   supabaseAdmin.auth.admin.listUsers
     .mockReset()
     .mockResolvedValue({ data: { users: [] }, error: null });
+  supabaseAdmin.auth.admin.updateUserById.mockReset().mockResolvedValue(defaultAuthResult);
 
   authClient.from.mockClear();
   authClient.auth.signInWithPassword.mockReset().mockResolvedValue(defaultAuthResult);

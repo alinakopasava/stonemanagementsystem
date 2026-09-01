@@ -100,6 +100,101 @@ describe('POST /api/orders/submit', () => {
       }
     });
 
+    it('rejects a configuration value outside the configurator vocabulary', async () => {
+      const malformed = [
+        { shape: 'gothic' },
+        { inscriptionStyle: 'comic' },
+        { slabVariant: 'quarter' },
+        { decoration: 'statue' },
+        { decoration: 'medallion' },
+        { baseHeightCm: -1 },
+        { slabThicknessCm: 1000 }
+      ];
+
+      for (const override of malformed) {
+        const response = await api(app, { cookies: sessionCookies() })
+          .post('/api/orders/submit')
+          .send({ ...validPayload, ...override });
+
+        // The same vocabulary is written into the check constraints in
+        // migration 0010: what the service refuses, the database refuses too.
+        expect(response.status, JSON.stringify(override)).toBe(400);
+      }
+    });
+
+    it('stores the whole configuration, not only the four original fields', async () => {
+      const inserts = [];
+      setTables({
+        order_cards: {
+          insert: () => ({ data: { id: 'card-1', user_id: 'user-1' }, error: null }),
+          delete: () => ({ data: null, error: null })
+        },
+        order_details: {
+          insert: (ctx) => (
+            inserts.push(ctx.payload), { data: { id: 'details-1', ...ctx.payload }, error: null }
+          )
+        }
+      });
+
+      const response = await api(app, { cookies: sessionCookies() })
+        .post('/api/orders/submit')
+        .send({
+          ...validPayload,
+          dimensions: '100x60x8',
+          shape: 'stele',
+          inscriptionStyle: 'roman',
+          slabVariant: 'full',
+          slabThicknessCm: 5,
+          baseHeightCm: 15,
+          baseWidthCm: 120,
+          baseDepthCm: 20,
+          decoration: 'portrait',
+          hasCross: true,
+          hasFlowerbed: false
+        });
+
+      expect(response.status).toBe(201);
+      // Without these the workshop cannot be told what to cut — the preview
+      // knew the shape, the order did not.
+      expect(inserts[0]).toMatchObject({
+        dimensions: '100x60x8',
+        shape: 'stele',
+        inscription_style: 'roman',
+        slab_variant: 'full',
+        slab_thickness_cm: 5,
+        base_height_cm: 15,
+        base_width_cm: 120,
+        base_depth_cm: 20,
+        decoration: 'portrait',
+        has_cross: true,
+        has_flowerbed: false
+      });
+    });
+
+    it('keeps accepting a submission that carries only the original four fields', async () => {
+      const inserts = [];
+      setTables({
+        order_cards: {
+          insert: () => ({ data: { id: 'card-1', user_id: 'user-1' }, error: null }),
+          delete: () => ({ data: null, error: null })
+        },
+        order_details: {
+          insert: (ctx) => (
+            inserts.push(ctx.payload), { data: { id: 'details-1', ...ctx.payload }, error: null }
+          )
+        }
+      });
+
+      const response = await api(app, { cookies: sessionCookies() })
+        .post('/api/orders/submit')
+        .send(validPayload);
+
+      expect(response.status).toBe(201);
+      // Null, not undefined: the column exists and says "not specified".
+      expect(inserts[0].shape).toBeNull();
+      expect(inserts[0].has_cross).toBeNull();
+    });
+
     it('writes no rows at all when validation fails', async () => {
       const queries = [];
       onQuery((ctx) => queries.push(ctx));
