@@ -146,6 +146,18 @@ export const seedOrders = async (accounts) => {
     if (orderError) throw new Error(`Failed to seed order for ${key}: ${orderError.message}`);
     created.orders.push(order.id);
     accounts[key].orderId = order.id;
+
+    // One order carries an identity document, so the policies that keep it away
+    // from everyone but the office have something to keep away. Cleanup is the
+    // cascade on `order_id`, so this needs no entry in `created`.
+    if (key === 'clientA') {
+      const { error: documentError } = await admin
+        .from('order_identity_documents')
+        .insert({ order_id: order.id, passport_series: 'AB', passport_number: '1234567' });
+      if (documentError) {
+        throw new Error(`Failed to seed identity document: ${documentError.message}`);
+      }
+    }
   }
 
   return created;
