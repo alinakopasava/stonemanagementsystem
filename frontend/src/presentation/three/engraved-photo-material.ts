@@ -5,12 +5,9 @@ export interface EngravedPhotoMaterialOptions {
   stoneMap: THREE.Texture;
   stoneRepeat: THREE.Vector2;
   stoneLuma: number;
-  roughness: number;
   photoBrightness: number;
   photoContrast: number;
   photoBlend: number;
-  /** Porcelain plaque — full grayscale, no stone composite. */
-  framed?: boolean;
 }
 
 /**
@@ -22,21 +19,19 @@ export const createNaturalEngravedPhotoMaterial = ({
   stoneMap,
   stoneRepeat,
   stoneLuma,
-  roughness,
   photoBrightness,
   photoContrast,
-  photoBlend,
-  framed = false
+  photoBlend
 }: EngravedPhotoMaterialOptions): THREE.MeshStandardMaterial => {
   const mat = new THREE.MeshStandardMaterial({
     map: photoMap,
-    roughness: framed ? roughness : 1,
+    roughness: 1,
     metalness: 0.0,
-    envMapIntensity: framed ? 1 : 0,
+    envMapIntensity: 0,
     transparent: true,
     // Low enough that the long dissolve tail reaches the stone instead of ending
     // on a traceable iso-line.
-    alphaTest: framed ? 0.02 : 0.012,
+    alphaTest: 0.012,
     depthTest: true,
     depthWrite: false,
     polygonOffset: true,
@@ -45,7 +40,6 @@ export const createNaturalEngravedPhotoMaterial = ({
   });
 
   const f = (v: number) => v.toFixed(3);
-  const isFramed = framed ? 1.0 : 0.0;
 
   mat.onBeforeCompile = (shader) => {
     shader.uniforms.engravedStoneMap = { value: stoneMap };
@@ -59,6 +53,16 @@ export const createNaturalEngravedPhotoMaterial = ({
         void main() {
       `
     );
+    // A laser etching is a flat tonal image, not a lit surface. Feeding its tone
+    // through emissive keeps the authored greys intact under the ~4× key light
+    // instead of clipping the face to a white blob.
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <emissivemap_fragment>',
+      `
+          #include <emissivemap_fragment>
+          totalEmissiveRadiance += _etched;
+      `
+    );
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <map_fragment>',
       `
@@ -69,37 +73,30 @@ export const createNaturalEngravedPhotoMaterial = ({
           float _tone = clamp((_gray - 0.5) * ${f(photoContrast)} + 0.5 + ${f(photoBrightness)}, 0.0, 1.0);
 
           float _blend = ${f(photoBlend)};
-          float _isFramed = ${f(isFramed)};
           float _stoneRef = ${f(stoneLuma)};
 
-          // Laser engraving reads as pale silver-grey even in the portrait shadows.
-          // Lift the black point for an etched photo while preserving full grayscale
-          // on framed porcelain photos.
-          float _silverFloor = mix(0.015, 0.08, smoothstep(0.18, 0.78, _srcAlpha));
-          float _engravedTone = mix(_silverFloor, 0.76, _tone);
-          vec3 _portrait = vec3(mix(_engravedTone, _tone, _isFramed));
-          float _mixPhoto = mix(0.96, 0.8, _blend);
-          vec3 _etched = mix(vec3(_stoneRef), _portrait, _mixPhoto);
-          vec3 _framed = vec3(_tone);
+          // One consistent black-and-white portrait on every stone. The engraving
+          // tone IS the photo's own greyscale value — no per-stone frost/cut
+          // anchoring, which used to lift the shadows toward the stone's luminance
+          // and blow the portrait out on lighter textures. The image looks the same
+          // grey regardless of the slab it sits on. (_stoneRef intentionally unused.)
+          float _engravedTone = _tone;
+          vec3 _etched = vec3(_engravedTone);
 
-          // Preserve the granite's fine grain through the monochrome portrait, like
-          // a laser etching rather than an opaque printed decal.
-          vec3 _stoneTexel = texture2D(engravedStoneMap, vMapUv * engravedStoneRepeat).rgb;
-          float _grain = dot(_stoneTexel, vec3(0.299, 0.587, 0.114));
-          float _grainDetail = clamp((_grain - _stoneRef) * 0.3, -0.1, 0.1);
-          _etched = clamp(_etched + vec3(_grainDetail), 0.0, 1.0);
+          // The person stays close to opaque so the fixed greyscale is what shows,
+          // not the stone bleeding through; only the silhouette edge dissolves.
+          float _alpha = pow(_srcAlpha, 1.15) * mix(0.97, 0.9, _blend);
 
-          // Gentle curve: the border keeps a long, gradual dissolve into the stone.
-          float _alpha = pow(_srcAlpha, 1.15) * mix(0.97, 0.86, _blend);
-
-          diffuseColor.rgb = mix(_etched, _framed, _isFramed);
-          diffuseColor.a = mix(_alpha, 1.0, _isFramed);
+          // The etched portrait is carried by emissive (see emissivemap_fragment
+          // below), not diffuse, so the strong key light cannot bloom it to white.
+          diffuseColor.rgb = vec3(0.0);
+          diffuseColor.a = _alpha;
         `
     );
   };
 
   mat.customProgramCacheKey = () =>
-    `side-etch-${framed}-${photoBrightness}-${photoContrast}-${photoBlend}-${stoneLuma}`;
+    `side-etch-${photoBrightness}-${photoContrast}-${photoBlend}-${stoneLuma}`;
 
   mat.needsUpdate = true;
   return mat;

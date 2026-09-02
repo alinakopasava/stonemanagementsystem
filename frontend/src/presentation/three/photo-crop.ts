@@ -11,23 +11,20 @@ export interface PhotoCrop {
 
 /** Pre-cut sample portrait (person only, soft matte) used by the catalog previews.
  *  Rebuild with `python scripts/build-portrait-cutout.py` after replacing the source. */
-export const SAMPLE_PORTRAIT_URL = '/images/portrait-sample-cutout.png';
+export const SAMPLE_PORTRAIT_URL = '/images/portrait-sample-bw.png';
 
-/** Tuned default for catalog / new uploads — face-forward portrait crop. */
+/** Default crop for catalog / new uploads. Scale sits at the minimum (fully zoomed
+ *  out, PHOTO_CROP_SCALE_MIN) so the whole photo shows on load; the customer zooms
+ *  in from there with the crop slider. */
 export const DEFAULT_PORTRAIT_CROP: PhotoCrop = {
-  centerX: 0.55,
-  centerY: 0.34,
-  scale: 1.8
-};
-
-export const DEFAULT_SQUARE_CROP: PhotoCrop = {
   centerX: 0.5,
-  centerY: 0.38,
-  scale: 1.25
+  centerY: 0.5,
+  scale: 1
 };
 
-export const getDefaultPhotoCrop = (aspect: PhotoAspect): PhotoCrop =>
-  aspect === 'square' ? { ...DEFAULT_SQUARE_CROP } : { ...DEFAULT_PORTRAIT_CROP };
+export const getDefaultPhotoCrop = (_aspect?: PhotoAspect): PhotoCrop => ({
+  ...DEFAULT_PORTRAIT_CROP
+});
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
@@ -35,7 +32,6 @@ export const PHOTO_CROP_SCALE_MIN = 1;
 export const PHOTO_CROP_SCALE_MAX = 3;
 
 const ASPECT_RATIOS: Record<PhotoAspect, number> = {
-  square: 1,
   portrait: 1 / 1.25
 };
 

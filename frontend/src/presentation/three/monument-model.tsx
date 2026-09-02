@@ -7,6 +7,7 @@ import { useStoneAlbedoTexture } from './use-stone-albedo-texture';
 import { usePhotoTexture, type PhotoCrop } from './use-photo-texture';
 import { createNaturalEngravedPhotoMaterial } from './engraved-photo-material';
 import { createHeadstoneExtrudeGeometry } from './headstone-extrude-geometry';
+import { slabFootprintCm } from '@application/pricing/monument-price';
 import {
   finishToSurface,
   getInscriptionColors,
@@ -59,7 +60,7 @@ export const CURVY_GEOMETRY = {
 /** Geometry of the integrated cross protrusion on the `cross-top` shape (% of bounding box,
  * measured from the LEFT edge for X and from the BOTTOM for Y). Shared as a single source
  * of truth between the 3D builder (`buildCrossTopShape`) and the SVG editor preview
- *  (`shape-preview.html`) so both renders stay in lock-step. */
+ *  (`docs/prototypy/shape-preview.html`) so both renders stay in lock-step. */
 export const CROSS_TOP_GEOMETRY = {
   /** Pillar (vertical bar) X bounds — narrow centred column above the crossbar. */
   pillarLeftPct: 78,
@@ -75,16 +76,12 @@ export const CROSS_TOP_GEOMETRY = {
   crossbarTopPct: 95
 } as const;
 
-export type MonumentDecoration = 'none' | 'portrait' | 'medallion' | 'cross';
-
-export type NicheStyle = 'recessed' | 'framed';
+export type MonumentDecoration = 'none' | 'portrait' | 'cross';
 
 /** Tombstone slab variant: none, half (front cover only) or full (covers the whole grave). */
 export type TombstoneSlabVariant = 'none' | 'half' | 'full';
 
 /** Single stela or a double monument (two stelas side by side on a shared base). */
-export type MonumentLayout = 'single' | 'double';
-
 export const DEFAULT_INSCRIPTION_STYLE: InscriptionStyleHints = {
   letterSpacing: 0,
   transform: 'none',
@@ -110,11 +107,9 @@ interface MonumentModelProps {
   tombstoneSlab?: TombstoneSlabVariant;
   /** Slab thickness preset, typically 5 or 8 cm. */
   slabThicknessCm?: number;
-  /** Decoration on the headstone face: portrait/medallion plate or engraved cross. */
+  /** Decoration on the headstone face: engraved portrait or engraved cross. */
   decoration?: MonumentDecoration;
-  /** Visual treatment for portrait/medallion: recessed niche or raised frame. */
-  nicheStyle?: NicheStyle;
-  /** Optional portrait photo (data URL) shown inside the portrait/medallion niche. */
+  /** Optional portrait photo (data URL) engraved onto the face. */
   photoUrl?: string;
   /** Interactive crop — which region of the source photo appears on the stone. */
   photoCrop?: PhotoCrop;
@@ -125,13 +120,6 @@ interface MonumentModelProps {
   photoContrast?: number;
   photoBlend?: number;
   /** Single stela (default) or a double monument with two stelas side by side. */
-  layout?: MonumentLayout;
-  /** Text on the right-hand stela when layout='double'. Ignored otherwise. */
-  secondaryInscription?: string;
-  secondaryName?: string;
-  secondaryDates?: string;
-  /** Spacing between the two stelas in cm. Used only when layout='double'. */
-  doubleGapCm?: number;
 }
 
 const CM_TO_M = 0.01;
@@ -641,17 +629,11 @@ export const MonumentModel = ({
   tombstoneSlab = 'full',
   slabThicknessCm = 5,
   decoration = 'none',
-  nicheStyle = 'recessed',
   photoUrl,
   photoCrop,
   photoBrightness = 0,
   photoContrast = 1.1,
   photoBlend = 0.08,
-  layout = 'single',
-  secondaryInscription = '',
-  secondaryName = '',
-  secondaryDates = '',
-  doubleGapCm = 10
 }: MonumentModelProps) => {
   const widthM = dimensions.widthCm * CM_TO_M;
   const heightM = dimensions.heightCm * CM_TO_M;
@@ -665,27 +647,17 @@ export const MonumentModel = ({
    *  ~16 mm V-groove between the stelas. We compensate by pulling each stela inward by one bevel
    * width — so when the user dials the gap to 0, the bevels merge into a clean seam instead of a
    * furrow, and a positive gap value still produces the expected visible spacing. */
-  const STELA_BEVEL_M = 0.008;
-  const isDouble = layout === 'double';
-  const doubleGapM = doubleGapCm * CM_TO_M;
-  /** Distance between the two stela centers, clamped so the user can't accidentally overlap
-   * them by more than 40 % of the stela width. */
-  const stelaCenterDistanceM = isDouble
-    ? Math.max(widthM * 0.6, widthM + doubleGapM - STELA_BEVEL_M * 2)
-    : 0;
-  const stelaOffsetsX = isDouble ? [-stelaCenterDistanceM / 2, stelaCenterDistanceM / 2] : [0];
+  const stelaOffsetsX = [0];
   /** Total horizontal extent of the headstone footprint (used by base/slab width derivations). */
-  const stelaSpanM = isDouble ? stelaCenterDistanceM + widthM : widthM;
+  const stelaSpanM = widthM;
 
   /** Base (pedestal) can be set explicitly by the user — otherwise derived from the full stela span.
    *  When the user-supplied width is too narrow to physically hold both stelas, we silently widen
    * the base to a sane floor; the slider keeps responding for further fine-tuning above that floor. */
-  const minDoubleBaseWidth = isDouble ? stelaSpanM + widthM * 0.2 : 0;
-  const derivedBaseWidth = isDouble ? stelaSpanM * 1.15 : widthM * 1.4;
-  const baseWidth = Math.max(
-    minDoubleBaseWidth,
-    baseDimensions ? Math.max(0.4, baseDimensions.widthCm * CM_TO_M) : derivedBaseWidth
-  );
+  const derivedBaseWidth = widthM * 1.4;
+  const baseWidth = baseDimensions
+    ? Math.max(0.4, baseDimensions.widthCm * CM_TO_M)
+    : derivedBaseWidth;
   const baseDepth = baseDimensions
     ? Math.max(0.15, baseDimensions.depthCm * CM_TO_M)
     : thicknessM * 2.6;
@@ -700,10 +672,17 @@ export const MonumentModel = ({
    *  Half = covers only the area in front of the base (≈half a typical grave length).
    *  Full = covers the whole grave from the base forward. */
   const slabHeight = Math.max(0.03, slabThicknessCm * CM_TO_M);
-  const slabWidth = Math.max(baseWidth * 1.25, stelaSpanM * 1.5);
-  const slabFullDepth = Math.max(baseDepth * 2.0, thicknessM * 5.5);
-  const slabHalfDepth = Math.max(baseDepth * 1.15, thicknessM * 2.8);
-  const slabDepth = tombstoneSlab === 'half' ? slabHalfDepth : slabFullDepth;
+  /* Proportions shared with the price: the stone being drawn is the stone
+     being charged for. See `slabFootprintCm`. */
+  const slabFootprint = slabFootprintCm({
+    variant: tombstoneSlab === 'none' ? 'full' : tombstoneSlab,
+    baseWidthCm: baseWidth / CM_TO_M,
+    baseDepthCm: baseDepth / CM_TO_M,
+    stelaWidthCm: stelaSpanM / CM_TO_M,
+    stelaThicknessCm: thicknessM / CM_TO_M
+  })!;
+  const slabWidth = slabFootprint.widthCm * CM_TO_M;
+  const slabDepth = slabFootprint.depthCm * CM_TO_M;
   /** Push slab forward more for "half" — visually it stops short of fully covering the grave. */
   const slabForwardOffset = tombstoneSlab === 'half' ? slabDepth * 0.32 : slabDepth * 0.18;
   const hasSlab = tombstoneSlab !== 'none';
@@ -753,28 +732,24 @@ export const MonumentModel = ({
     setStoneTextureStats(undefined);
   }, [albedoMap, isDarkStone]);
 
-  /** User portrait photo, only relevant for portrait/medallion decorations. The hook
+  /** User portrait photo, only relevant for the portrait decoration. The hook
    * pre-bakes both the aspect crop and a soft edge vignette into the texture so this
    * component doesn't have to coordinate UV repeat/offset with shader-side masking. */
   const photoTexture = usePhotoTexture(
-    decoration === 'portrait' || decoration === 'medallion' ? photoUrl : undefined,
-    decoration === 'medallion' ? 'square' : 'portrait',
-    decoration === 'medallion' ? 'radial' : 'sides',
+    decoration === 'portrait' ? photoUrl : undefined,
+    'portrait',
     photoCrop
   );
 
   /** Photo material — renders the uploaded portrait as a laser-etched grayscale engraving.
    *
-   *  Modes (driven by `nicheStyle` and stone luminance):
-   *  – recessed + dark stone: bright photo pixels stay bright, dark pixels become transparent
-   * so the polished granite shows through (alpha = grayscale). Looks like a laser etch.
-   *  – recessed + light stone: dark photo pixels become a charcoal engraving, light pixels
-   * disappear into the stone.
-   *  – framed: opaque high-contrast grayscale (porcelain photo plaque inside the stone rim).
+   *  On dark stone the bright pixels stay bright and the shadows fall back to the
+   *  slab, which is how a frosted etch reads; on pale stone it is the other way
+   *  round, a dark cut into a light face.
    *
-   *  Edge softness is delegered to `usePhotoTexture`'s canvas-level vignette (applied after
-   * background removal) — keeping the GPU shader simple avoids version-specific issues with
-   * three.js shader chunk renames. */
+   *  Edge softness is delegated to `usePhotoTexture`'s canvas-level vignette (applied
+   * after background removal) — keeping the GPU shader simple avoids version-specific
+   * issues with three.js shader chunk renames. */
   const photoMaterial = useMemo(() => {
     if (!photoTexture) return null;
     return createNaturalEngravedPhotoMaterial({
@@ -782,13 +757,11 @@ export const MonumentModel = ({
       stoneMap: albedoMap,
       stoneRepeat: new THREE.Vector2(albedoMap.repeat.x, albedoMap.repeat.y),
       stoneLuma,
-      roughness: nicheStyle === 'framed' ? 0.45 : 0.32,
       photoBrightness,
       photoContrast,
-      photoBlend,
-      framed: nicheStyle === 'framed'
+      photoBlend
     });
-  }, [photoTexture, albedoMap, stoneLuma, nicheStyle, photoBrightness, photoContrast, photoBlend]);
+  }, [photoTexture, albedoMap, stoneLuma, photoBrightness, photoContrast, photoBlend]);
 
   useEffect(() => () => photoMaterial?.dispose(), [photoMaterial]);
 
@@ -991,7 +964,7 @@ export const MonumentModel = ({
     return wordAwareLineCount(text, charsPerLine);
   };
 
-  /** Decoration (portrait/medallion/cross) goes onto the upper portion of the headstone face.
+  /** Decoration (portrait or cross) goes onto the upper portion of the headstone face.
    *  We compute its size and Y center first, then narrow the text layout so the two don't overlap.
    *  When `layout='double'`, the same decoration kind is mirrored on each stela. */
   const decorationSize = (() => {
@@ -1183,15 +1156,7 @@ export const MonumentModel = ({
     };
   };
 
-  /** One bundle per stela. For a single monument only the first entry is used. */
-  const stelaTexts = [
-    computeStelaText(inscription, name ?? '', dates ?? ''),
-    ...(isDouble ? [computeStelaText(secondaryInscription, secondaryName, secondaryDates)] : [])
-  ];
-
-  /** Niche colour: ciemne tło pod portret/medalion, w odcieniu kontrastującym z kamieniem. */
-  const nichePlateColor =
-    inscriptionColors.metalness >= 0.4 ? inscriptionColors.outline : '#1c130b';
+  const stelaTexts = [computeStelaText(inscription, name ?? '', dates ?? '')];
 
   return (
     <group>
@@ -1275,12 +1240,6 @@ export const MonumentModel = ({
 
             {hasDecoration &&
               (() => {
-                /** Decoration sits flush with the front face of the headstone.
-                 *  Recessed: a single dark plate ~6mm out → reads as a niche.
-                 *  Framed: same dark plate + a thin stone rim (4 strips for portrait, ring for medallion). */
-                const plateZ = frontFaceZ + 0.006;
-                const frameZ = frontFaceZ + 0.014;
-                const frameThickness = Math.min(0.018, Math.max(0.008, widthM * 0.018));
                 const { w, h } = decorationSize;
 
                 if (decoration === 'cross') {
@@ -1302,94 +1261,19 @@ export const MonumentModel = ({
                   );
                 }
 
-                const isMedallion = decoration === 'medallion';
-                const isFramed = nicheStyle === 'framed';
-                /** Framed: real porcelain-plaque look — keep the dark backing plate at `plateZ`.
-                 *  Recessed: laser engraving directly on the polished stone — NO plate at all
-                 *  (the dark plate was the main thing making the portrait look "pasted"). */
-                const plateOutZ = plateZ;
-                /** Photo geometry: full niche size for recessed (vignette in the shader fades the
-                 * edge), slightly inset for framed so the porcelain image has a visible border. */
-                const photoW = isFramed ? w * 0.86 : w;
-                const photoH = isFramed ? h * 0.86 : h;
-                const photoR = isFramed ? (w / 2) * 0.9 : w / 2;
-                const photoZ = isFramed ? plateOutZ + 0.0066 : frontFaceZ + 0.012;
-
+                /* The portrait is etched into the polished face itself: no plate
+                   behind it and no rim around it, which is what made earlier
+                   versions look like a photograph stuck onto the stone. */
                 return (
                   <group position={[0, decorationCenterY, 0]}>
-                    {isFramed &&
-                      (isMedallion ? (
-                        /** cylinderGeometry is Y-aligned by default; rotate 90° around X so the disc faces +Z. */
-                        <mesh position={[0, 0, plateOutZ]} rotation={[Math.PI / 2, 0, 0]}>
-                          <cylinderGeometry args={[w / 2, w / 2, 0.012, 48]} />
-                          <meshStandardMaterial
-                            color={nichePlateColor}
-                            roughness={0.6}
-                            metalness={0.15}
-                          />
-                        </mesh>
-                      ) : (
-                        <mesh position={[0, 0, plateOutZ]}>
-                          <boxGeometry args={[w, h, 0.012]} />
-                          <meshStandardMaterial
-                            color={nichePlateColor}
-                            roughness={0.6}
-                            metalness={0.15}
-                          />
-                        </mesh>
-                      ))}
-
                     {photoMaterial && (
-                      /** Recessed: photo plane is glued to the stone face — alpha + vignette in the
-                       * shader make it look engraved. Framed: photo sits just in front of the
-                       * porcelain-style plate, with a visible plate rim around it. */
-                      <mesh position={[0, 0, photoZ]} material={photoMaterial} renderOrder={3}>
-                        {isMedallion ? (
-                          <circleGeometry args={[photoR, 64]} />
-                        ) : (
-                          <planeGeometry args={[photoW, photoH]} />
-                        )}
+                      <mesh
+                        position={[0, 0, frontFaceZ + 0.012]}
+                        material={photoMaterial}
+                        renderOrder={3}
+                      >
+                        <planeGeometry args={[w, h]} />
                       </mesh>
-                    )}
-
-                    {nicheStyle === 'framed' && isMedallion && (
-                      /** ringGeometry sits in the XY plane and faces +Z by default. */
-                      <mesh position={[0, 0, frameZ]} material={stoneMaterial}>
-                        <ringGeometry args={[w / 2, w / 2 + frameThickness, 64]} />
-                      </mesh>
-                    )}
-
-                    {nicheStyle === 'framed' && !isMedallion && (
-                      <group position={[0, 0, frameZ]}>
-                        <mesh
-                          material={stoneMaterial}
-                          position={[0, h / 2 + frameThickness / 2, 0]}
-                        >
-                          <boxGeometry
-                            args={[w + frameThickness * 2, frameThickness, frameThickness]}
-                          />
-                        </mesh>
-                        <mesh
-                          material={stoneMaterial}
-                          position={[0, -h / 2 - frameThickness / 2, 0]}
-                        >
-                          <boxGeometry
-                            args={[w + frameThickness * 2, frameThickness, frameThickness]}
-                          />
-                        </mesh>
-                        <mesh
-                          material={stoneMaterial}
-                          position={[-w / 2 - frameThickness / 2, 0, 0]}
-                        >
-                          <boxGeometry args={[frameThickness, h, frameThickness]} />
-                        </mesh>
-                        <mesh
-                          material={stoneMaterial}
-                          position={[w / 2 + frameThickness / 2, 0, 0]}
-                        >
-                          <boxGeometry args={[frameThickness, h, frameThickness]} />
-                        </mesh>
-                      </group>
                     )}
                   </group>
                 );

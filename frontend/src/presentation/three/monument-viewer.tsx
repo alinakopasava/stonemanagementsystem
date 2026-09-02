@@ -9,8 +9,6 @@ import type {
   InscriptionStyleHints,
   MonumentDecoration,
   MonumentDimensionsCm,
-  MonumentLayout,
-  NicheStyle,
   TombstoneSlabVariant
 } from './monument-model';
 import type { MonumentShape } from '@domain/entities/monument';
@@ -35,17 +33,11 @@ export interface MonumentViewerProps {
   tombstoneSlab?: TombstoneSlabVariant;
   slabThicknessCm?: number;
   decoration?: MonumentDecoration;
-  nicheStyle?: NicheStyle;
   photoUrl?: string;
   photoCrop?: PhotoCrop;
   photoBrightness?: number;
   photoContrast?: number;
   photoBlend?: number;
-  layout?: MonumentLayout;
-  secondaryInscription?: string;
-  secondaryName?: string;
-  secondaryDates?: string;
-  doubleGapCm?: number;
   /** Tailwind height class for the canvas container. Defaults to the tall designer view. */
   heightClassName?: string;
   /** 'demand' renders only on change/interaction — use for catalog grids with many canvases. */
@@ -100,12 +92,10 @@ export const MonumentViewer = ({
   ...props
 }: MonumentViewerProps) => {
   const isCatalogQuality = quality === 'catalog';
-  const layout = props.layout ?? 'single';
   /** These single stelas share the detailed Blender assembly and differ only in
    * the silhouette of the main upper slab. */
   const isDetailedGlb =
-    (props.shape === 'classic' || props.shape === 'rounded' || props.shape === 'stele') &&
-    layout !== 'double';
+    props.shape === 'classic' || props.shape === 'rounded' || props.shape === 'stele';
   const detailedModelUrl =
     props.shape === 'rounded'
       ? ROUNDED_MODEL_URL
@@ -128,9 +118,17 @@ export const MonumentViewer = ({
     const distForWidth = (totalW * 1.28) / hHalf;
     const distance = (distForWidth * 0.55 + distForHeight * 0.45) * 1.08;
     const side = isDetailedGlb ? 0.18 : -0.22;
+    // Catalog cards frame the monument noticeably closer than the full configurator.
+    const zoom = isCatalogQuality ? 0.72 : 1;
+    const target: [number, number, number] = [0, totalH * 0.45, 0];
+    const offset: [number, number, number] = [distance * side, totalH * 0.05, distance];
     return {
-      position: [distance * side, totalH * 0.5, distance] as [number, number, number],
-      target: [0, totalH * 0.45, 0] as [number, number, number],
+      position: [
+        target[0] + offset[0] * zoom,
+        target[1] + offset[1] * zoom,
+        target[2] + offset[2] * zoom
+      ] as [number, number, number],
+      target,
       minDistance: Math.max(0.8, distance * 0.6),
       maxDistance: Math.max(4, distance * 2.6)
     };
@@ -145,14 +143,14 @@ export const MonumentViewer = ({
   ]);
 
   return (
-    <div className={`${heightClassName} w-full overflow-hidden border border-line bg-[#eceae8]`}>
+    <div className={`${heightClassName} w-full overflow-hidden border border-line bg-[#2b211a]`}>
       <Canvas
         frameloop={frameloop}
         shadows={{
           enabled: true,
-          type: isCatalogQuality ? THREE.BasicShadowMap : THREE.PCFShadowMap
+          type: THREE.PCFShadowMap
         }}
-        dpr={isCatalogQuality ? 1 : [1, 2]}
+        dpr={[1, 2]}
         camera={{
           position: framing.position,
           fov,
@@ -160,7 +158,7 @@ export const MonumentViewer = ({
           far: 40
         }}
         gl={{
-          antialias: !isCatalogQuality,
+          antialias: true,
           powerPreference: 'high-performance',
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: presentation.exposure,
@@ -177,7 +175,7 @@ export const MonumentViewer = ({
           castShadow
           position={[-4.5, 8, 4]}
           intensity={4.0}
-          shadow-mapSize={isCatalogQuality ? [512, 512] : [2048, 2048]}
+          shadow-mapSize={isCatalogQuality ? [1024, 1024] : [2048, 2048]}
           shadow-bias={-0.0001}
           shadow-normalBias={0.1}
           shadow-camera-left={-2.5}
@@ -219,7 +217,6 @@ export const MonumentViewer = ({
               materialName={props.materialName}
               finish={props.finish}
               decoration={props.decoration}
-              nicheStyle={props.nicheStyle}
               photoUrl={props.photoUrl}
               photoCrop={props.photoCrop}
               photoBrightness={props.photoBrightness}
@@ -236,7 +233,7 @@ export const MonumentViewer = ({
               baseDimensions={props.baseDimensions}
             />
           ) : (
-            <MonumentModel {...props} layout={layout} />
+            <MonumentModel {...props} />
           )}
 
           <SceneReadyNotifier onReady={onSceneReady} />

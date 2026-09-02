@@ -8,15 +8,13 @@ import {
 } from './photo-crop';
 
 export type { PhotoCrop } from './photo-crop';
-export { DEFAULT_PORTRAIT_CROP, DEFAULT_SQUARE_CROP, getDefaultPhotoCrop } from './photo-crop';
+export { DEFAULT_PORTRAIT_CROP, getDefaultPhotoCrop } from './photo-crop';
 
-/** Target aspect for the on-stone photo: square for medallions/discs, taller portrait
- *  rectangle for niche-style frames. */
-export type PhotoAspect = 'square' | 'portrait';
+/** Target aspect for the on-stone photo. */
+export type PhotoAspect = 'portrait';
 
-/** `radial` — oval fade for medallion discs. `sides` — left/right dissolve into stone,
- *  no oval, circle, blob, or hard rectangle. */
-export type PhotoEdgeFade = 'radial' | 'sides';
+/** Left/right dissolve into the stone: no oval, circle, blob, or hard rectangle. */
+export type PhotoEdgeFade = 'sides';
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
@@ -80,14 +78,6 @@ const sideDissolveMask = (x: number, y: number, w: number, h: number) => {
 
   if (a > 0.42) a = 0.42 + (a - 0.42) * 1.55;
   return clamp(a, 0, 1);
-};
-
-/** Oval mask for medallion discs. */
-const radialMedallionMask = (x: number, y: number, w: number, h: number) => {
-  const nx = (x - w / 2) / (w * 0.48);
-  const ny = (y - h / 2) / (h * 0.48);
-  const d = Math.sqrt(nx * nx + ny * ny);
-  return clamp(smoothstep(1.02, 0.42, d), 0, 1);
 };
 
 /** `transparent` tells a cutout from a full-frame photo; `partial` tells whether the
@@ -170,28 +160,70 @@ const applyEdgeFade = (
   imageData: ImageData,
   width: number,
   height: number,
-  edgeFade: PhotoEdgeFade
 ) => {
-  if (edgeFade !== 'radial') {
-    const { transparent, partial } = alphaProfile(imageData.data);
-    if (transparent > 0.04) {
-      // A pre-feathered matte only needs the hard-pixel safety pass; feathering it
-      // again with the full radius would eat into the person.
-      featherSilhouette(imageData, partial > 0.05 ? 5 : 18);
-      return;
-    }
+  const { transparent, partial } = alphaProfile(imageData.data);
+  if (transparent > 0.04) {
+    // A pre-feathered matte only needs the hard-pixel safety pass; feathering it
+    // again with the full radius would eat into the person.
+    featherSilhouette(imageData, partial > 0.05 ? 5 : 18);
+    return;
   }
 
   const data = imageData.data;
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
       const idx = (y * width + x) * 4 + 3;
-      const mask =
-        edgeFade === 'radial'
-          ? radialMedallionMask(x, y, width, height)
-          : sideDissolveMask(x, y, width, height);
-      data[idx] = Math.round(data[idx] * mask);
+      data[idx] = Math.round(data[idx] * sideDissolveMask(x, y, width, height));
     }
+  }
+};
+
+/** Sparse chroma check: true when the image is already monochrome (R≈G≈B almost
+ *  everywhere), so a colour→grey pass would only reproduce it. */
+const isAlreadyGrayscale = (data: Uint8ClampedArray) => {
+  let colored = 0;
+  let counted = 0;
+  // Step over ~every 37th pixel — enough to classify without scanning all of them.
+  for (let i = 0; i < data.length; i += 4 * 37) {
+    if (data[i + 3] < 8) continue;
+    counted += 1;
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    if (Math.abs(r - g) > 14 || Math.abs(g - b) > 14 || Math.abs(r - b) > 14) {
+      colored += 1;
+    }
+  }
+  return counted === 0 || colored / counted < 0.02;
+};
+
+/** Tone curve for the colour→B&W conversion: a plain luma read is flat and washed,
+ *  so we push contrast around a mid pivot to get the deep-shadow, bright-highlight
+ *  monochrome of a proper black-and-white portrait. Precomputed as a 256-entry LUT. */
+const BW_CONTRAST = 1.42;
+const BW_PIVOT = 0.46;
+const BW_TONE_LUT = (() => {
+  const lut = new Uint8ClampedArray(256);
+  for (let v = 0; v < 256; v += 1) {
+    const t = (v / 255 - BW_PIVOT) * BW_CONTRAST + BW_PIVOT;
+    lut[v] = Math.round(Math.max(0, Math.min(1, t)) * 255);
+  }
+  return lut;
+})();
+
+/** Normalise every portrait to the same greyscale: a colour photo is converted to
+ *  Rec.601 luma and pushed through the B&W tone curve so it reads as one consistent,
+ *  contrasty monochrome; a photo that is already grey is left untouched, preserving
+ *  the customer's own black-and-white. */
+const applyGrayscale = (imageData: ImageData) => {
+  const data = imageData.data;
+  if (isAlreadyGrayscale(data)) return;
+  for (let i = 0; i < data.length; i += 4) {
+    const luma = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    const y = BW_TONE_LUT[luma & 255];
+    data[i] = y;
+    data[i + 1] = y;
+    data[i + 2] = y;
   }
 };
 
@@ -205,7 +237,6 @@ const applyEdgeFade = (
 function buildVignettedTexture(
   img: HTMLImageElement,
   aspect: PhotoAspect,
-  edgeFade: PhotoEdgeFade,
   crop: PhotoCrop
 ): THREE.CanvasTexture {
   const { width: W, height: H } = getPhotoTextureSize(aspect);
@@ -226,7 +257,8 @@ function buildVignettedTexture(
     ctx.drawImage(img, drawX, drawY, drawW, drawH);
 
     const imageData = ctx.getImageData(0, 0, W, H);
-    applyEdgeFade(imageData, W, H, edgeFade);
+    applyGrayscale(imageData);
+    applyEdgeFade(imageData, W, H);
     ctx.putImageData(imageData, 0, 0);
   }
 
@@ -245,7 +277,6 @@ function buildVignettedTexture(
 export function usePhotoTexture(
   photoUrl: string | undefined,
   aspect: PhotoAspect = 'portrait',
-  edgeFade: PhotoEdgeFade = aspect === 'square' ? 'radial' : 'sides',
   photoCrop?: PhotoCrop
 ): THREE.Texture | null {
   const crop = photoCrop ?? getDefaultPhotoCrop(aspect);
@@ -274,7 +305,7 @@ export function usePhotoTexture(
     img.onload = () => {
       if (cancelled) return;
       try {
-        const tex = buildVignettedTexture(img, aspect, edgeFade, crop);
+        const tex = buildVignettedTexture(img, aspect, crop);
         disposeOwned();
         ownedTextureRef.current = tex;
         setTexture(tex);
@@ -293,7 +324,7 @@ export function usePhotoTexture(
     return () => {
       cancelled = true;
     };
-  }, [photoUrl, aspect, edgeFade, crop.centerX, crop.centerY, crop.scale]);
+  }, [photoUrl, aspect, crop.centerX, crop.centerY, crop.scale]);
 
   useEffect(
     () => () => {

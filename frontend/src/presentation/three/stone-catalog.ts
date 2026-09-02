@@ -45,6 +45,25 @@ export type InscriptionColors = {
   /** Optional self-illumination so light fills read as true white on dark/red stone. */
   emissive?: string;
   emissiveIntensity?: number;
+  /** Scales the letter outline width (1 = default). Set 0 for no outline. */
+  outlineScale?: number;
+  /** Soft blur on the outline, as a fraction of font size — turns the hard outline
+   *  into a soft shadow/halo. */
+  outlineBlur?: number;
+  /** Outline opacity (default 1). Lower it for a gentler shadow. */
+  outlineOpacity?: number;
+  /** Faux-bold: glyph stroke width as a fraction of font size, drawn in the fill
+   *  colour so the letters thicken without a contrasting border. */
+  boldStroke?: number;
+  /** Render the letters unlit at full brightness (bypasses scene tone-mapping) so a
+   *  white fill reads as a true, luminous white rather than a dimmed grey. */
+  glow?: boolean;
+  /** Draw a soft darkened panel behind the inscription so the text reads on a calm
+   *  surface instead of fighting a very busy, speckled slab. */
+  textPanel?: boolean;
+  /** Explicit plaque tint (hex). When set, overrides the auto tint taken from the
+   *  slab's average colour. */
+  panelColor?: string;
 };
 
 export type StoneTextureStats = {
@@ -54,6 +73,8 @@ export type StoneTextureStats = {
   /** Share of pixels darker than ~25 % — black grains, dark veins. */
   darkFraction: number;
   p90Luma: number;
+  /** Average colour of the slab (0–1), used to tint UI drawn over it. */
+  meanColor: { r: number; g: number; b: number };
 };
 
 const lumaFromRgb = (r: number, g: number, b: number) =>
@@ -74,8 +95,14 @@ export const sampleStoneTextureStats = (
     ctx.drawImage(image, 0, 0, size, size);
     const data = ctx.getImageData(0, 0, size, size).data;
     const lumas: number[] = [];
+    let sumR = 0;
+    let sumG = 0;
+    let sumB = 0;
     for (let i = 0; i < data.length; i += 4) {
       lumas.push(lumaFromRgb(data[i], data[i + 1], data[i + 2]));
+      sumR += data[i];
+      sumG += data[i + 1];
+      sumB += data[i + 2];
     }
     if (lumas.length === 0) return null;
     lumas.sort((a, b) => a - b);
@@ -84,10 +111,34 @@ export const sampleStoneTextureStats = (
     const brightFraction = lumas.filter((value) => value > 0.65).length / n;
     const darkFraction = lumas.filter((value) => value < 0.25).length / n;
     const p90Luma = lumas[Math.min(n - 1, Math.floor(n * 0.9))];
-    return { meanLuma, brightFraction, darkFraction, p90Luma };
+    const meanColor = { r: sumR / n / 255, g: sumG / n / 255, b: sumB / n / 255 };
+    return { meanLuma, brightFraction, darkFraction, p90Luma, meanColor };
   } catch {
     return null;
   }
+};
+
+/**
+ * The plaque treatment: a calm grey tablet carrying white, thickened letters
+ * with a black outline.
+ *
+ * A coarse, high-contrast slab swallows an engraved inscription whatever colour
+ * the letters are given, because the pattern competes with them everywhere at
+ * once. These stones get a surface of their own for the text instead of a
+ * louder colour on the stone itself.
+ */
+const PLAQUE_ON_BUSY_STONE: InscriptionColors = {
+  fill: '#ffffff',
+  outline: '#000000',
+  metalness: 0,
+  roughness: 0.5,
+  outlineScale: 1.4,
+  outlineBlur: 0,
+  outlineOpacity: 1,
+  boldStroke: 0.1,
+  glow: true,
+  textPanel: true,
+  panelColor: '#54575c'
 };
 
 /**
@@ -114,24 +165,11 @@ const INSCRIPTION_BY_MATERIAL: Record<string, InscriptionColors> = {
     emissive: '#c4a04a',
     emissiveIntensity: 0.2
   },
-  /** Mostly black with thick white veins — ivory fill, dark outline on the veins. */
-  'Amadeus Granite': {
-    fill: '#f3efe6',
-    outline: '#12100c',
-    metalness: 0.08,
-    roughness: 0.42,
-    emissive: '#f3efe6',
-    emissiveIntensity: 0.18
-  },
-  /** Dark forest green + black grains — warm ivory. */
-  'Maslovsky Granite': {
-    fill: '#f0e6cc',
-    outline: '#0e1610',
-    metalness: 0.06,
-    roughness: 0.44,
-    emissive: '#efe4c8',
-    emissiveIntensity: 0.16
-  },
+  /** Mostly black with thick white veins, which cut straight through lettering:
+   *  the inscription gets a plaque of its own. */
+  'Amadeus Granite': PLAQUE_ON_BUSY_STONE,
+  /** Dark forest green with heavy black grains. */
+  'Maslovsky Granite': PLAQUE_ON_BUSY_STONE,
   /** Saturated terracotta red — white so letters stay crisp. */
   'Africa Granite': {
     fill: '#ffffff',
@@ -141,24 +179,11 @@ const INSCRIPTION_BY_MATERIAL: Record<string, InscriptionColors> = {
     emissive: '#ffffff',
     emissiveIntensity: 0.62
   },
-  /** Black bands + terracotta — ivory (dark fill vanished on the black). */
-  'Aurora Granite': {
-    fill: '#f4eadc',
-    outline: '#140c08',
-    metalness: 0.08,
-    roughness: 0.4,
-    emissive: '#f0e4d4',
-    emissiveIntensity: 0.16
-  },
-  /** Burnt orange + charcoal grains — warm cream. */
-  'Baltic Granite': {
-    fill: '#f6ebd8',
-    outline: '#1a1008',
-    metalness: 0.08,
-    roughness: 0.4,
-    emissive: '#f2e4cc',
-    emissiveIntensity: 0.14
-  },
+  /** Black bands crossing terracotta, so no single letter colour works over the
+   *  whole face. */
+  'Aurora Granite': PLAQUE_ON_BUSY_STONE,
+  /** Burnt orange with charcoal grains. */
+  'Baltic Granite': PLAQUE_ON_BUSY_STONE,
   /** Mid-dark brick red — cool ivory. */
   'Leznikovsky Granite': {
     fill: '#f5ece6',
@@ -168,13 +193,8 @@ const INSCRIPTION_BY_MATERIAL: Record<string, InscriptionColors> = {
     emissive: '#f2e8e2',
     emissiveIntensity: 0.18
   },
-  /** Light-mid salt-and-pepper grey — charcoal. */
-  'Gandhi Granite': {
-    fill: '#161410',
-    outline: '#eeeae4',
-    metalness: 0.06,
-    roughness: 0.46
-  },
+  /** Light salt-and-pepper grey, speckled edge to edge. */
+  'Gandhi Granite': PLAQUE_ON_BUSY_STONE,
   /** Bright white Carrara — near-black. */
   Marble: {
     fill: '#141210',
@@ -189,13 +209,8 @@ const INSCRIPTION_BY_MATERIAL: Record<string, InscriptionColors> = {
     metalness: 0.05,
     roughness: 0.46
   },
-  /** Salmon-pink field + black veins — espresso. */
-  'Juparana Granite': {
-    fill: '#1c100c',
-    outline: '#faf4ee',
-    metalness: 0.08,
-    roughness: 0.42
-  },
+  /** Salmon-pink field broken by black veins. */
+  'Juparana Granite': PLAQUE_ON_BUSY_STONE,
   /** Mid teal + cream veins — deep pine. */
   'Tiffany Granite': {
     fill: '#0c1614',
@@ -259,6 +274,35 @@ export const getInscriptionColors = (
   return isDarkStone(materialName) ? WARM_GOLD_ON_DARK : DARK_ON_LIGHT;
 };
 
+/**
+ * Portrait engraving tuned per stone, the same way the lettering is.
+ *
+ * The shader already anchors the engraving to the stone's measured luminance,
+ * which settles light-on-dark against dark-on-light. What it cannot know is how
+ * *busy* the slab is: a face cut into speckled red Africa or veined Amadeus
+ * competes with the pattern, and needs a harder tonal separation than the same
+ * face on calm marble, where the extra contrast would only look harsh.
+ */
+export type PhotoEngravingProfile = {
+  brightness: number;
+  contrast: number;
+  /** How far the engraving fades back into the slab. */
+  blend: number;
+};
+
+/**
+ * The portrait is a fixed black-and-white image, so the tones pass straight through
+ * (contrast 1). Dark stones keep the photo as-is; light stones (pale marble etc.)
+ * get a small negative brightness so the engraving reads a touch darker against the
+ * bright slab instead of washing out.
+ */
+const PHOTO_DARK: PhotoEngravingProfile = { brightness: 0, contrast: 1, blend: 0.08 };
+const PHOTO_LIGHT: PhotoEngravingProfile = { brightness: -0.1, contrast: 1, blend: 0.08 };
+
+export const getPhotoEngravingProfile = (
+  materialName: string | undefined
+): PhotoEngravingProfile => (isDarkStone(materialName) ? PHOTO_DARK : PHOTO_LIGHT);
+
 /** Scene + material tuning so each stone reads clearly in the 3D viewer. */
 export type StonePresentationProfile = {
   sceneBackground: string;
@@ -271,8 +315,8 @@ export type StonePresentationProfile = {
 };
 
 const AFRICA_PRESENTATION: StonePresentationProfile = {
-  /** Cool slate — complementary to warm red-brown granite. */
-  sceneBackground: '#75808c',
+  /** Dark brown backdrop, shared across stones. */
+  sceneBackground: '#2b211a',
   environmentIntensity: 0.15,
   exposure: 0.98,
   stoneContrast: 1.34,
@@ -282,7 +326,7 @@ const AFRICA_PRESENTATION: StonePresentationProfile = {
 };
 
 const DARK_STONE_PRESENTATION: StonePresentationProfile = {
-  sceneBackground: '#b8aea4',
+  sceneBackground: '#2b211a',
   environmentIntensity: 0.38,
   exposure: 1.12,
   stoneContrast: 1.16,
@@ -292,12 +336,15 @@ const DARK_STONE_PRESENTATION: StonePresentationProfile = {
 };
 
 const LIGHT_STONE_PRESENTATION: StonePresentationProfile = {
-  sceneBackground: '#eceae8',
-  environmentIntensity: 1,
-  exposure: 1.25,
-  stoneContrast: 1,
+  sceneBackground: '#2b211a',
+  // Pale stone (marble, Silk, Tiffany) reads clearly light but is pulled well back
+  // from the blown-out near-white it started at: lower exposure and environment
+  // plus a firmer albedo darken keep visible tone and grain.
+  environmentIntensity: 0.62,
+  exposure: 0.96,
+  stoneContrast: 1.08,
   albedoSaturation: 1,
-  albedoDarken: 1,
+  albedoDarken: 0.72,
   rimLightIntensity: 0
 };
 
