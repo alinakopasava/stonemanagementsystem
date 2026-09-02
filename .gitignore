@@ -9,3 +9,9 @@
 /frontend/playwright-report/
 /frontend/coverage/
 /backend/coverage/
+
+# artefakty testow i narzedzi
+/backend/test-results/
+/frontend/tsc.log
+.claude/
+Gemini_Generated_Image_*.png

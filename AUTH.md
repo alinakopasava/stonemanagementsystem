@@ -29,7 +29,19 @@ Key ideas:
 - In development, Vite proxies `/api` to the backend so cookies are first-party. Leave `VITE_API_URL` unset.
 - `requireAuth` also accepts an `Authorization: Bearer <token>` header as a fallback for non-browser API clients (e.g. scripts using the backend directly). Bearer requests without a cookie bypass the CSRF origin check intentionally — they are stateless and carry no SameSite cookie. Do not use this path from browser code.
 - Express `requireAuth` verifies the JWT with Supabase, loads `profiles.role`, and creates a per-request client bound to that JWT. **Row Level Security is the last line of defense.**
-- Admin table operations use that user-scoped client (RLS). The service role is only for JWT verification, `auth.users` emails, contact-form inserts, and the `profiles` backfill described below.
+- Admin table operations use that user-scoped client (RLS). The service role is confined to a
+  short list of paths where no user JWT can do the work:
+  - verifying a JWT and refreshing a session;
+  - reading email addresses out of `auth.users`, which no policy exposes;
+  - inserting a contact-form message, since the sender has no session at all;
+  - the `profiles` backfill described below;
+  - every Storage operation — uploading, signing and removing objects in the two private
+    buckets — because a browser must never hold a key that writes to Storage;
+  - one table write: `order_details.photo_path`, after the caller's own client has already
+    proved they own the card. `order_details_update_staff` admits only staff, so the
+    customer's own client would match no rows — and a PostgREST `UPDATE` that matches
+    nothing is not an error, so the upload would report success while the path silently
+    failed to land.
 - `ensureProfileExists` uses the service role to insert a missing `profiles` row when the sign-up trigger did not fire (e.g. an `auth.users` row that predates the trigger). `profiles` intentionally has no client INSERT policy, so this path cannot go through the user-scoped client. It hardcodes `role: 'klient'` and is idempotent — it never accepts a caller-supplied role.
 - The service role key never ships to the browser.
 
@@ -47,7 +59,11 @@ Enum `public.user_role`: `klient` (client), `monter` (installer), `admin`.
 ## One-time setup
 
 1. **Rotate the service role key** in Supabase dashboard (Settings -> API) if it has ever been shared. The previous value must be considered compromised.
-2. **Run the SQL migrations** in Supabase SQL editor: `0001_auth_and_rls.sql` through `0009_installation_card_per_order.sql`, in order. They are idempotent.
+2. **Run the SQL migrations** in Supabase SQL editor: `0001_auth_and_rls.sql` through
+   `0019_fix_handover_policy_recursion.sql`, in order. They are idempotent. Do not stop
+   part-way: `0018` narrows the installer's reads and `0019` repairs the policy recursion
+   that `0018` introduces, so a database left between the two answers every query touching
+   `orders` with `42P17`.
 3. **Configure Auth** in Supabase dashboard (Authentication -> URL Configuration):
    - Site URL: `http://localhost:5173` (add your production URL later)
    - Redirect URLs: `http://localhost:5173/auth/callback`, `http://localhost:5173/auth/reset-password`
@@ -74,19 +90,41 @@ cd frontend && npm install --legacy-peer-deps && npm run dev
 | `GET  /api/materials` | no | Public catalog |
 | `POST /api/auth/sign-in` | no | 5 attempts / minute / IP |
 | `POST /api/contact` | no | 3 attempts / minute / IP |
+| `GET  /api/exchange-rate` | no | Cached NBP rates |
 | `GET  /api/me` | yes | Current user + profile |
-| `POST /api/orders/submit` | yes | Creates an order as `auth.uid()` |
+| `POST /api/orders/submit` | yes | Creates an order card as `auth.uid()` |
+| `GET  /api/orders/mine` | yes | The caller's own cards and their orders |
+| `POST /api/orders/:cardId/photo` | yes | Portrait for the caller's own card, raw bytes |
+| `/api/installation-cards` | monter, admin | Worklist of handed-over jobs |
+| `PUT  /api/installation-cards/:orderId/report` | monter, admin | Site report |
+| `POST /api/installation-cards/:orderId/photo` | monter, admin | Site photograph, raw bytes |
+| `POST /api/admin/orders/:id/hand-over` | admin | Opens the installation card |
+| `GET  /api/admin/orders/:id/work-sheet.pdf` | admin | Workshop sheet |
 | `/api/admin/*` | admin | RLS + `requireRole('admin')` |
 
 ## Row Level Security summary
 
 | Table | Client (`klient`) | Installer (`monter`) | Admin |
 |-------|-------------------|----------------------|-------|
-| `profiles` | read/update own row | read all | full |
+| `profiles` | read/update own row (role unchanged) | read the customers of handed-over jobs | full |
 | `materials`, `products` | read | read | full |
-| `order_cards`, `order_details`, `orders` | read/insert own | read all | full |
+| `order_cards`, `order_details` | read/insert own | read those behind a handed-over order | full |
+| `orders` | read own; **no insert** | read handed-over orders only | full |
+| `order_identity_documents` | — | — | full |
 | `installation_cards` | read own (via `orders.user_id`) | full except delete | full |
 | `contact_messages` | — | — | full |
+
+"Handed over" means an `installation_cards` row exists for the order. The three lookups behind
+that word are `security definer` functions (`0019`), so a policy never re-enters RLS on a table
+whose own policy points back at it.
+
+Creating a production order is an office operation (`0016`): the customer's own client can read
+their orders but not write one, which used to let them squat their card's unique key and make
+the office's conversion fail as "already converted".
+
+The identity document lives in its own table (`0014`) rather than in columns on `orders`,
+because RLS is row-level and cannot hide a column from one role. No policy opens that table to
+`klient` or `monter`.
 
 See `supabase/migrations/` for the exact policies.
 

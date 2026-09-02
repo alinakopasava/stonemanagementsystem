@@ -4,12 +4,13 @@ Five levels, each answering a question the level below it cannot.
 
 | Level | Where | Count | Needs a database? | Command |
 |---|---|---|---|---|
-| Unit + API integration | `backend/tests/{unit,integration}` | 107 | no | `cd backend && npm test` |
-| Row Level Security | `backend/tests/rls` | 16 | **yes** | `cd backend && npm run test:rls` |
-| Unit + component | `frontend/tests/{unit,components}` | 107 | no | `cd frontend && npm test` |
+| Unit + API integration | `backend/tests/{unit,integration}` | 176 | no | `cd backend && npm test` |
+| Row Level Security | `backend/tests/rls` | 21 | **yes** | `cd backend && npm run test:rls` |
+| Unit + component | `frontend/tests/{unit,components}` | 137 | no | `cd frontend && npm test` |
 | System (Playwright) | `frontend/tests/e2e` | 7 | **yes** | `cd frontend && npm run test:e2e` |
 
-237 cases in all, of which 214 run offline in a few seconds.
+341 cases in all, of which 313 run offline in a few seconds. By level rather than by
+project: 143 unit, 123 API integration, 21 database policy, 47 component, 7 system.
 
 `npm test` at either level is hermetic: no network, no database, ~1 s per side.
 The client suite pins `VITE_API_URL` to the empty string in `vitest.config.ts`
@@ -73,11 +74,10 @@ cd backend && npm run test:rls
 The suite seeds two clients, an installer and an administrator, exercises the
 policies, and deletes everything in `afterAll`.
 
-One case is marked `it.fails` on purpose: it asserts that an installer cannot
-change an order column other than `status`. The current policy grants UPDATE on
-every column, so the case documents the open gap recorded under "Known gap" in
-[AUTH.md](AUTH.md). Once the column-scope trigger is deployed, drop the
-`.fails` and it becomes a regression guard.
+Every case is expected to pass. Two of them are the reason `0018` and `0019`
+exist: an installer must see no order before the office hands one over, and
+exactly the handed-over one afterwards. The suite seeds no installation card of
+its own, so the second case creates one and removes it again in a `finally`.
 
 ### System tests
 
