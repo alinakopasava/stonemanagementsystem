@@ -1,10 +1,25 @@
-import { apiFetch } from '@infrastructure/api/api-client';
+import { API_URL, apiFetch } from '@infrastructure/api/api-client';
 
 interface SubmitOrderPayload {
   materialId: string;
   dimensions: string;
   inscriptionText: string;
   finishType: string;
+  /**
+   * The rest of what the configurator built. Optional in the type because the
+   * backend treats every one of them as optional, not because the designer
+   * omits them — it sends the lot.
+   */
+  shape?: string;
+  inscriptionStyle?: string;
+  slabVariant?: string;
+  slabThicknessCm?: number;
+  baseHeightCm?: number;
+  baseWidthCm?: number;
+  baseDepthCm?: number;
+  decoration?: string;
+  hasCross?: boolean;
+  hasFlowerbed?: boolean;
 }
 
 interface SubmitOrderResponse {
@@ -20,6 +35,32 @@ export const submitOrderRequest = (payload: SubmitOrderPayload) =>
     method: 'POST',
     body: payload
   });
+
+/**
+ * Sends the portrait itself, as raw bytes with its own media type.
+ *
+ * `apiFetch` serialises everything as JSON, so this goes through `fetch`
+ * directly: a base64 detour would inflate the file by a third and run into the
+ * API's 100 kB JSON limit. Same shape as the installer's photo upload.
+ */
+export const uploadMonumentPhoto = async (orderCardId: string, photo: Blob) => {
+  const response = await fetch(`${API_URL}/api/orders/${orderCardId}/photo`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': photo.type },
+    body: photo
+  });
+
+  if (!response.ok) {
+    throw new Error(`Photo upload failed: ${response.status}`);
+  }
+
+  const payload = (await response.json().catch(() => null)) as {
+    data?: { photoPath: string; photoUrl: string | null };
+  } | null;
+
+  return payload?.data ?? null;
+};
 
 /** One configuration the customer submitted, plus the order it became. */
 export interface MyOrder {

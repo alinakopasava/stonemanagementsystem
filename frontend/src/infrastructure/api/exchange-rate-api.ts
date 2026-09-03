@@ -2,7 +2,7 @@ import { apiFetch } from '@infrastructure/api/api-client';
 
 export interface ExchangeRate {
   /** Official rate from Minsk, from Warsaw when Minsk is unreachable, or the one in the code. */
-  source: 'nbrb' | 'nbp' | 'fallback';
+  source: 'nbp' | 'fallback';
   date: string;
   scale: number;
   officialRate: number;

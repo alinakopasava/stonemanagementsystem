@@ -167,9 +167,10 @@ export type TranslationKey =
   | 'catalog.material.pricePerM2'
   | 'catalog.designCta'
   | 'catalog.basePriceFrom'
-  | 'catalog.loading'
   | 'catalog.previewLoading'
   | 'catalog.previewError'
+  | 'catalog.empty'
+  | 'catalog.emptyHint'
   | 'catalog.shapeTagline'
   | 'designer.shape'
   | 'designer.shape.classic'
@@ -207,31 +208,17 @@ export type TranslationKey =
   | 'designer.slabVariant.full'
   | 'designer.slabThickness'
   | 'designer.slabThickness.hint'
-  | 'designer.layout'
-  | 'designer.layout.single'
-  | 'designer.layout.double'
-  | 'designer.layout.hint'
-  | 'designer.doubleGap'
-  | 'designer.secondary'
-  | 'designer.secondary.hint'
-  | 'designer.secondary.inscription'
-  | 'designer.secondary.name'
-  | 'designer.secondary.dates'
   | 'designer.decoration'
   | 'designer.decoration.none'
   | 'designer.decoration.portrait'
-  | 'designer.decoration.medallion'
   | 'designer.decoration.cross'
-  | 'designer.nicheStyle'
-  | 'designer.nicheStyle.recessed'
-  | 'designer.nicheStyle.framed'
-  | 'designer.nicheStyle.hint'
   | 'designer.photo'
   | 'designer.photo.upload'
   | 'designer.photo.change'
   | 'designer.photo.remove'
   | 'designer.photo.hint'
   | 'designer.photo.removeBg'
+  | 'designer.photo.restoreBg'
   | 'designer.photo.processing'
   | 'designer.photo.processError'
   | 'designer.photo.adjust'
@@ -312,9 +299,18 @@ export type TranslationKey =
   | 'admin.orders.status.inProgress'
   | 'admin.orders.status.completed'
   | 'admin.orders.status.cancelled'
+  | 'admin.orders.filter.all'
+  | 'admin.orders.changeStatus'
+  | 'admin.orders.workshopSheet'
+  | 'admin.orders.workshopSheetError'
+  | 'designer.photoUploadError'
+  | 'admin.orders.emptyFilter'
   | 'admin.orders.handOver'
   | 'admin.orders.handingOver'
   | 'admin.orders.handedOver'
+  | 'admin.orders.installationReport'
+  | 'admin.orders.completedAt'
+  | 'admin.orders.installationPhoto'
   | 'admin.orders.handOverError'
   | 'admin.orders.notHandedOver'
   | 'admin.field.clientSection'
@@ -359,6 +355,7 @@ export type TranslationKey =
   | 'admin.orderCards.finish'
   | 'admin.orderCards.pricePerM2'
   | 'admin.orderCards.inscription'
+  | 'admin.orderCards.photo'
   | 'admin.orderCards.unknownMaterial'
   | 'admin.orderCards.noPrice'
   | 'admin.orderCards.dueLabel'
@@ -413,6 +410,8 @@ export type TranslationKey =
   | 'installer.subtitle'
   | 'installer.readOnly'
   | 'installer.filter.all'
+  | 'installer.offline'
+  | 'installer.offlineNoSync'
   | 'installer.loadError'
   | 'installer.empty'
   | 'installer.emptyFilter'
@@ -642,9 +641,10 @@ const en: Dictionary = {
   'catalog.material.pricePerM2': '{price} USD / m²',
   'catalog.designCta': 'Design in 3D',
   'catalog.basePriceFrom': 'from {price} USD',
-  'catalog.loading': 'Loading catalog…',
   'catalog.previewLoading': 'Loading 3D preview…',
   'catalog.previewError': 'Preview is taking too long. Scroll away and back to retry.',
+  'catalog.empty': 'No stone is available in the catalogue at the moment.',
+  'catalog.emptyHint': 'Please contact the office — we will help you choose a material.',
   'catalog.shapeTagline': 'Available in every stone and finish. Fully customizable in 3D.',
 
   'designer.shape': 'Shape',
@@ -684,33 +684,18 @@ const en: Dictionary = {
   'designer.slabVariant.full': 'Full slab',
   'designer.slabThickness': 'Slab thickness',
   'designer.slabThickness.hint': 'Standard slab thickness is usually 5 or 8 cm.',
-  'designer.layout': 'Monument type',
-  'designer.layout.single': 'Single',
-  'designer.layout.double': 'Double',
-  'designer.layout.hint':
-    'Two headstones on one shared base. Set the gap to 0 to join them into a single block.',
-  'designer.doubleGap': 'Gap between headstones',
-  'designer.secondary': 'Second person',
-  'designer.secondary.hint': 'Inscription, name, and dates for the right-hand headstone.',
-  'designer.secondary.inscription': 'Inscription',
-  'designer.secondary.name': 'Name',
-  'designer.secondary.dates': 'Dates',
   'designer.decoration': 'Decoration',
   'designer.decoration.none': 'None',
   'designer.decoration.portrait': 'Portrait',
-  'designer.decoration.medallion': 'Medallion',
   'designer.decoration.cross': 'Cross',
-  'designer.nicheStyle': 'Mounting style',
-  'designer.nicheStyle.recessed': 'Recessed niche',
-  'designer.nicheStyle.framed': 'Stone frame',
-  'designer.nicheStyle.hint': 'Choose how the portrait or medallion is mounted on the headstone.',
   'designer.photo': 'Photo',
   'designer.photo.upload': 'Upload photo',
   'designer.photo.change': 'Change photo',
   'designer.photo.remove': 'Remove photo',
   'designer.photo.hint':
     'Upload a clear, well-lit photo of the face. It is cropped to fit and shown in greyscale, like a laser engraving. Front-facing photos work best.',
-  'designer.photo.removeBg': 'Remove background automatically',
+  'designer.photo.removeBg': 'Remove background',
+  'designer.photo.restoreBg': 'Restore background',
   'designer.photo.processing': 'Processing…',
   'designer.photo.processError': 'Could not remove the background. Using the original photo.',
   'designer.photo.adjust': 'Engraving look',
@@ -820,9 +805,19 @@ const en: Dictionary = {
   'admin.orders.status.inProgress': 'In progress',
   'admin.orders.status.completed': 'Completed',
   'admin.orders.status.cancelled': 'Cancelled',
+  'admin.orders.filter.all': 'All',
+  'admin.orders.changeStatus': 'Change order status',
+  'admin.orders.workshopSheet': 'Work sheet (PDF)',
+  'admin.orders.workshopSheetError': 'Failed to build the work sheet.',
+  'designer.photoUploadError':
+    'The order was saved, but the photo could not be uploaded. Please contact the office.',
+  'admin.orders.emptyFilter': 'No orders match this filter.',
   'admin.orders.handOver': 'Hand over to installer',
   'admin.orders.handingOver': 'Handing over...',
   'admin.orders.handedOver': 'With the installer',
+  'admin.orders.installationReport': 'Installation report',
+  'admin.orders.completedAt': 'Completed',
+  'admin.orders.installationPhoto': 'Photograph from the installation',
   'admin.orders.handOverError': 'Failed to hand the order over.',
   'admin.orders.notHandedOver': 'Not handed over',
 
@@ -849,6 +844,7 @@ const en: Dictionary = {
   'admin.orderCards.finish': 'Finish',
   'admin.orderCards.pricePerM2': 'Price/m²',
   'admin.orderCards.inscription': 'Inscription',
+  'admin.orderCards.photo': 'Customer photograph',
   'admin.orderCards.unknownMaterial': 'Unknown material',
   'admin.orderCards.noPrice': 'No price set',
   'admin.orderCards.dueLabel': 'Due {date}',
@@ -907,6 +903,8 @@ const en: Dictionary = {
     'A read-only worklist generated from existing orders. No database records are changed here.',
   'installer.readOnly': 'Read-only view',
   'installer.filter.all': 'All',
+  'installer.offline': 'No connection — showing the list synced on {date}. It may be out of date.',
+  'installer.offlineNoSync': 'No connection — the list may be out of date.',
   'installer.loadError': 'Failed to load installation cards.',
   'installer.empty': 'No jobs handed over to the crew yet.',
   'installer.emptyFilter': 'No jobs match this filter.',
@@ -1138,9 +1136,10 @@ const pl: Dictionary = {
   'catalog.material.pricePerM2': '{price} PLN / m²',
   'catalog.designCta': 'Projektuj w 3D',
   'catalog.basePriceFrom': 'od {price} PLN',
-  'catalog.loading': 'Ładowanie katalogu…',
   'catalog.previewLoading': 'Wczytywanie podglądu 3D…',
   'catalog.previewError': 'Podgląd ładuje się zbyt długo. Przewiń kartę poza ekran i z powrotem, żeby spróbować ponownie.',
+  'catalog.empty': 'W katalogu nie ma obecnie żadnego kamienia.',
+  'catalog.emptyHint': 'Skontaktuj się z biurem — pomożemy dobrać materiał.',
   'catalog.shapeTagline': 'Dostępny w każdym kamieniu i wykończeniu. W pełni konfigurowalny w 3D.',
 
   'designer.shape': 'Kształt',
@@ -1180,33 +1179,18 @@ const pl: Dictionary = {
   'designer.slabVariant.full': 'Pełna płyta',
   'designer.slabThickness': 'Grubość płyty',
   'designer.slabThickness.hint': 'Standardowa grubość płyty to zwykle 5 lub 8 cm.',
-  'designer.layout': 'Typ pomnika',
-  'designer.layout.single': 'Pojedynczy',
-  'designer.layout.double': 'Podwójny',
-  'designer.layout.hint':
-    'Dwie stele na wspólnej podstawie. Ustaw odstęp na 0, aby połączyć je w jeden blok.',
-  'designer.doubleGap': 'Odstęp między stelami',
-  'designer.secondary': 'Druga osoba',
-  'designer.secondary.hint': 'Inskrypcja, imię i daty dla prawej steli.',
-  'designer.secondary.inscription': 'Inskrypcja',
-  'designer.secondary.name': 'Imię i nazwisko',
-  'designer.secondary.dates': 'Daty',
   'designer.decoration': 'Dekoracja',
   'designer.decoration.none': 'Brak',
   'designer.decoration.portrait': 'Portret',
-  'designer.decoration.medallion': 'Medalion',
   'designer.decoration.cross': 'Krzyż',
-  'designer.nicheStyle': 'Sposób osadzenia',
-  'designer.nicheStyle.recessed': 'Wnęka (zagłębienie)',
-  'designer.nicheStyle.framed': 'Kamienna ramka',
-  'designer.nicheStyle.hint': 'Wybierz, jak osadzony jest portret lub medalion na steli.',
   'designer.photo': 'Zdjęcie',
   'designer.photo.upload': 'Wgraj zdjęcie',
   'designer.photo.change': 'Zmień zdjęcie',
   'designer.photo.remove': 'Usuń zdjęcie',
   'designer.photo.hint':
-    'Wgraj wyraźne, dobrze oświetlone zdjęcie twarzy. Program przytnie je do niszy i pokaże w skali szarości, jak grawer laserowy. Najlepiej sprawdzają się zdjęcia na wprost.',
-  'designer.photo.removeBg': 'Automatycznie usuń tło',
+    'Wgraj wyraźne, dobrze oświetlone zdjęcie twarzy. Program przytnie je i pokaże w skali szarości, jak grawer laserowy. Najlepiej sprawdzają się zdjęcia na wprost.',
+  'designer.photo.removeBg': 'Usuń tło',
+  'designer.photo.restoreBg': 'Przywróć tło',
   'designer.photo.processing': 'Przetwarzanie…',
   'designer.photo.processError': 'Nie udało się usunąć tła. Używamy oryginalnego zdjęcia.',
   'designer.photo.adjust': 'Wygląd grawerunku',
@@ -1317,9 +1301,19 @@ const pl: Dictionary = {
   'admin.orders.status.inProgress': 'W realizacji',
   'admin.orders.status.completed': 'Zrealizowane',
   'admin.orders.status.cancelled': 'Anulowane',
+  'admin.orders.filter.all': 'Wszystkie',
+  'admin.orders.changeStatus': 'Zmień status zamówienia',
+  'admin.orders.workshopSheet': 'Karta pracy (PDF)',
+  'admin.orders.workshopSheetError': 'Nie udało się przygotować karty pracy.',
+  'designer.photoUploadError':
+    'Zamówienie zostało zapisane, ale nie udało się wysłać zdjęcia. Skontaktuj się z biurem.',
+  'admin.orders.emptyFilter': 'Brak zamówień o tym statusie.',
   'admin.orders.handOver': 'Przekaż do montera',
   'admin.orders.handingOver': 'Przekazywanie...',
   'admin.orders.handedOver': 'U montera',
+  'admin.orders.installationReport': 'Raport z montażu',
+  'admin.orders.completedAt': 'Zakończono',
+  'admin.orders.installationPhoto': 'Zdjęcie z montażu',
   'admin.orders.handOverError': 'Nie udało się przekazać zamówienia.',
   'admin.orders.notHandedOver': 'Nieprzekazane',
 
@@ -1348,6 +1342,7 @@ const pl: Dictionary = {
   'admin.orderCards.finish': 'Wykończenie',
   'admin.orderCards.pricePerM2': 'Cena/m²',
   'admin.orderCards.inscription': 'Inskrypcja',
+  'admin.orderCards.photo': 'Fotografia od klienta',
   'admin.orderCards.unknownMaterial': 'Nieznany materiał',
   'admin.orderCards.noPrice': 'Brak ceny',
   'admin.orderCards.dueLabel': 'Termin: {date}',
@@ -1410,6 +1405,8 @@ const pl: Dictionary = {
     'Lista robocza tylko do odczytu, utworzona z istniejących zamówień. Ten widok nie zmienia danych w bazie.',
   'installer.readOnly': 'Widok tylko do odczytu',
   'installer.filter.all': 'Wszystkie',
+  'installer.offline': 'Brak połączenia — lista pobrana {date}. Może być nieaktualna.',
+  'installer.offlineNoSync': 'Brak połączenia — lista może być nieaktualna.',
   'installer.loadError': 'Nie udało się wczytać kart instalacyjnych.',
   'installer.empty': 'Biuro nie przekazało jeszcze żadnego zlecenia.',
   'installer.emptyFilter': 'Żadne zlecenie nie pasuje do filtra.',
@@ -1640,9 +1637,10 @@ const ru: Dictionary = {
   'catalog.material.pricePerM2': '{price} BYN / м²',
   'catalog.designCta': 'Проектировать в 3D',
   'catalog.basePriceFrom': 'от {price} BYN',
-  'catalog.loading': 'Загрузка каталога…',
   'catalog.previewLoading': 'Загрузка 3D-модели…',
   'catalog.previewError': 'Предпросмотр загружается слишком долго. Прокрутите карточку вне экрана и обратно, чтобы повторить.',
+  'catalog.empty': 'В каталоге сейчас нет ни одного камня.',
+  'catalog.emptyHint': 'Свяжитесь с офисом — мы поможем подобрать материал.',
   'catalog.shapeTagline': 'Доступен в любом камне и отделке. Полностью настраивается в 3D.',
 
   'designer.shape': 'Форма',
@@ -1682,33 +1680,18 @@ const ru: Dictionary = {
   'designer.slabVariant.full': 'Полная плита',
   'designer.slabThickness': 'Толщина плиты',
   'designer.slabThickness.hint': 'Обычная толщина плиты: 5 или 8 см.',
-  'designer.layout': 'Тип памятника',
-  'designer.layout.single': 'Одинарный',
-  'designer.layout.double': 'Двойной',
-  'designer.layout.hint':
-    'Две стелы на общем постаменте. Поставьте зазор 0, чтобы соединить их в один блок.',
-  'designer.doubleGap': 'Зазор между стелами',
-  'designer.secondary': 'Второй человек',
-  'designer.secondary.hint': 'Надпись, имя и даты для правой стелы.',
-  'designer.secondary.inscription': 'Надпись',
-  'designer.secondary.name': 'Имя и фамилия',
-  'designer.secondary.dates': 'Даты',
   'designer.decoration': 'Оформление',
   'designer.decoration.none': 'Нет',
   'designer.decoration.portrait': 'Портрет',
-  'designer.decoration.medallion': 'Медальон',
   'designer.decoration.cross': 'Крест',
-  'designer.nicheStyle': 'Способ крепления',
-  'designer.nicheStyle.recessed': 'Ниша',
-  'designer.nicheStyle.framed': 'Каменная рамка',
-  'designer.nicheStyle.hint': 'Выберите, как портрет или медальон крепится на стеле.',
   'designer.photo': 'Фото',
   'designer.photo.upload': 'Загрузить фото',
   'designer.photo.change': 'Изменить фото',
   'designer.photo.remove': 'Удалить фото',
   'designer.photo.hint':
     'Загрузите чёткое, хорошо освещённое фото лица. Программа обрежет его под нишу и покажет в оттенках серого, как лазерную гравировку. Лучше всего подходят снимки анфас.',
-  'designer.photo.removeBg': 'Удалить фон автоматически',
+  'designer.photo.removeBg': 'Удалить фон',
+  'designer.photo.restoreBg': 'Вернуть фон',
   'designer.photo.processing': 'Обработка…',
   'designer.photo.processError': 'Не удалось удалить фон. Используем исходное фото.',
   'designer.photo.adjust': 'Вид гравировки',
@@ -1818,9 +1801,19 @@ const ru: Dictionary = {
   'admin.orders.status.inProgress': 'В работе',
   'admin.orders.status.completed': 'Выполнен',
   'admin.orders.status.cancelled': 'Отменён',
+  'admin.orders.filter.all': 'Все',
+  'admin.orders.changeStatus': 'Изменить статус заказа',
+  'admin.orders.workshopSheet': 'Рабочая карта (PDF)',
+  'admin.orders.workshopSheetError': 'Не удалось подготовить рабочую карту.',
+  'designer.photoUploadError':
+    'Заказ сохранён, но фотографию не удалось загрузить. Свяжитесь с офисом.',
+  'admin.orders.emptyFilter': 'Нет заказов с таким статусом.',
   'admin.orders.handOver': 'Передать монтажнику',
   'admin.orders.handingOver': 'Передача...',
   'admin.orders.handedOver': 'У монтажника',
+  'admin.orders.installationReport': 'Отчёт о монтаже',
+  'admin.orders.completedAt': 'Завершено',
+  'admin.orders.installationPhoto': 'Фото с монтажа',
   'admin.orders.handOverError': 'Не удалось передать заказ.',
   'admin.orders.notHandedOver': 'Не передано',
 
@@ -1849,6 +1842,7 @@ const ru: Dictionary = {
   'admin.orderCards.finish': 'Отделка',
   'admin.orderCards.pricePerM2': 'Цена/м²',
   'admin.orderCards.inscription': 'Надпись',
+  'admin.orderCards.photo': 'Фотография от клиента',
   'admin.orderCards.unknownMaterial': 'Неизвестный материал',
   'admin.orderCards.noPrice': 'Цена не указана',
   'admin.orderCards.dueLabel': 'Срок: {date}',
@@ -1911,6 +1905,8 @@ const ru: Dictionary = {
     'Рабочий список только для чтения, созданный из существующих заказов. Этот экран не изменяет данные в базе.',
   'installer.readOnly': 'Только чтение',
   'installer.filter.all': 'Все',
+  'installer.offline': 'Нет соединения — список загружен {date}. Может быть неактуальным.',
+  'installer.offlineNoSync': 'Нет соединения — список может быть неактуальным.',
   'installer.loadError': 'Не удалось загрузить карты монтажа.',
   'installer.empty': 'Офис пока не передал ни одного заказа.',
   'installer.emptyFilter': 'Ни один заказ не подходит под фильтр.',

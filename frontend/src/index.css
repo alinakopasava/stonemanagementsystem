@@ -50,6 +50,38 @@
 @tailwind utilities;
 
 @layer base {
+  /*
+    The panels are read at 67 % on the office machines, because a list of
+    order cards is worth more when more of it fits above the fold. Baking
+    that in as `zoom` reproduces what the browser control does, including
+    the wider layout viewport — so the responsive breakpoints resolve the
+    same way they do when the operator zooms out by hand, which a smaller
+    root font size would not achieve.
+
+    Left at 1 below the desktop breakpoint. The installer works from a
+    phone at arm's length in a cemetery, and WO2 promises a legible layout
+    down to 360 px; two thirds of that is not a layout, it is a squint.
+  */
+  @media (min-width: 1024px) {
+    html {
+      zoom: 0.67;
+    }
+
+    /*
+      react-three-fiber measures its container with getBoundingClientRect,
+      which already reports post-zoom pixels, and writes that number back as
+      the canvas CSS width — where zoom applies a second time, leaving the
+      scene at two thirds of its box. The drawing buffer it picks from the
+      same measurement is correct (post-zoom size x device pixel ratio), so
+      only the CSS box needs correcting: hand it back to the container and
+      the resolution stays exactly what the renderer intended.
+    */
+    canvas[data-engine^='three.js'] {
+      width: 100% !important;
+      height: 100% !important;
+    }
+  }
+
   html,
   body,
   #root {
@@ -371,3 +403,4 @@ body::after {
     display: none;
   }
 }
+

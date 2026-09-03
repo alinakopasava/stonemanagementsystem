@@ -53,12 +53,32 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const handoffInFlight = useRef<Promise<void> | null>(null);
 
+  const meInFlight = useRef<Promise<void> | null>(null);
+
+  /*
+   * One profile request at a time. Boot, the sign-in call and a page that
+   * asks for a refresh can all land together, and each extra request spends
+   * the same rotating refresh cookie for nothing.
+   */
   const loadMe = useCallback(async () => {
+    if (meInFlight.current) {
+      return meInFlight.current;
+    }
+
+    const run = (async () => {
+      try {
+        const nextUser = await fetchCurrentUser();
+        setUser(nextUser);
+      } catch {
+        setUser(null);
+      }
+    })();
+
+    meInFlight.current = run;
     try {
-      const nextUser = await fetchCurrentUser();
-      setUser(nextUser);
-    } catch {
-      setUser(null);
+      await run;
+    } finally {
+      meInFlight.current = null;
     }
   }, []);
 
@@ -165,6 +185,23 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const signOut = useCallback(async () => {
     await signOutRequest();
     setUser(null);
+
+    /*
+     * The worklist kept for offline use carries customers' names, telephone
+     * numbers and the addresses of their graves. A crew phone is passed around
+     * and shared, so signing out has to take that copy with it — otherwise the
+     * next person to open the application reads the previous one's jobs.
+     */
+    if ('caches' in window) {
+      try {
+        const keys = await caches.keys();
+        await Promise.all(
+          keys.filter((key) => key.includes('installer-worklist')).map((key) => caches.delete(key))
+        );
+      } catch {
+        // Storage the browser refuses to open is storage it is not serving from.
+      }
+    }
   }, []);
 
   const sendPasswordReset = useCallback(async (email: string) => {

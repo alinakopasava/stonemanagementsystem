@@ -1,5 +1,5 @@
 import type { UserRole } from '@domain/entities/user-profile';
-import { apiFetch } from '@infrastructure/api/api-client';
+import { API_URL, apiFetch } from '@infrastructure/api/api-client';
 
 export interface AdminUser {
   id: string;
@@ -42,6 +42,19 @@ export interface AdminOrder {
     status: string | null;
     completion_timestamp: string | null;
   }> | null;
+  /**
+   * What the crew wrote down on site, once they have. FM2 asks for the report
+   * to be readable in the office, which is the whole point of replacing the
+   * telephone call it stands in for.
+   */
+  installation_report: {
+    id: string;
+    status: string | null;
+    workerComments: string | null;
+    /** Signed link into the private bucket; expires within the hour. */
+    photoUrl: string | null;
+    completionTimestamp: string | null;
+  } | null;
   order_cards: {
     id: string;
     user_id: string | null;
@@ -53,6 +66,21 @@ export interface AdminOrder {
       dimensions: string | null;
       inscription_text: string | null;
       finish_type: string | null;
+      /** The rest of the configuration. Null on cards submitted before 0010. */
+      shape: string | null;
+      inscription_style: string | null;
+      slab_variant: string | null;
+      slab_thickness_cm: number | string | null;
+      base_height_cm: number | string | null;
+      base_width_cm: number | string | null;
+      base_depth_cm: number | string | null;
+      decoration: string | null;
+      has_cross: boolean | null;
+      has_flowerbed: boolean | null;
+      /** The customer's portrait, if they attached one (FK17). */
+      photo_path: string | null;
+      /** Signed link to that portrait; expires within the hour. */
+      photo_url: string | null;
       materials: {
         id: string;
         name: string;
@@ -73,6 +101,35 @@ export const updateUserRole = (userId: string, role: UserRole) =>
     body: { role }
   });
 
+/**
+ * Downloads the workshop's copy of a job as a PDF file.
+ *
+ * A file rather than a print dialog: the workshop has no account, so the office
+ * forwards this by e-mail. `apiFetch` reads JSON, so the request goes through
+ * `fetch` directly and the bytes are handed to the browser as a download.
+ */
+export const downloadWorkSheet = async (orderId: string, language: string) => {
+  const response = await fetch(
+    `${API_URL}/api/admin/orders/${orderId}/work-sheet.pdf?lang=${encodeURIComponent(language)}`,
+    { credentials: 'include' }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Work sheet failed: ${response.status}`);
+  }
+
+  const blob = await response.blob();
+  const href = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = href;
+  link.download = `karta-pracy-${orderId.slice(0, 8)}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  // Revoked on the next tick: Safari reads the href after the click returns.
+  setTimeout(() => URL.revokeObjectURL(href), 0);
+};
+
 export const fetchAdminOrders = () =>
   apiFetch<{ data: AdminOrder[] }>('/api/admin/orders').then((r) => r.data);
 
@@ -87,6 +144,18 @@ export interface AdminOrderCard {
     dimensions: string | null;
     inscription_text: string | null;
     finish_type: string | null;
+    shape: string | null;
+    inscription_style: string | null;
+    slab_variant: string | null;
+    slab_thickness_cm: number | string | null;
+    base_height_cm: number | string | null;
+    base_width_cm: number | string | null;
+    base_depth_cm: number | string | null;
+    decoration: string | null;
+    has_cross: boolean | null;
+    has_flowerbed: boolean | null;
+    photo_path: string | null;
+    photo_url: string | null;
     materials: { id: string; name: string; category: string | null; price_per_m2: number | null } | null;
   }>;
   client: AdminClient;

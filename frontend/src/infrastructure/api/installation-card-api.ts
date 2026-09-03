@@ -36,7 +36,7 @@ export interface InstallationCard {
   orderId: string;
   orderCardId: string | null;
   status: string;
-  price: number | string | null;
+
   installationAddress: string | null;
   contractDetails: string | null;
   deadline: string | null;
