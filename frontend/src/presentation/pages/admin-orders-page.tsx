@@ -1,34 +1,46 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { HardHat } from 'lucide-react';
+import { FileText, HardHat } from 'lucide-react';
 import { useTranslation } from '@application/i18n/i18n-context';
 import { useCurrency } from '@application/currency/currency-context';
 import { finishLabel, materialLabel } from '@application/i18n/catalog-labels';
 import { LANGUAGE_LOCALES, type TranslationKey } from '@application/i18n/translations';
 import { DataFields, DataSection } from '@presentation/components/data-fields';
 import {
+  downloadWorkSheet,
   fetchAdminOrders,
   handOverOrderToInstaller,
+  updateOrderStatus,
   type AdminOrder
 } from '@infrastructure/api/admin-api';
+import {
+  ORDER_STATUSES,
+  ORDER_STATUS_BADGE,
+  ORDER_STATUS_LABEL_KEYS,
+  type OrderStatus
+} from '@domain/entities/order-status';
 
 /**
  * Status zostaje w bazie jako enum w PL — tłumaczymy tylko etykietę pod nim.
- * Widok jest tu wyłącznie do odczytu: stan zamówienia zmienia się przez
- * przekazanie ekipie i raport montera, nie przez ręczne przestawienie w biurze.
+ *
+ * Biuro przestawia go ręcznie, bo tylko ono wie, co dzieje się ze zleceniem
+ * między przyjęciem a montażem. Raport montera prowadzi osobne życie na
+ * karcie montażowej i nie przepisuje się tutaj sam.
  */
-const ORDER_STATUS_LABEL_KEYS: Record<string, TranslationKey> = {
-  oczekujące: 'admin.orders.status.pending',
-  w_realizacji: 'admin.orders.status.inProgress',
-  zrealizowane: 'admin.orders.status.completed',
-  anulowane: 'admin.orders.status.cancelled'
-};
+const STATUS_OPTIONS = ORDER_STATUSES;
 
-const statusBadge: Record<string, string> = {
-  oczekujące: 'bg-brand-soft text-brand border-brand',
-  w_realizacji: 'bg-info-soft text-info border-info',
-  zrealizowane: 'bg-positive-soft text-positive border-positive',
-  anulowane: 'bg-critical-soft text-critical border-critical'
-};
+type OrderFilter = 'all' | OrderStatus;
+
+/**
+ * Filtr listy zamówień. Etykiety statusów są te same, których używa odznaka
+ * obok zamówienia — jedno źródło nazw dla obu miejsc.
+ */
+const FILTERS: Array<{ id: OrderFilter; labelKey: TranslationKey }> = [
+  { id: 'all', labelKey: 'admin.orders.filter.all' },
+  { id: 'oczekujące', labelKey: 'admin.orders.status.pending' },
+  { id: 'w_realizacji', labelKey: 'admin.orders.status.inProgress' },
+  { id: 'zrealizowane', labelKey: 'admin.orders.status.completed' },
+  { id: 'anulowane', labelKey: 'admin.orders.status.cancelled' }
+];
 
 export const AdminOrdersPage = () => {
   const { t, language } = useTranslation();
@@ -38,13 +50,26 @@ export const AdminOrdersPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [handingOverId, setHandingOverId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<OrderFilter>('all');
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [sheetId, setSheetId] = useState<string | null>(null);
 
   const statusLabel = useMemo(
     () => (status: string) => {
-      const key = ORDER_STATUS_LABEL_KEYS[status];
+      const key = ORDER_STATUS_LABEL_KEYS[status as OrderStatus];
       return key ? t(key) : status;
     },
     [t]
+  );
+
+  /**
+   * Filtrujemy w przeglądarce, bo status przyjeżdża i tak z każdym
+   * zamówieniem, a lista biura mieści się w jednym żądaniu.
+   */
+  const visibleOrders = useMemo(
+    () =>
+      filter === 'all' ? orders : orders.filter((o) => (o.status ?? 'oczekujące') === filter),
+    [filter, orders]
   );
 
   const formatDate = useCallback(
@@ -82,6 +107,40 @@ export const AdminOrdersPage = () => {
     load();
   }, [load]);
 
+  /**
+   * Fetches the workshop's copy of the job as a file.
+   *
+   * The document is drawn by the API, not by this page: the workshop has no
+   * account, so the sheet leaves the building as an e-mail attachment, and a
+   * browser cannot write a PDF to disk on its own.
+   */
+  const handleSheet = async (orderId: string) => {
+    setSheetId(orderId);
+    try {
+      await downloadWorkSheet(orderId, language);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : t('admin.orders.workshopSheetError'));
+    } finally {
+      setSheetId(null);
+    }
+  };
+
+  const handleStatusChange = async (orderId: string, status: string) => {
+    const previous = orders;
+    // Odznaka przeskakuje od razu, żeby lista nie migała przy zapisie;
+    // nieudany zapis cofa ją do stanu sprzed kliknięcia.
+    setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status } : o)));
+    setSavingId(orderId);
+    try {
+      await updateOrderStatus(orderId, status);
+    } catch (err) {
+      setOrders(previous);
+      alert(err instanceof Error ? err.message : t('admin.orders.updateError'));
+    } finally {
+      setSavingId(null);
+    }
+  };
+
   const handleHandOver = async (orderId: string) => {
     setHandingOverId(orderId);
     try {
@@ -112,6 +171,23 @@ export const AdminOrdersPage = () => {
         </button>
       </div>
 
+      <div className="mb-4 flex overflow-hidden border border-line">
+        {FILTERS.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            onClick={() => setFilter(option.id)}
+            className={`px-3 py-1.5 text-xs transition ${
+              filter === option.id
+                ? 'bg-surface-2 text-ink'
+                : 'text-ink-3 hover:bg-surface-2 hover:text-ink'
+            }`}
+          >
+            {t(option.labelKey)}
+          </button>
+        ))}
+      </div>
+
       {error ? (
         <p className="mb-4 border border-critical bg-critical-soft px-3 py-2 text-sm text-critical">
           {error}
@@ -123,12 +199,12 @@ export const AdminOrdersPage = () => {
           <div className="border border-line bg-surface p-6 text-center text-ink-3">
             {t('admin.common.loading')}
           </div>
-        ) : orders.length === 0 ? (
+        ) : visibleOrders.length === 0 ? (
           <div className="border border-line bg-surface p-6 text-center text-ink-3">
-            {t('admin.orders.empty')}
+            {orders.length === 0 ? t('admin.orders.empty') : t('admin.orders.emptyFilter')}
           </div>
         ) : (
-          orders.map((o) => {
+          visibleOrders.map((o) => {
             const details = o.order_cards?.order_details ?? [];
             const status = o.status ?? 'oczekujące';
             const handedOver = o.installation_cards?.[0] ?? null;
@@ -149,6 +225,15 @@ export const AdminOrdersPage = () => {
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => handleSheet(o.id)}
+                      disabled={sheetId === o.id}
+                      className="inline-flex items-center gap-1.5 border border-line px-3 py-1.5 text-xs text-ink-2 transition hover:border-line-strong hover:text-ink disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      {t('admin.orders.workshopSheet')}
+                    </button>
                     {handedOver ? (
                       <span className="inline-flex items-center gap-1.5 border border-info bg-info-soft px-3 py-1 text-[10px] uppercase tracking-wider text-info">
                         <HardHat className="h-3.5 w-3.5" />
@@ -167,15 +252,58 @@ export const AdminOrdersPage = () => {
                           : t('admin.orders.handOver')}
                       </button>
                     )}
-                    <span
-                      className={`border px-3 py-1 text-[10px] uppercase tracking-wider ${
-                        statusBadge[status] ?? 'bg-surface-2 text-ink-2 border-line'
+                    <select
+                      aria-label={t('admin.orders.changeStatus')}
+                      value={status}
+                      disabled={savingId === o.id}
+                      onChange={(event) => handleStatusChange(o.id, event.target.value)}
+                      className={`border px-3 py-1 text-[10px] uppercase tracking-wider disabled:cursor-not-allowed disabled:opacity-60 ${
+                        ORDER_STATUS_BADGE[status as OrderStatus] ?? 'bg-surface-2 text-ink-2 border-line'
                       }`}
                     >
-                      {statusLabel(status)}
-                    </span>
+                      {STATUS_OPTIONS.map((option) => (
+                        <option key={option} value={option}>
+                          {statusLabel(option)}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </header>
+
+                {/* FM2: what the crew recorded on site. Until this was
+                    shown here the report reached the installer's screen and
+                    stopped, which left the telephone call it was meant to
+                    replace exactly where it was. */}
+                {o.installation_report &&
+                (o.installation_report.workerComments ||
+                  o.installation_report.photoUrl ||
+                  o.installation_report.completionTimestamp) ? (
+                  <section className="mt-4 border border-info bg-info-soft/40 p-4">
+                    <h3 className="text-[11px] uppercase tracking-wider text-info">
+                      {t('admin.orders.installationReport')}
+                    </h3>
+                    {o.installation_report.completionTimestamp ? (
+                      <p className="mt-1 text-xs text-ink-3">
+                        {t('admin.orders.completedAt')}{' '}
+                        {new Date(o.installation_report.completionTimestamp).toLocaleString(
+                          dateLocale
+                        )}
+                      </p>
+                    ) : null}
+                    {o.installation_report.workerComments ? (
+                      <p className="mt-2 whitespace-pre-line text-sm text-ink">
+                        {o.installation_report.workerComments}
+                      </p>
+                    ) : null}
+                    {o.installation_report.photoUrl ? (
+                      <img
+                        src={o.installation_report.photoUrl}
+                        alt={t('admin.orders.installationPhoto')}
+                        className="mt-2 max-h-48 border border-line bg-surface-2 object-contain"
+                      />
+                    ) : null}
+                  </section>
+                ) : null}
 
                 <div className="mt-4 grid gap-3 lg:grid-cols-2">
                   <DataSection title={t('admin.field.clientSection')}>

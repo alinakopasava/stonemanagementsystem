@@ -62,7 +62,6 @@ export const HeroSection = ({ materials }: HeroSectionProps) => {
               deferUntilVisible
               rootMargin="400px"
               frameloop="demand"
-              layout="single"
               heightClassName="h-[380px] sm:h-[480px] lg:h-[600px]"
               label={t('designer.previewLoading')}
               textureUrl={stone?.imageUrl}

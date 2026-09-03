@@ -1,20 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { CheckCircle2, ImagePlus } from 'lucide-react';
 import { useTranslation } from '@application/i18n/i18n-context';
-import { LANGUAGE_LOCALES, type TranslationKey } from '@application/i18n/translations';
+import { LANGUAGE_LOCALES } from '@application/i18n/translations';
 import {
   uploadInstallationPhoto,
   type InstallationCard,
   type InstallationReport,
   type InstallationReportInput
 } from '@infrastructure/api/installation-card-api';
+import { ORDER_STATUSES, ORDER_STATUS_LABEL_KEYS } from '@domain/entities/order-status';
 
-const WORK_STATUSES: Array<{ id: string; labelKey: TranslationKey }> = [
-  { id: 'oczekujące', labelKey: 'admin.orders.status.pending' },
-  { id: 'w_realizacji', labelKey: 'admin.orders.status.inProgress' },
-  { id: 'zrealizowane', labelKey: 'admin.orders.status.completed' },
-  { id: 'anulowane', labelKey: 'admin.orders.status.cancelled' }
-];
+const WORK_STATUSES = ORDER_STATUSES.map((id) => ({ id, labelKey: ORDER_STATUS_LABEL_KEYS[id] }));
 
 /**
  * What the crew records on site, written to `installation_cards`.

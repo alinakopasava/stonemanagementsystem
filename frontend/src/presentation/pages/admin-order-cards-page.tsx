@@ -4,7 +4,14 @@ import { useTranslation } from '@application/i18n/i18n-context';
 import { finishLabel, materialLabel } from '@application/i18n/catalog-labels';
 import { LANGUAGE_LOCALES, type TranslationKey } from '@application/i18n/translations';
 import { useCurrency } from '@application/currency/currency-context';
-import { parseDimensionPair, monumentPriceByn } from '@application/pricing/monument-price';
+import {
+  parseDimensionPair,
+  parseThicknessCm,
+  monumentPriceByn,
+  type SlabVariant
+} from '@application/pricing/monument-price';
+import type { MonumentShape } from '@domain/entities/monument';
+import type { FinishType } from '@domain/entities/order-card';
 import { DataFields, DataSection } from '@presentation/components/data-fields';
 import {
   convertOrderCardToOrder,
@@ -12,6 +19,15 @@ import {
   fetchAdminOrderCards,
   type AdminOrderCard
 } from '@infrastructure/api/admin-api';
+
+/** Mirrors `CONVERT_FIELD_MAX_LENGTH` in the backend's admin service. */
+const CONVERT_FIELD_MAX_LENGTH = {
+  installation_address: 500,
+  contract_details: 2000,
+  client_full_name: 160,
+  passport_series: 16,
+  passport_number: 32
+} as const;
 
 type Filter = 'pending' | 'converted' | 'all';
 
@@ -47,12 +63,46 @@ const emptyForm: ConvertFormState = {
   passport_number: ''
 };
 
+/**
+ * The figure the office starts from, computed from the stored configuration.
+ *
+ * It has to be the same sum the customer was shown in the configurator — the
+ * two used to differ, because this one passed neither the shape nor anything
+ * below the stela, and quietly suggested a lower price than the one the
+ * customer had already seen.
+ */
 const suggestPrice = (card: AdminOrderCard): string => {
   const detail = card.order_details[0];
   if (!detail || !detail.materials?.price_per_m2 || !detail.dimensions) return '';
-  const dimensions = parseDimensionPair(detail.dimensions);
-  if (!dimensions) return '';
-  const price = monumentPriceByn(Number(detail.materials.price_per_m2), dimensions);
+  const pair = parseDimensionPair(detail.dimensions);
+  if (!pair) return '';
+
+  const price = monumentPriceByn({
+    pricePerM2: Number(detail.materials.price_per_m2),
+    stela: { ...pair, thicknessCm: parseThicknessCm(detail.dimensions) },
+    shape: (detail.shape as MonumentShape | null) ?? undefined,
+    finish: (detail.finish_type as FinishType | null) ?? undefined,
+    base:
+      detail.base_height_cm !== null &&
+      detail.base_width_cm !== null &&
+      detail.base_depth_cm !== null
+        ? {
+            heightCm: Number(detail.base_height_cm),
+            widthCm: Number(detail.base_width_cm),
+            depthCm: Number(detail.base_depth_cm)
+          }
+        : null,
+    slab: detail.slab_variant
+      ? {
+          variant: detail.slab_variant as SlabVariant,
+          thicknessCm: Number(detail.slab_thickness_cm ?? 5)
+        }
+      : null,
+    inscriptionLength: detail.inscription_text?.length ?? 0,
+    decoration: detail.decoration,
+    hasFlowerbed: detail.has_flowerbed,
+    hasCross: detail.has_cross
+  });
   return Number.isFinite(price) ? price.toFixed(2) : '';
 };
 
@@ -301,6 +351,22 @@ export const AdminOrderCardsPage = () => {
                           }
                         ]}
                       />
+                      {/* FK17: the photograph the customer attached for the
+                          portrait. The link is signed and expires
+                          within the hour, so it is minted per request rather
+                          than stored. */}
+                      {d.photo_url ? (
+                        <figure className="mt-3">
+                          <figcaption className="mb-1 text-[11px] uppercase tracking-wider text-ink-3">
+                            {t('admin.orderCards.photo')}
+                          </figcaption>
+                          <img
+                            src={d.photo_url}
+                            alt={t('admin.orderCards.photo')}
+                            className="max-h-48 border border-line bg-surface-2 object-contain"
+                          />
+                        </figure>
+                      ) : null}
                     </DataSection>
                   ))
                 )}
@@ -402,6 +468,7 @@ export const AdminOrderCardsPage = () => {
                 <input
                   type="text"
                   className="mt-1 w-full u-field"
+                  maxLength={CONVERT_FIELD_MAX_LENGTH.installation_address}
                   value={form.installation_address}
                   onChange={(e) => setForm((p) => ({ ...p, installation_address: e.target.value }))}
                   placeholder={t('admin.orderCards.installationAddressPlaceholder')}
@@ -415,6 +482,7 @@ export const AdminOrderCardsPage = () => {
                 <textarea
                   rows={3}
                   className="mt-1 w-full resize-y u-field"
+                  maxLength={CONVERT_FIELD_MAX_LENGTH.contract_details}
                   value={form.contract_details}
                   onChange={(e) => setForm((p) => ({ ...p, contract_details: e.target.value }))}
                   placeholder={t('admin.orderCards.contractDetailsPlaceholder')}
@@ -440,6 +508,7 @@ export const AdminOrderCardsPage = () => {
                 <input
                   type="text"
                   className="mt-1 w-full u-field"
+                  maxLength={CONVERT_FIELD_MAX_LENGTH.client_full_name}
                   value={form.client_full_name}
                   onChange={(e) => setForm((p) => ({ ...p, client_full_name: e.target.value }))}
                   placeholder={t('admin.orderCards.clientFullNamePlaceholder')}
@@ -454,7 +523,8 @@ export const AdminOrderCardsPage = () => {
                   <input
                     type="text"
                     className="mt-1 w-full u-field"
-                    value={form.passport_series}
+                    maxLength={CONVERT_FIELD_MAX_LENGTH.passport_series}
+                  value={form.passport_series}
                     onChange={(e) => setForm((p) => ({ ...p, passport_series: e.target.value }))}
                     placeholder={t('admin.orderCards.passportSeriesPlaceholder')}
                   />
@@ -466,7 +536,8 @@ export const AdminOrderCardsPage = () => {
                   <input
                     type="text"
                     className="mt-1 w-full u-field"
-                    value={form.passport_number}
+                    maxLength={CONVERT_FIELD_MAX_LENGTH.passport_number}
+                  value={form.passport_number}
                     onChange={(e) => setForm((p) => ({ ...p, passport_number: e.target.value }))}
                     placeholder={t('admin.orderCards.passportNumberPlaceholder')}
                   />

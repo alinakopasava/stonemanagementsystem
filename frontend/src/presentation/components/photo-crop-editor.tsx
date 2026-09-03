@@ -37,8 +37,9 @@ export const PhotoCropEditor = ({ imageUrl, aspect, crop, onChange }: PhotoCropE
     const el = frameRef.current;
     if (!el) return;
     const update = () => {
-      const rect = el.getBoundingClientRect();
-      setFrameSize({ w: rect.width, h: rect.height });
+      // offsetWidth/Height are layout (CSS) pixels; getBoundingClientRect would be
+      // scaled by the page's `zoom`, which then mis-sizes the image drawn in CSS space.
+      setFrameSize({ w: el.offsetWidth, h: el.offsetHeight });
     };
     update();
     const observer = new ResizeObserver(update);

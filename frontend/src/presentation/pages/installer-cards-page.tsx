@@ -2,13 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CalendarClock, ClipboardCheck, MapPin, UserRound } from 'lucide-react';
 import { finishLabel, materialLabel } from '@application/i18n/catalog-labels';
 import { useTranslation } from '@application/i18n/i18n-context';
-import { useCurrency } from '@application/currency/currency-context';
 import { LANGUAGE_LOCALES, type TranslationKey } from '@application/i18n/translations';
 import {
   fetchInstallationCards,
   saveInstallationReport,
   type InstallationCard
 } from '@infrastructure/api/installation-card-api';
+import { ORDER_STATUSES, ORDER_STATUS_LABEL_KEYS } from '@domain/entities/order-status';
 import { InstallationReportForm } from '@presentation/components/installation-report-form';
 import { Header } from '@presentation/components/header';
 import { DataFields, DataSection } from '@presentation/components/data-fields';
@@ -17,18 +17,10 @@ type CardFilter = 'all' | 'oczekujące' | 'w_realizacji' | 'zrealizowane' | 'anu
 
 const FILTERS: Array<{ id: CardFilter; labelKey: TranslationKey }> = [
   { id: 'all', labelKey: 'installer.filter.all' },
-  { id: 'oczekujące', labelKey: 'admin.orders.status.pending' },
-  { id: 'w_realizacji', labelKey: 'admin.orders.status.inProgress' },
-  { id: 'zrealizowane', labelKey: 'admin.orders.status.completed' },
-  { id: 'anulowane', labelKey: 'admin.orders.status.cancelled' }
+  ...ORDER_STATUSES.map((id) => ({ id, labelKey: ORDER_STATUS_LABEL_KEYS[id] }))
 ];
 
-const STATUS_LABELS: Record<string, TranslationKey> = {
-  oczekujące: 'admin.orders.status.pending',
-  w_realizacji: 'admin.orders.status.inProgress',
-  zrealizowane: 'admin.orders.status.completed',
-  anulowane: 'admin.orders.status.cancelled'
-};
+const STATUS_LABELS: Record<string, TranslationKey> = ORDER_STATUS_LABEL_KEYS;
 
 const STATUS_STYLES: Record<string, string> = {
   oczekujące: 'u-chip u-chip-active',
@@ -37,20 +29,53 @@ const STATUS_STYLES: Record<string, string> = {
   anulowane: 'border-critical bg-critical-soft text-critical'
 };
 
+/**
+ * When the worklist was last read from the server.
+ *
+ * Kept in localStorage rather than in the cache itself: the crew needs to know
+ * how old the list on screen is, and the service worker hands back a cached
+ * response without saying when it was stored.
+ */
+const SYNCED_AT_KEY = 'installer.syncedAt';
+
+const readSyncedAt = () => {
+  try {
+    return localStorage.getItem(SYNCED_AT_KEY);
+  } catch {
+    return null;
+  }
+};
+
+const writeSyncedAt = (value: string) => {
+  try {
+    localStorage.setItem(SYNCED_AT_KEY, value);
+  } catch {
+    // A browser refusing storage costs the timestamp, not the worklist.
+  }
+};
+
 export const InstallerCardsPage = () => {
   const { t, language } = useTranslation();
-  const { formatFromByn } = useCurrency();
   const dateLocale = LANGUAGE_LOCALES[language];
   const [cards, setCards] = useState<InstallationCard[]>([]);
   const [filter, setFilter] = useState<CardFilter>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isOffline, setIsOffline] = useState(() => !navigator.onLine);
+  const [syncedAt, setSyncedAt] = useState<string | null>(readSyncedAt);
 
   const load = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
       setCards(await fetchInstallationCards());
+      // Offline the answer comes from the service worker's copy, which is not
+      // news — only a reply that actually reached the server moves the clock.
+      if (navigator.onLine) {
+        const now = new Date().toISOString();
+        writeSyncedAt(now);
+        setSyncedAt(now);
+      }
     } catch {
       setError(t('installer.loadError'));
     } finally {
@@ -60,6 +85,27 @@ export const InstallerCardsPage = () => {
 
   useEffect(() => {
     void load();
+  }, [load]);
+
+  /*
+   * Follows the phone in and out of range.
+   *
+   * Coming back into signal reloads on its own: a crew that has just driven
+   * off the cemetery should not have to know to pull the list down again.
+   */
+  useEffect(() => {
+    const goneOffline = () => setIsOffline(true);
+    const backOnline = () => {
+      setIsOffline(false);
+      void load();
+    };
+
+    window.addEventListener('offline', goneOffline);
+    window.addEventListener('online', backOnline);
+    return () => {
+      window.removeEventListener('offline', goneOffline);
+      window.removeEventListener('online', backOnline);
+    };
   }, [load]);
 
   const visibleCards = useMemo(
@@ -112,6 +158,14 @@ export const InstallerCardsPage = () => {
             </button>
           ))}
         </div>
+
+        {isOffline ? (
+          <p className="mb-4 border border-notice bg-notice-soft px-3 py-2 text-sm text-notice">
+            {syncedAt
+              ? t('installer.offline', { date: new Date(syncedAt).toLocaleString(dateLocale) })
+              : t('installer.offlineNoSync')}
+          </p>
+        ) : null}
 
         {error ? (
           <p
@@ -198,17 +252,14 @@ export const InstallerCardsPage = () => {
                     />
                   </DataSection>
 
+                  {/* FM1 names what the crew gets: address, deadline, technical
+                      data and contact details. Price and contract terms belong
+                      to the commercial agreement and are not sent here at all —
+                      the API omits them, so there is nothing to hide in the UI. */}
                   <DataSection title={t('admin.field.orderSection')}>
                     <DataFields
                       placeholder={t('admin.field.notProvided')}
                       fields={[
-                        {
-                          label: t('admin.field.price'),
-                          value:
-                            card.price != null
-                              ? `${formatFromByn(Number(card.price), { digits: 2 })} ${t('designer.priceUnit')}`
-                              : null
-                        },
                         {
                           label: t('admin.field.submittedAt'),
                           value: card.submittedAt
@@ -220,11 +271,6 @@ export const InstallerCardsPage = () => {
                           value: card.updatedAt
                             ? new Date(card.updatedAt).toLocaleString(dateLocale)
                             : null
-                        },
-                        {
-                          label: t('admin.field.contractDetails'),
-                          value: card.contractDetails,
-                          wide: true
                         }
                       ]}
                     />

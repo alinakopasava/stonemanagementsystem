@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PackageOpen } from 'lucide-react';
 import { useTranslation } from '@application/i18n/i18n-context';
+import { ORDER_STATUS_BADGE } from '@domain/entities/order-status';
 import { useCurrency } from '@application/currency/currency-context';
 import { finishLabel, materialLabel } from '@application/i18n/catalog-labels';
 import { LANGUAGE_LOCALES, type TranslationKey } from '@application/i18n/translations';
@@ -21,12 +22,11 @@ const STATUS_LABEL_KEYS: Record<string, TranslationKey> = {
   anulowane: 'myOrders.status.cancelled'
 };
 
+/** The four order states share one palette with the office panel; `awaiting`
+    is this page's own, for a card the office has not converted yet. */
 const STATUS_BADGE: Record<string, string> = {
-  awaiting: 'bg-surface-2 text-ink-2 border-line-strong',
-  oczekujące: 'bg-brand-soft text-brand border-brand',
-  w_realizacji: 'bg-info-soft text-info border-info',
-  zrealizowane: 'bg-positive-soft text-positive border-positive',
-  anulowane: 'bg-critical-soft text-critical border-critical'
+  ...ORDER_STATUS_BADGE,
+  awaiting: 'bg-surface-2 text-ink-2 border-line-strong'
 };
 
 export const MyOrdersPage = () => {
