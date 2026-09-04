@@ -49,6 +49,14 @@ describe('DesignerPage', () => {
       expect(screen.getByTestId('location-probe')).toHaveAttribute('data-from', '/design');
     });
 
+    it('opens on the featured stone', async () => {
+      renderDesigner();
+      const chips = await screen.findAllByRole('button', { pressed: true });
+      // The configurator and the catalogue lead with the same slab, so a
+      // customer arriving from one recognises the other.
+      expect(chips.some((chip) => /gabbro|габбро|gabro/i.test(chip.textContent ?? ''))).toBe(true);
+    });
+
     it('sends the material, dimensions, inscription and finish a signed-in client chose', async () => {
       server.use(authenticatedAs('klient'));
       let received: Record<string, unknown> | null = null;
@@ -64,15 +72,30 @@ describe('DesignerPage', () => {
       await user.click(save);
 
       await waitFor(() => expect(received).not.toBeNull());
-      // The shape the backend validates: a UUID, a HxW pair and one of the three finishes.
+      // The shape the backend validates: a UUID, height x width x thickness in
+      // centimetres, and one of the three finishes.
       expect(received).toMatchObject({
         materialId: expect.stringMatching(
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
         ),
-        dimensions: expect.stringMatching(/^\d+x\d+$/),
+        dimensions: expect.stringMatching(/^\d+x\d+x\d+$/),
         finishType: expect.stringMatching(/^(Polished|Honed|Matte)$/)
       });
       expect(String(received!.inscriptionText).length).toBeGreaterThan(0);
+      // The rest of the configuration travels with it. Everything below used to
+      // drive the preview and then be discarded, leaving the workshop without
+      // the silhouette it is supposed to cut.
+      expect(received).toMatchObject({
+        shape: expect.stringMatching(/^(classic|rounded|stele)$/),
+        inscriptionStyle: expect.stringMatching(/^(roman|elegant|script|classic|gothic)$/),
+        slabVariant: expect.stringMatching(/^(none|half|full)$/),
+        decoration: expect.stringMatching(/^(none|portrait|cross)$/),
+        baseHeightCm: expect.any(Number),
+        baseWidthCm: expect.any(Number),
+        baseDepthCm: expect.any(Number),
+        hasCross: expect.any(Boolean),
+        hasFlowerbed: expect.any(Boolean)
+      });
     });
   });
 

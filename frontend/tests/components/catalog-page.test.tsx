@@ -4,7 +4,7 @@ import { renderWithProviders } from '../utils/render';
 import { CatalogPage } from '@presentation/pages/catalog-page';
 import { monumentPriceByn } from '@application/pricing/monument-price';
 import { SELECTABLE_MONUMENT_SHAPES } from '@domain/entities/monument';
-import type { Material } from '@domain/entities/material';
+import { FEATURED_MATERIAL_NAME, type Material } from '@domain/entities/material';
 
 /**
  * 7.5  Catalogue view.
@@ -40,7 +40,19 @@ const materials: Material[] = STONE_NAMES.map((name, index) => ({
 }));
 
 /** The preview size the catalogue cards are priced at. */
-const CATALOG_DIMENSIONS = { heightCm: 100, widthCm: 60 };
+/** The card's preview configuration, mirroring the constants in the page. */
+const CATALOG_DIMENSIONS = { heightCm: 100, widthCm: 60, thicknessCm: 10 };
+const CATALOG_BASE = { heightCm: 20, widthCm: 60, depthCm: 15 };
+
+const catalogPrice = (pricePerM2: number, shape: 'classic') =>
+  monumentPriceByn({
+    pricePerM2,
+    stela: CATALOG_DIMENSIONS,
+    shape,
+    finish: 'Polished',
+    base: CATALOG_BASE,
+    slab: { variant: 'full', thicknessCm: 5 }
+  });
 
 describe('CatalogPage', () => {
   it('offers all thirteen stones', async () => {
@@ -89,14 +101,34 @@ describe('CatalogPage', () => {
   /** Digits of the card's price text, e.g. "320,00 BYN" -> "32000". */
   const digitsIn = (element: Element) => (element.textContent ?? '').replace(/\D/g, '');
 
-  it('prices the first stone using the shared formula', async () => {
+  /** Only the stone chips carry a swatch, which keeps the language switcher's
+   *  own pressed buttons out of the picker. */
+  const stoneChips = () =>
+    Array.from(document.querySelectorAll('button[aria-pressed]')).filter((chip) =>
+      chip.querySelector('img')
+    );
+
+  const featured = materials.find((m) => m.name === FEATURED_MATERIAL_NAME)!;
+
+  it('leads the picker with the featured stone and opens on it', async () => {
+    renderWithProviders(<CatalogPage materials={materials} />);
+    await screen.findAllByTestId('monument-viewer');
+
+    const chips = stoneChips();
+    // The API returns the catalogue alphabetically, which would bury the
+    // workshop's standard slab in the middle of the row.
+    expect(chips[0].textContent).toMatch(/gabbro|габбро|gabro/i);
+    expect(chips[0].getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('prices the stone it opens on using the shared formula', async () => {
     inRussian();
     renderWithProviders(<CatalogPage materials={materials} />);
 
     const previews = await screen.findAllByTestId('monument-viewer');
     const firstCard = previews[0].closest('article')!;
 
-    const expected = monumentPriceByn(materials[0].pricePerM2, CATALOG_DIMENSIONS, 'classic');
+    const expected = catalogPrice(featured.pricePerM2, 'classic');
     await waitFor(() =>
       expect(digitsIn(firstCard)).toContain(expected.toFixed(2).replace('.', ''))
     );
@@ -118,17 +150,17 @@ describe('CatalogPage', () => {
     });
     await waitFor(() => expect(firstCard.textContent).not.toBe(before));
 
-    const expected = monumentPriceByn(
-      materials.find((m) => m.name === 'Marble')!.pricePerM2,
-      CATALOG_DIMENSIONS,
-      'classic'
-    );
+    const expected = catalogPrice(materials.find((m) => m.name === 'Marble')!.pricePerM2, 'classic');
     expect(digitsIn(firstCard)).toContain(expected.toFixed(2).replace('.', ''));
   });
 
-  it('renders no previews at all until a stone has loaded', async () => {
+  it('says the catalogue is empty rather than pretending to still be loading', async () => {
     renderWithProviders(<CatalogPage materials={[]} />);
 
     expect(screen.queryAllByTestId('monument-viewer')).toHaveLength(0);
+    // The page mounts only after the stone list has arrived, so an empty list
+    // is an answer, not a wait. It used to show loading skeletons here, and a
+    // customer watched an animation that would never resolve.
+    expect(await screen.findByRole('status')).toHaveTextContent(/no stone is available/i);
   });
 });

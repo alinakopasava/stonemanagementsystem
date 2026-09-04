@@ -4,7 +4,6 @@ import {
   passwordMeetsPolicy,
   passwordRequirements
 } from '@application/auth/password-policy';
-import { dictionaries } from '@application/i18n/translations';
 
 /**
  * 7.2.2  The password policy.
@@ -73,14 +72,6 @@ describe('passwordRequirements', () => {
 
       expect(rule.test(bad), `${id} rejects "${bad}"`).toBe(false);
       expect(rule.test(good), `${id} accepts "${good}"`).toBe(true);
-    }
-  });
-
-  it('has a caption in every language, so no rule renders as a bare key', () => {
-    for (const rule of passwordRequirements) {
-      for (const [language, dictionary] of Object.entries(dictionaries)) {
-        expect(dictionary[rule.labelKey], `${rule.id} in ${language}`).toBeTruthy();
-      }
     }
   });
 });

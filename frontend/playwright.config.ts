@@ -24,7 +24,9 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : [['list']],
-  timeout: 60_000,
+  // A sign-in that meets the rate limiter waits the window out and tries again,
+  // which alone costs a minute; the per-test budget has to leave room for it.
+  timeout: 120_000,
   expect: { timeout: 10_000 },
 
   use: {

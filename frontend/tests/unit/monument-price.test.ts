@@ -1,9 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import {
+  CROSS_CUTTING_BYN,
+  FLOWERBED_PRICE_BYN,
+  LETTER_PRICE_BYN,
+  DECORATION_PRICE_BYN,
+  REFERENCE_THICKNESS_CM,
   SHAPE_BASE_PRICE_BYN,
+  WORKMANSHIP_RATE_BYN_PER_M2,
   monumentAreaM2,
   monumentPriceByn,
-  parseDimensionPair
+  parseDimensionPair,
+  parseThicknessCm,
+  slabFootprintCm
 } from '@application/pricing/monument-price';
 import {
   SELECTABLE_MONUMENT_SHAPES,
@@ -43,56 +51,223 @@ describe('parseDimensionPair', () => {
   });
 });
 
+describe('parseThicknessCm', () => {
+  it('reads the third component when the dimensions carry one', () => {
+    expect(parseThicknessCm('100x60x8')).toBe(8);
+  });
+
+  it('returns null for a pair, so the reference thickness applies', () => {
+    for (const raw of ['100x60', '', null, undefined, '100x60xabc', '100x60x0']) {
+      expect(parseThicknessCm(raw as string), String(raw)).toBeNull();
+    }
+  });
+});
+
+describe('slabFootprintCm', () => {
+  const ARGS = { baseWidthCm: 50, baseDepthCm: 15, stelaWidthCm: 50, stelaThicknessCm: 5 };
+
+  it('has no footprint when no slab was ordered', () => {
+    expect(slabFootprintCm({ ...ARGS, variant: 'none' })).toBeNull();
+  });
+
+  it('grows a full slab deeper than a half one', () => {
+    const half = slabFootprintCm({ ...ARGS, variant: 'half' })!;
+    const full = slabFootprintCm({ ...ARGS, variant: 'full' })!;
+
+    expect(full.widthCm).toBe(half.widthCm);
+    expect(full.depthCm).toBeGreaterThan(half.depthCm);
+  });
+
+  it('widens with the stela when the base is too narrow to set the width', () => {
+    // The customer can dial the base narrower than the stone standing on it;
+    // the slab still has to reach past the monument.
+    expect(slabFootprintCm({ ...ARGS, baseWidthCm: 20, variant: 'full' })!.widthCm).toBe(75);
+  });
+});
+
 describe('monumentPriceByn', () => {
-  it('adds the shape base price to area times the stone rate', () => {
-    // classic base 80 + 0.6 m² * 420 BYN = 80 + 252 = 332
-    expect(monumentPriceByn(420, { heightCm: 100, widthCm: 60 }, 'classic')).toBe(332);
+  /** The rate a square metre of this stone is charged at, at 5 cm, polished. */
+  const RATE = 420 + WORKMANSHIP_RATE_BYN_PER_M2;
+
+  it('charges the stela by area, thickness and the shape it is cut to', () => {
+    // 0.5 m² × (420 + 850) × 5/5 = 635, plus the classic contour at 80.
+    expect(
+      monumentPriceByn({
+        pricePerM2: 420,
+        stela: { heightCm: 100, widthCm: 50, thicknessCm: 5 },
+        shape: 'classic'
+      })
+    ).toBe(Math.round(0.5 * RATE + 80));
   });
 
-  it('omits the base price when no shape is given', () => {
-    expect(monumentPriceByn(420, { heightCm: 100, widthCm: 60 })).toBe(252);
+  it('charges twice as much for twice the thickness', () => {
+    const thin = monumentPriceByn({
+      pricePerM2: 420,
+      stela: { heightCm: 100, widthCm: 50, thicknessCm: 5 }
+    });
+    const thick = monumentPriceByn({
+      pricePerM2: 420,
+      stela: { heightCm: 100, widthCm: 50, thicknessCm: 10 }
+    });
+
+    // The old formula ignored thickness entirely and priced these the same,
+    // which gave away half the stone in the block.
+    expect(thick).toBe(thin * 2);
   });
 
-  it('rounds to two decimal places', () => {
-    // 80 + 0.6 m² * 12.345 = 87.407, which the customer sees as 87.41.
-    expect(monumentPriceByn(12.345, { heightCm: 100, widthCm: 60 }, 'classic')).toBe(87.41);
+  it('falls back to the reference thickness when none was configured', () => {
+    expect(
+      monumentPriceByn({ pricePerM2: 420, stela: { heightCm: 100, widthCm: 50 } })
+    ).toBe(monumentPriceByn({
+      pricePerM2: 420,
+      stela: { heightCm: 100, widthCm: 50, thicknessCm: REFERENCE_THICKNESS_CM }
+    }));
   });
 
-  /* ---------------------------------------------------------------- */
-  /* Worked examples, each computed from the formula by hand           */
-  /* ---------------------------------------------------------------- */
+  it('charges less for a finish that takes less work', () => {
+    const stela = { heightCm: 100, widthCm: 50, thicknessCm: 5 };
+    const polished = monumentPriceByn({ pricePerM2: 420, stela, finish: 'Polished' });
+    const honed = monumentPriceByn({ pricePerM2: 420, stela, finish: 'Honed' });
+    const matte = monumentPriceByn({ pricePerM2: 420, stela, finish: 'Matte' });
 
-  describe('worked examples', () => {
-    // 180 x 90 cm is 1.62 m2, so at 100 BYN/m2 the stone contributes 162.
-    const SLAB = { heightCm: 180, widthCm: 90 };
+    // Only the workmanship half of the rate moves; the stone costs what it costs.
+    expect(polished).toBeGreaterThan(honed);
+    expect(honed).toBeGreaterThan(matte);
+  });
 
-    it.each([
-      ['classic', 'classic' as const, 80 + 162],
-      ['cross, the most labour-intensive contour', 'cross' as const, 290 + 162]
-    ])('prices a 180 x 90 slab in %s stone at 100 BYN/m2', (_label, shape, expected) => {
-      expect(monumentPriceByn(100, SLAB, shape)).toBe(expected);
+  it('bills the base and the slab as the stone they are', () => {
+    const stela = { heightCm: 100, widthCm: 50, thicknessCm: 5 };
+    const bare = monumentPriceByn({ pricePerM2: 420, stela });
+    const withBase = monumentPriceByn({
+      pricePerM2: 420,
+      stela,
+      base: { heightCm: 20, widthCm: 50, depthCm: 15 }
+    });
+    const complete = monumentPriceByn({
+      pricePerM2: 420,
+      stela,
+      base: { heightCm: 20, widthCm: 50, depthCm: 15 },
+      slab: { variant: 'full', thicknessCm: 5 }
     });
 
-    it('charges the base price alone when the stone itself costs nothing', () => {
-      expect(monumentPriceByn(0, SLAB, 'classic')).toBe(80);
+    // A pedestal and a slab used to cost nothing at all.
+    expect(withBase).toBeGreaterThan(bare);
+    expect(complete).toBeGreaterThan(withBase);
+  });
+
+  it('charges for the letters, the portrait and the flowerbed', () => {
+    const stela = { heightCm: 100, widthCm: 50, thicknessCm: 5 };
+    const plain = monumentPriceByn({ pricePerM2: 420, stela });
+
+    expect(monumentPriceByn({ pricePerM2: 420, stela, inscriptionLength: 40 })).toBe(
+      plain + 40 * LETTER_PRICE_BYN
+    );
+    expect(monumentPriceByn({ pricePerM2: 420, stela, decoration: 'portrait' })).toBe(
+      plain + DECORATION_PRICE_BYN.portrait
+    );
+    expect(monumentPriceByn({ pricePerM2: 420, stela, hasFlowerbed: true })).toBe(
+      plain + FLOWERBED_PRICE_BYN
+    );
+    // A plain slab with no decoration is charged for neither.
+    expect(monumentPriceByn({ pricePerM2: 420, stela, decoration: 'none' })).toBe(plain);
+  });
+
+  it('charges every decoration, the engraved cross included', () => {
+    const stela = { heightCm: 100, widthCm: 50, thicknessCm: 5 };
+    const plain = monumentPriceByn({ pricePerM2: 420, stela });
+
+    for (const kind of ['portrait', 'cross'] as const) {
+      expect(monumentPriceByn({ pricePerM2: 420, stela, decoration: kind }), kind).toBe(
+        plain + DECORATION_PRICE_BYN[kind]
+      );
+    }
+    // A cross cut from a template is less of the engraver's day than a face.
+    expect(DECORATION_PRICE_BYN.cross).toBeLessThan(DECORATION_PRICE_BYN.portrait);
+  });
+
+  it('prices no decoration the catalogue no longer sells', () => {
+    const stela = { heightCm: 100, widthCm: 50, thicknessCm: 5 };
+    const plain = monumentPriceByn({ pricePerM2: 420, stela });
+
+    // The medallion was withdrawn together with the framed niche. A stored row
+    // naming one must not quietly add a charge nobody can choose any more.
+    expect(monumentPriceByn({ pricePerM2: 420, stela, decoration: 'medallion' })).toBe(plain);
+    expect(DECORATION_PRICE_BYN.medallion).toBeUndefined();
+  });
+
+  it('charges the cross for its stone and for cutting it', () => {
+    const stela = { heightCm: 100, widthCm: 50, thicknessCm: 5 };
+    const plain = monumentPriceByn({ pricePerM2: 420, stela });
+    const withCross = monumentPriceByn({ pricePerM2: 420, stela, hasCross: true });
+
+    // The finial used to be the one thing a customer could add for nothing.
+    expect(withCross).toBeGreaterThan(plain + CROSS_CUTTING_BYN);
+    // Its stone is a rounding error next to the work, so the surcharge
+    // dominates and the total stays sane.
+    expect(withCross).toBeLessThan(plain + CROSS_CUTTING_BYN + 50);
+  });
+
+  it('scales the cross with the stela it stands on', () => {
+    const narrow = monumentPriceByn({
+      pricePerM2: 420,
+      stela: { heightCm: 100, widthCm: 50, thicknessCm: 5 },
+      hasCross: true
+    });
+    const wide = monumentPriceByn({
+      pricePerM2: 420,
+      stela: { heightCm: 100, widthCm: 100, thicknessCm: 5 },
+      hasCross: true
+    });
+    const narrowPlain = monumentPriceByn({
+      pricePerM2: 420,
+      stela: { heightCm: 100, widthCm: 50, thicknessCm: 5 }
+    });
+    const widePlain = monumentPriceByn({
+      pricePerM2: 420,
+      stela: { heightCm: 100, widthCm: 100, thicknessCm: 5 }
     });
 
-    it('charges the area alone for a shape identifier it does not recognise', () => {
-      // Reachable from a bookmarked address written before the shape list grew.
-      // A missing base price must not become NaN and wipe out the whole sum:
-      // an incomplete price the office can correct beats an error mid-order.
-      const price = monumentPriceByn(100, SLAB, 'trapezoid' as never);
+    expect(wide - widePlain).toBeGreaterThan(narrow - narrowPlain);
+  });
 
-      expect(price).toBe(162);
-      expect(Number.isNaN(price)).toBe(false);
+  it('lands a standard single monument near 1200 BYN on the cheapest stone', () => {
+    // The anchor the whole table is tuned to: stela 100 x 50 x 5, its base, a
+    // full slab and a short inscription, in the least expensive granite.
+    const price = monumentPriceByn({
+      pricePerM2: 420,
+      stela: { heightCm: 100, widthCm: 50, thicknessCm: 5 },
+      shape: 'classic',
+      finish: 'Matte',
+      base: { heightCm: 20, widthCm: 50, depthCm: 15 },
+      slab: { variant: 'full', thicknessCm: 5 },
+      inscriptionLength: 40
     });
 
-    it('charges the base price alone when the stone has no catalogue rate', () => {
-      const price = monumentPriceByn(Number.NaN, SLAB, 'classic');
+    expect(price).toBeGreaterThan(1000);
+    expect(price).toBeLessThan(1400);
+  });
 
-      expect(Number.isNaN(price)).toBe(false);
-      expect(price).toBe(80);
+  it('survives a stone with no catalogue rate instead of pricing it as NaN', () => {
+    const price = monumentPriceByn({
+      pricePerM2: Number.NaN,
+      stela: { heightCm: 100, widthCm: 50, thicknessCm: 5 },
+      shape: 'classic'
     });
+
+    // An incomplete figure the office corrects beats an error mid-order.
+    expect(Number.isNaN(price)).toBe(false);
+    expect(price).toBeGreaterThan(0);
+  });
+
+  it('ignores a shape identifier it does not recognise', () => {
+    // Reachable from a bookmark written before the shape list changed.
+    const price = monumentPriceByn({
+      pricePerM2: 420,
+      stela: { heightCm: 100, widthCm: 50, thicknessCm: 5 },
+      shape: 'trapezoid' as never
+    });
+
+    expect(Number.isNaN(price)).toBe(false);
   });
 });
 

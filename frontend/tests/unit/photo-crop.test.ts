@@ -31,15 +31,13 @@ const cropFor = (overrides: Partial<PhotoCrop> = {}): PhotoCrop => ({
 });
 
 describe('defaults', () => {
-  it('offers a default crop inside the allowed zoom range for both frames', () => {
-    for (const aspect of ['portrait', 'square'] as const) {
-      const crop = getDefaultPhotoCrop(aspect);
+  it('offers a default crop inside the allowed zoom range', () => {
+    const crop = getDefaultPhotoCrop('portrait');
 
-      expect(crop.scale).toBeGreaterThanOrEqual(PHOTO_CROP_SCALE_MIN);
-      expect(crop.scale).toBeLessThanOrEqual(PHOTO_CROP_SCALE_MAX);
-      expect(crop.centerX).toBeGreaterThan(0);
-      expect(crop.centerY).toBeGreaterThan(0);
-    }
+    expect(crop.scale).toBeGreaterThanOrEqual(PHOTO_CROP_SCALE_MIN);
+    expect(crop.scale).toBeLessThanOrEqual(PHOTO_CROP_SCALE_MAX);
+    expect(crop.centerX).toBeGreaterThan(0);
+    expect(crop.centerY).toBeGreaterThan(0);
   });
 
   it('hands out a copy, so editing one photograph cannot alter the default', () => {
@@ -50,13 +48,12 @@ describe('defaults', () => {
     expect(getDefaultPhotoCrop('portrait').scale).toBe(DEFAULT_PORTRAIT_CROP.scale);
   });
 
-  it('describes the two frame shapes consistently', () => {
-    expect(getPhotoAspectRatio('square')).toBe(1);
+  it('describes the portrait frame consistently', () => {
+    // The square frame belonged to the medallion, which the catalogue no longer
+    // sells; the portrait is the one shape left.
     expect(getPhotoAspectRatio('portrait')).toBeLessThan(1);
 
-    const square = getPhotoTextureSize('square');
     const portrait = getPhotoTextureSize('portrait');
-    expect(square.width).toBe(square.height);
     expect(portrait.height).toBeGreaterThan(portrait.width);
   });
 });

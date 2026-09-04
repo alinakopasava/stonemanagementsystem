@@ -31,7 +31,7 @@ export const MATERIALS = [
 ];
 
 export const EXCHANGE_RATE = {
-  source: 'nbrb',
+  source: 'nbp',
   date: '2026-08-20',
   scale: 10,
   officialRate: 8.0182,

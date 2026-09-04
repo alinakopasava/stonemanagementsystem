@@ -38,7 +38,7 @@ const renderInLanguage = async (language: 'en' | 'pl' | 'ru') => {
     </I18nProvider>
   );
   // The provider starts on the built-in rate and swaps in the fetched one.
-  await waitFor(() => expect(screen.getByTestId('source').textContent).toBe('nbrb'));
+  await waitFor(() => expect(screen.getByTestId('source').textContent).toBe('nbp'));
 };
 
 const value = (id: string) => Number(screen.getByTestId(id).textContent);
@@ -101,7 +101,7 @@ describe('the rate itself', () => {
     window.localStorage.setItem('signature-stone.language', 'pl');
     window.localStorage.setItem(
       'signature-stone.exchange-rate',
-      JSON.stringify({ ...EXCHANGE_RATE, source: 'nbrb', plnPerByn: 2, bynPerPln: 0.5 })
+      JSON.stringify({ ...EXCHANGE_RATE, source: 'nbp', plnPerByn: 2, bynPerPln: 0.5 })
     );
     server.use(http.get('/api/exchange-rate', () => HttpResponse.error()));
 
