@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Signature Stone">
+  <!--
+    Monogram marki: litera S z tego samego kroju, ktorym zlozony jest wordmark
+    w naglowku (PT Serif Bold, public/fonts/pt-serif-700.woff).
+
+    Litera jest konturem, nie tekstem. Ikona renderuje sie poza strona, wiec
+    element text trafilby na domyslna czcionke systemu i na kazdym urzadzeniu
+    wygladalby inaczej. Kontur wyglada wszedzie tak samo.
+
+    Kolory z tokens.css: tlo to token brand (31 74 60), litera to brand-ink
+    (242 246 243). Pelny kafelek zamiast jasnego tla, bo pasek kart bywa
+    i jasny, i ciemny.
+  -->
+  <rect width="64" height="64" rx="13" fill="#1F4A3C"/>
+  <path fill="#F2F6F3" d="M25.52 46.01Q26.1 46.59 27.15 47.09Q28.19 47.59 29.93 47.59Q32.81 47.59 34.73 46.09Q36.65 44.6 36.65 41.92Q36.65 39.98 35.41 38.67Q34.18 37.35 32.29 36.25Q30.4 35.15 28.25 34.07Q26.1 33.0 24.21 31.53Q22.32 30.06 21.08 28.04Q19.85 26.02 19.85 23.02Q19.85 20.45 20.79 18.56Q21.74 16.67 23.39 15.44Q25.05 14.21 27.3 13.6Q29.56 13.0 32.18 13.0Q35.39 13.0 38.14 13.45Q40.9 13.89 43.1 14.84Q43.05 15.89 42.92 17.25Q42.79 18.62 42.58 19.95Q42.37 21.29 42.13 22.47Q41.89 23.65 41.68 24.44H39.53L37.12 17.25Q36.49 16.94 35.25 16.67Q34.02 16.41 32.71 16.41Q30.5 16.41 28.98 17.57Q27.46 18.72 27.46 20.93Q27.46 22.92 28.72 24.31Q29.98 25.7 31.87 26.86Q33.76 28.01 35.99 29.14Q38.22 30.27 40.11 31.74Q42.0 33.21 43.26 35.18Q44.52 37.14 44.52 40.03Q44.52 45.28 40.98 48.14Q37.43 51.0 30.56 51.0Q28.88 51.0 27.17 50.79Q25.47 50.58 23.94 50.21Q22.42 49.85 21.24 49.43Q20.06 49.01 19.48 48.53Q19.53 47.33 19.74 45.94Q19.95 44.54 20.19 43.15Q20.43 41.76 20.69 40.5Q20.95 39.24 21.21 38.3H23.37Z"/>
+</svg>
