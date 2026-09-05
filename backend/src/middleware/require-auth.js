@@ -115,14 +115,6 @@ export const requireAuth = async (req, res, next) => {
   }
 };
 
-export const optionalAuth = async (req, res, next) => {
-  const token = req.cookies?.[ACCESS_COOKIE] || extractBearerToken(req.headers.authorization);
-  if (!token && !req.cookies?.[REFRESH_COOKIE]) {
-    return next();
-  }
-  return requireAuth(req, res, next);
-};
-
 /** Factory: require the caller to have one of the given roles. */
 export const requireRole = (...allowedRoles) => {
   return (req, res, next) => {

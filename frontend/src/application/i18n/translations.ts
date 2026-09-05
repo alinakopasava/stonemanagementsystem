@@ -71,7 +71,6 @@ export type TranslationKey =
   | 'contact.privacyHint'
   | 'contact.success'
   | 'contact.error'
-  | 'designer.section.tag'
   | 'designer.title'
   | 'designer.subtitle'
   | 'designer.previewLoading'
@@ -80,9 +79,7 @@ export type TranslationKey =
   | 'designer.finish.polished'
   | 'designer.finish.honed'
   | 'designer.finish.matte'
-  | 'designer.dimensions'
   | 'designer.dimensions.height'
-  | 'designer.dimensions.width'
   | 'designer.dimensions.thickness'
   | 'designer.inscription'
   | 'designer.inscriptionPlaceholder'
@@ -92,7 +89,6 @@ export type TranslationKey =
   | 'designer.inscriptionStyle.preview'
   | 'designer.estimatedCost'
   | 'designer.rateStale'
-  | 'designer.estimatedCostHint'
   | 'designer.placeOrder'
   | 'designer.signInToOrder'
   | 'designer.submitting'
@@ -139,7 +135,6 @@ export type TranslationKey =
   | 'forgotPassword.submit'
   | 'forgotPassword.submitting'
   | 'forgotPassword.success'
-  | 'forgotPassword.error'
   | 'forgotPassword.backToSignIn'
   | 'resetPassword.title'
   | 'resetPassword.subtitle'
@@ -147,7 +142,6 @@ export type TranslationKey =
   | 'resetPassword.confirmPassword'
   | 'resetPassword.submit'
   | 'resetPassword.submitting'
-  | 'resetPassword.tooShort'
   | 'resetPassword.error'
   | 'resetPassword.invalidLink'
   | 'resetPassword.requestNewLink'
@@ -164,7 +158,6 @@ export type TranslationKey =
   | 'catalog.priceFrom'
   | 'catalog.footer'
   | 'catalog.material.label'
-  | 'catalog.material.pricePerM2'
   | 'catalog.designCta'
   | 'catalog.basePriceFrom'
   | 'catalog.previewLoading'
@@ -196,11 +189,9 @@ export type TranslationKey =
   | 'designer.baseSize'
   | 'designer.baseSize.height'
   | 'designer.baseSize.width'
-  | 'designer.baseSize.depth'
   | 'designer.elements'
   | 'designer.elements.flowerbed'
   | 'designer.elements.flowerbed.hint'
-  | 'designer.elements.tombstoneSlab'
   | 'designer.elements.tombstoneSlab.hint'
   | 'designer.slabVariant'
   | 'designer.slabVariant.none'
@@ -256,7 +247,6 @@ export type TranslationKey =
   | 'designer.tab.size'
   | 'designer.tab.elements'
   | 'designer.tab.inscription'
-  | 'designer.summary'
   | 'configurator.title'
   | 'configurator.subtitle'
   | 'configurator.material'
@@ -312,7 +302,6 @@ export type TranslationKey =
   | 'admin.orders.completedAt'
   | 'admin.orders.installationPhoto'
   | 'admin.orders.handOverError'
-  | 'admin.orders.notHandedOver'
   | 'admin.field.clientSection'
   | 'admin.field.orderSection'
   | 'admin.field.configSection'
@@ -330,7 +319,6 @@ export type TranslationKey =
   | 'admin.field.orderCard'
   | 'admin.field.category'
   | 'admin.field.pricePerM2'
-  | 'admin.field.material'
   | 'admin.field.notProvided'
   | 'admin.field.submittedAt'
   | 'admin.orderCards.title'
@@ -453,7 +441,6 @@ export type TranslationKey =
   | 'myOrders.configSection'
   | 'myOrders.orderSection'
   | 'myOrders.awaitingReview'
-  | 'myOrders.material'
   | 'myOrders.category'
   | 'myOrders.dimensions'
   | 'myOrders.finish'
@@ -531,7 +518,6 @@ const en: Dictionary = {
   'contact.success': 'Thank you. We have received your message and will reply shortly.',
   'contact.error': 'Failed to send message.',
 
-  'designer.section.tag': '3D designer',
   'designer.title': 'Design your monument in real time',
   'designer.subtitle':
     'Choose the stone, finish, size, and engraving. Drag to rotate and scroll to zoom. What you see is what we craft.',
@@ -541,9 +527,7 @@ const en: Dictionary = {
   'designer.finish.polished': 'Polished',
   'designer.finish.honed': 'Honed',
   'designer.finish.matte': 'Matte',
-  'designer.dimensions': 'Dimensions',
   'designer.dimensions.height': 'Height',
-  'designer.dimensions.width': 'Width',
   'designer.dimensions.thickness': 'Thickness',
   'designer.inscription': 'Inscription',
   'designer.inscriptionPlaceholder': 'In loving memory...',
@@ -553,8 +537,6 @@ const en: Dictionary = {
   'designer.inscriptionStyle.preview': 'Preview',
   'designer.rateStale': 'The exchange rate could not be refreshed, so this conversion may be out of date. The price in roubles is exact.',
   'designer.estimatedCost': 'Estimated material cost',
-  'designer.estimatedCostHint':
-    'The final price may include engraving and installation. Our team will confirm it.',
   'designer.placeOrder': 'Place order',
   'designer.signInToOrder': 'Sign in to place an order',
   'designer.submitting': 'Submitting...',
@@ -606,7 +588,6 @@ const en: Dictionary = {
   'forgotPassword.submit': 'Send reset link',
   'forgotPassword.submitting': 'Sending...',
   'forgotPassword.success': 'If an account exists for {email}, we have sent a reset link.',
-  'forgotPassword.error': 'Failed to send reset email.',
   'forgotPassword.backToSignIn': 'Back to sign in',
 
   'resetPassword.title': 'Set a new password',
@@ -615,7 +596,6 @@ const en: Dictionary = {
   'resetPassword.confirmPassword': 'Confirm new password',
   'resetPassword.submit': 'Update password',
   'resetPassword.submitting': 'Updating...',
-  'resetPassword.tooShort': 'Password must be at least 8 characters.',
   'resetPassword.error': 'Failed to update password.',
   'resetPassword.invalidLink': 'This password reset link is invalid or has expired.',
   'resetPassword.requestNewLink': 'Request a new reset link',
@@ -638,7 +618,6 @@ const en: Dictionary = {
   'catalog.priceFrom': 'from {price} USD / m²',
   'catalog.footer': 'Signature Stone. Memorial catalog.',
   'catalog.material.label': 'Stone material',
-  'catalog.material.pricePerM2': '{price} USD / m²',
   'catalog.designCta': 'Design in 3D',
   'catalog.basePriceFrom': 'from {price} USD',
   'catalog.previewLoading': 'Loading 3D preview…',
@@ -672,11 +651,9 @@ const en: Dictionary = {
   'designer.baseSize': 'Base size',
   'designer.baseSize.height': 'Height',
   'designer.baseSize.width': 'Width',
-  'designer.baseSize.depth': 'Depth',
   'designer.elements': 'Additional elements',
   'designer.elements.flowerbed': 'Flower planter',
   'designer.elements.flowerbed.hint': 'Stone flower box in front of the base.',
-  'designer.elements.tombstoneSlab': 'Grave slab',
   'designer.elements.tombstoneSlab.hint': 'Flat slab covering the grave area.',
   'designer.slabVariant': 'Grave slab type',
   'designer.slabVariant.none': 'No slab',
@@ -736,7 +713,6 @@ const en: Dictionary = {
   'designer.tab.size': 'Dimensions',
   'designer.tab.elements': 'Elements',
   'designer.tab.inscription': 'Inscription',
-  'designer.summary': 'Summary',
 
   'configurator.title': 'Place order',
   'configurator.subtitle':
@@ -785,7 +761,6 @@ const en: Dictionary = {
   'admin.field.orderCard': 'Order card',
   'admin.field.category': 'Category',
   'admin.field.pricePerM2': 'Price/m²',
-  'admin.field.material': 'Material',
   'admin.field.notProvided': 'Not provided',
   'admin.field.submittedAt': 'Submitted',
 
@@ -819,7 +794,6 @@ const en: Dictionary = {
   'admin.orders.completedAt': 'Completed',
   'admin.orders.installationPhoto': 'Photograph from the installation',
   'admin.orders.handOverError': 'Failed to hand the order over.',
-  'admin.orders.notHandedOver': 'Not handed over',
 
   'admin.orderCards.title': 'Order cards',
   'admin.orderCards.subtitle':
@@ -946,7 +920,6 @@ const en: Dictionary = {
   'myOrders.configSection': 'Your configuration',
   'myOrders.orderSection': 'Order',
   'myOrders.awaitingReview': 'We have received your order and will confirm the price and the deadline shortly.',
-  'myOrders.material': 'Material',
   'myOrders.category': 'Category',
   'myOrders.dimensions': 'Dimensions',
   'myOrders.finish': 'Finish',
@@ -1023,7 +996,6 @@ const pl: Dictionary = {
   'contact.success': 'Dziękujemy. Otrzymaliśmy Twoją wiadomość i wkrótce odpiszemy.',
   'contact.error': 'Nie udało się wysłać wiadomości.',
 
-  'designer.section.tag': 'Konfigurator 3D',
   'designer.title': 'Zaprojektuj swój pomnik na żywo',
   'designer.subtitle':
     'Wybierz kamień, wykończenie, rozmiar i grawer. Przeciągnij, aby obrócić. Przewiń, aby przybliżyć. Wykonamy to, co widzisz.',
@@ -1033,9 +1005,7 @@ const pl: Dictionary = {
   'designer.finish.polished': 'Polerowane',
   'designer.finish.honed': 'Szlifowane',
   'designer.finish.matte': 'Matowe',
-  'designer.dimensions': 'Wymiary',
   'designer.dimensions.height': 'Wysokość',
-  'designer.dimensions.width': 'Szerokość',
   'designer.dimensions.thickness': 'Grubość',
   'designer.inscription': 'Inskrypcja',
   'designer.inscriptionPlaceholder': 'Pamięci...',
@@ -1045,8 +1015,6 @@ const pl: Dictionary = {
   'designer.inscriptionStyle.preview': 'Podgląd',
   'designer.rateStale': 'Nie udało się odświeżyć kursu, więc przeliczenie może być nieaktualne. Cena w rublach jest dokładna.',
   'designer.estimatedCost': 'Szacowany koszt materiału',
-  'designer.estimatedCostHint':
-    'Cena końcowa może obejmować grawer i montaż. Nasz zespół ją potwierdzi.',
   'designer.placeOrder': 'Złóż zamówienie',
   'designer.signInToOrder': 'Zaloguj się, aby złożyć zamówienie',
   'designer.submitting': 'Wysyłanie...',
@@ -1100,7 +1068,6 @@ const pl: Dictionary = {
   'forgotPassword.submitting': 'Wysyłanie...',
   'forgotPassword.success':
     'Jeśli konto dla {email} istnieje, wysłaliśmy link do zmiany hasła.',
-  'forgotPassword.error': 'Nie udało się wysłać e-maila resetującego.',
   'forgotPassword.backToSignIn': 'Wróć do logowania',
 
   'resetPassword.title': 'Ustaw nowe hasło',
@@ -1109,7 +1076,6 @@ const pl: Dictionary = {
   'resetPassword.confirmPassword': 'Potwierdź nowe hasło',
   'resetPassword.submit': 'Zaktualizuj hasło',
   'resetPassword.submitting': 'Aktualizacja...',
-  'resetPassword.tooShort': 'Hasło musi mieć co najmniej 8 znaków.',
   'resetPassword.error': 'Nie udało się zaktualizować hasła.',
   'resetPassword.invalidLink': 'Ten link do resetowania hasła jest nieprawidłowy lub wygasł.',
   'resetPassword.requestNewLink': 'Poproś o nowy link resetujący',
@@ -1133,7 +1099,6 @@ const pl: Dictionary = {
   'catalog.priceFrom': 'od {price} PLN / m²',
   'catalog.footer': 'Signature Stone. Katalog pomników.',
   'catalog.material.label': 'Materiał kamienny',
-  'catalog.material.pricePerM2': '{price} PLN / m²',
   'catalog.designCta': 'Projektuj w 3D',
   'catalog.basePriceFrom': 'od {price} PLN',
   'catalog.previewLoading': 'Wczytywanie podglądu 3D…',
@@ -1167,11 +1132,9 @@ const pl: Dictionary = {
   'designer.baseSize': 'Rozmiar podstawy',
   'designer.baseSize.height': 'Wysokość',
   'designer.baseSize.width': 'Szerokość',
-  'designer.baseSize.depth': 'Głębokość',
   'designer.elements': 'Dodatkowe elementy',
   'designer.elements.flowerbed': 'Donica na kwiaty',
   'designer.elements.flowerbed.hint': 'Kamienna donica na kwiaty przed podstawą.',
-  'designer.elements.tombstoneSlab': 'Płyta nagrobna',
   'designer.elements.tombstoneSlab.hint': 'Płaska płyta przykrywająca grób.',
   'designer.slabVariant': 'Rodzaj płyty nagrobnej',
   'designer.slabVariant.none': 'Bez płyty',
@@ -1231,7 +1194,6 @@ const pl: Dictionary = {
   'designer.tab.size': 'Wymiary',
   'designer.tab.elements': 'Elementy',
   'designer.tab.inscription': 'Inskrypcja',
-  'designer.summary': 'Podsumowanie',
 
   'configurator.title': 'Złóż zamówienie',
   'configurator.subtitle':
@@ -1280,7 +1242,6 @@ const pl: Dictionary = {
   'admin.field.orderCard': 'Karta zamówienia',
   'admin.field.category': 'Kategoria',
   'admin.field.pricePerM2': 'Cena/m²',
-  'admin.field.material': 'Materiał',
   'admin.field.notProvided': 'Nie podano',
   'admin.field.submittedAt': 'Złożono',
 
@@ -1315,7 +1276,6 @@ const pl: Dictionary = {
   'admin.orders.completedAt': 'Zakończono',
   'admin.orders.installationPhoto': 'Zdjęcie z montażu',
   'admin.orders.handOverError': 'Nie udało się przekazać zamówienia.',
-  'admin.orders.notHandedOver': 'Nieprzekazane',
 
   'admin.orderCards.title': 'Karty zamówień',
   'admin.orderCards.subtitle':
@@ -1448,7 +1408,6 @@ const pl: Dictionary = {
   'myOrders.configSection': 'Twoja konfiguracja',
   'myOrders.orderSection': 'Zamówienie',
   'myOrders.awaitingReview': 'Przyjęliśmy zamówienie. Wkrótce potwierdzimy cenę i termin.',
-  'myOrders.material': 'Materiał',
   'myOrders.category': 'Kategoria',
   'myOrders.dimensions': 'Wymiary',
   'myOrders.finish': 'Wykończenie',
@@ -1525,7 +1484,6 @@ const ru: Dictionary = {
   'contact.success': 'Спасибо. Мы получили сообщение и скоро ответим.',
   'contact.error': 'Не удалось отправить сообщение.',
 
-  'designer.section.tag': '3D-конструктор',
   'designer.title': 'Создайте памятник в реальном времени',
   'designer.subtitle':
     'Выберите камень, отделку, размер и гравировку. Перетащите, чтобы повернуть. Прокрутите, чтобы приблизить. Мы изготовим то, что вы видите.',
@@ -1535,9 +1493,7 @@ const ru: Dictionary = {
   'designer.finish.polished': 'Полированная',
   'designer.finish.honed': 'Шлифованная',
   'designer.finish.matte': 'Матовая',
-  'designer.dimensions': 'Размеры',
   'designer.dimensions.height': 'Высота',
-  'designer.dimensions.width': 'Ширина',
   'designer.dimensions.thickness': 'Толщина',
   'designer.inscription': 'Надпись',
   'designer.inscriptionPlaceholder': 'Светлая память...',
@@ -1547,8 +1503,6 @@ const ru: Dictionary = {
   'designer.inscriptionStyle.preview': 'Просмотр',
   'designer.rateStale': 'Курс не удалось обновить, поэтому пересчёт может быть неактуальным. Цена в рублях точная.',
   'designer.estimatedCost': 'Ориентировочная стоимость материала',
-  'designer.estimatedCostHint':
-    'Итоговая цена может включать гравировку и установку. Команда подтвердит её отдельно.',
   'designer.placeOrder': 'Оформить заказ',
   'designer.signInToOrder': 'Войдите, чтобы оформить заказ',
   'designer.submitting': 'Отправка...',
@@ -1601,7 +1555,6 @@ const ru: Dictionary = {
   'forgotPassword.submitting': 'Отправка...',
   'forgotPassword.success':
     'Если аккаунт для {email} существует, мы отправили ссылку для смены пароля.',
-  'forgotPassword.error': 'Не удалось отправить письмо для сброса пароля.',
   'forgotPassword.backToSignIn': 'Вернуться ко входу',
 
   'resetPassword.title': 'Новый пароль',
@@ -1610,7 +1563,6 @@ const ru: Dictionary = {
   'resetPassword.confirmPassword': 'Подтвердите новый пароль',
   'resetPassword.submit': 'Обновить пароль',
   'resetPassword.submitting': 'Обновление...',
-  'resetPassword.tooShort': 'Пароль должен содержать не менее 8 символов.',
   'resetPassword.error': 'Не удалось обновить пароль.',
   'resetPassword.invalidLink': 'Ссылка для сброса пароля недействительна или истекла.',
   'resetPassword.requestNewLink': 'Запросить новую ссылку',
@@ -1634,7 +1586,6 @@ const ru: Dictionary = {
   'catalog.priceFrom': 'от {price} BYN / м²',
   'catalog.footer': 'Signature Stone. Каталог памятников.',
   'catalog.material.label': 'Камень',
-  'catalog.material.pricePerM2': '{price} BYN / м²',
   'catalog.designCta': 'Проектировать в 3D',
   'catalog.basePriceFrom': 'от {price} BYN',
   'catalog.previewLoading': 'Загрузка 3D-модели…',
@@ -1668,11 +1619,9 @@ const ru: Dictionary = {
   'designer.baseSize': 'Размер постамента',
   'designer.baseSize.height': 'Высота',
   'designer.baseSize.width': 'Ширина',
-  'designer.baseSize.depth': 'Глубина',
   'designer.elements': 'Дополнительные элементы',
   'designer.elements.flowerbed': 'Цветник',
   'designer.elements.flowerbed.hint': 'Каменный цветник перед постаментом.',
-  'designer.elements.tombstoneSlab': 'Надгробная плита',
   'designer.elements.tombstoneSlab.hint': 'Плоская плита, закрывающая место захоронения.',
   'designer.slabVariant': 'Тип надгробной плиты',
   'designer.slabVariant.none': 'Без плиты',
@@ -1732,7 +1681,6 @@ const ru: Dictionary = {
   'designer.tab.size': 'Размеры',
   'designer.tab.elements': 'Элементы',
   'designer.tab.inscription': 'Надпись',
-  'designer.summary': 'Итог',
 
   'configurator.title': 'Оформить заказ',
   'configurator.subtitle':
@@ -1781,7 +1729,6 @@ const ru: Dictionary = {
   'admin.field.orderCard': 'Карта заказа',
   'admin.field.category': 'Категория',
   'admin.field.pricePerM2': 'Цена/м²',
-  'admin.field.material': 'Материал',
   'admin.field.notProvided': 'Не указано',
   'admin.field.submittedAt': 'Отправлено',
 
@@ -1815,7 +1762,6 @@ const ru: Dictionary = {
   'admin.orders.completedAt': 'Завершено',
   'admin.orders.installationPhoto': 'Фото с монтажа',
   'admin.orders.handOverError': 'Не удалось передать заказ.',
-  'admin.orders.notHandedOver': 'Не передано',
 
   'admin.orderCards.title': 'Карточки заказов',
   'admin.orderCards.subtitle':
@@ -1948,7 +1894,6 @@ const ru: Dictionary = {
   'myOrders.configSection': 'Ваша конфигурация',
   'myOrders.orderSection': 'Заказ',
   'myOrders.awaitingReview': 'Мы получили заказ и скоро подтвердим цену и срок.',
-  'myOrders.material': 'Материал',
   'myOrders.category': 'Категория',
   'myOrders.dimensions': 'Размеры',
   'myOrders.finish': 'Обработка',

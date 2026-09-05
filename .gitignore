@@ -15,3 +15,10 @@
 /frontend/tsc.log
 .claude/
 Gemini_Generated_Image_*.png
+
+# wynik budowania i cache kompilatora - odtwarzane przez `npm run build`
+/frontend/dist/
+/frontend/tsconfig.tsbuildinfo
+
+# automatyczne kopie zapasowe Blendera
+*.blend1
