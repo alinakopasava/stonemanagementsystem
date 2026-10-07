@@ -37,7 +37,8 @@ interface AuthContextValue {
   signUp: (input: SignUpInput) => Promise<{ requiresEmailConfirmation: boolean }>;
   signOut: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
-  resetPassword: (password: string) => Promise<void>;
+  /** Resolves to whether the user is still signed in afterwards. */
+  resetPassword: (password: string) => Promise<boolean>;
   refreshProfile: () => Promise<void>;
 }
 
@@ -208,9 +209,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     await forgotPasswordRequest(email);
   }, []);
 
-  const resetPassword = useCallback(async (password: string) => {
-    await resetPasswordRequest(password);
-  }, []);
+  const resetPassword = useCallback(
+    async (password: string) => {
+      const { signedIn } = await resetPasswordRequest(password);
+      // The server has swapped the session for a new one (or dropped it), so
+      // the user on screen is read back from it rather than assumed.
+      await loadMe();
+      return signedIn !== false;
+    },
+    [loadMe]
+  );
 
   const refreshProfile = useCallback(async () => {
     await loadMe();

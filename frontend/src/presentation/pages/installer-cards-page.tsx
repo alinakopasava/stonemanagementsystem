@@ -54,6 +54,13 @@ const writeSyncedAt = (value: string) => {
   }
 };
 
+/**
+ * Where a job stands for the crew: what they last reported, unless the office
+ * has cancelled the order — that decision overrides anything done on site.
+ */
+const workStatus = (card: InstallationCard) =>
+  card.status === 'anulowane' ? card.status : card.report?.status ?? card.status;
+
 export const InstallerCardsPage = () => {
   const { t, language } = useTranslation();
   const dateLocale = LANGUAGE_LOCALES[language];
@@ -109,7 +116,7 @@ export const InstallerCardsPage = () => {
   }, [load]);
 
   const visibleCards = useMemo(
-    () => (filter === 'all' ? cards : cards.filter((card) => card.status === filter)),
+    () => (filter === 'all' ? cards : cards.filter((card) => workStatus(card) === filter)),
     [cards, filter]
   );
 
@@ -202,10 +209,10 @@ export const InstallerCardsPage = () => {
                   </div>
                   <span
                     className={`border px-3 py-1 text-[10px] uppercase tracking-wider ${
-                      STATUS_STYLES[card.status] ?? 'border-line bg-surface-2 text-ink-2'
+                      STATUS_STYLES[workStatus(card)] ?? 'border-line bg-surface-2 text-ink-2'
                     }`}
                   >
-                    {statusLabel(card.status)}
+                    {statusLabel(workStatus(card))}
                   </span>
                 </header>
 

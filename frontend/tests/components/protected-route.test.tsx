@@ -48,13 +48,36 @@ describe('ProtectedRoute', () => {
   });
 
   it.each([['klient'], ['monter']] as const)(
-    'sends a %s away from the admin panel to the home page',
+    'tells a %s the admin panel is not theirs, instead of opening it',
     async (role) => {
       server.use(authenticatedAs(role));
 
       renderWithProviders(<Guarded roles={['admin']} />, { route: '/admin' });
 
-      await waitFor(() => expect(probe()).toHaveAttribute('data-pathname', '/'));
+      expect(await screen.findByText('Access denied')).toBeInTheDocument();
+      expect(screen.getByText(/administrators only/i)).toBeInTheDocument();
+      expect(screen.queryByText('admin panel')).not.toBeInTheDocument();
+    }
+  );
+
+  it('tells a customer the installer worklist is not theirs', async () => {
+    server.use(authenticatedAs('klient'));
+
+    renderWithProviders(<Guarded roles={['monter', 'admin']} />, { route: '/installer' });
+
+    expect(await screen.findByText(/installers and administrators only/i)).toBeInTheDocument();
+    expect(screen.queryByText('installer worklist')).not.toBeInTheDocument();
+  });
+
+  it.each([['monter'], ['admin']] as const)(
+    'tells a %s the customer pages are not theirs',
+    async (role) => {
+      server.use(authenticatedAs(role));
+
+      renderWithProviders(<Guarded roles={['klient']} />, { route: '/admin' });
+
+      expect(await screen.findByText(/customers only/i)).toBeInTheDocument();
+      expect(screen.queryByText('admin panel')).not.toBeInTheDocument();
     }
   );
 

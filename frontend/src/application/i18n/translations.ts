@@ -36,6 +36,12 @@ export type TranslationKey =
   | 'app.loading'
   | 'app.materialsError'
   | 'app.retry'
+  | 'access.deniedTitle'
+  | 'access.deniedAdmin'
+  | 'access.deniedInstaller'
+  | 'access.deniedClient'
+  | 'access.goToPanel'
+  | 'access.goHome'
   | 'material.africa'
   | 'material.amadeus'
   | 'material.aurora'
@@ -477,6 +483,12 @@ const en: Dictionary = {
   'app.loading': 'Loading...',
   'app.materialsError': 'Failed to load materials: {message}',
   'app.retry': 'Try again',
+  'access.deniedTitle': 'Access denied',
+  'access.deniedAdmin': 'This page is available to administrators only.',
+  'access.deniedInstaller': 'This page is available to installers and administrators only.',
+  'access.deniedClient': 'This page is available to customers only.',
+  'access.goToPanel': 'Go to your panel',
+  'access.goHome': 'Home page',
   'material.africa': 'Africa granite',
   'material.amadeus': 'Amadeus granite',
   'material.aurora': 'Aurora granite',
@@ -955,6 +967,12 @@ const pl: Dictionary = {
   'app.loading': 'Wczytywanie...',
   'app.materialsError': 'Nie udało się wczytać materiałów: {message}',
   'app.retry': 'Spróbuj ponownie',
+  'access.deniedTitle': 'Brak dostępu',
+  'access.deniedAdmin': 'Ta strona jest dostępna tylko dla administratora.',
+  'access.deniedInstaller': 'Ta strona jest dostępna tylko dla montera i administratora.',
+  'access.deniedClient': 'Ta strona jest dostępna tylko dla klientów.',
+  'access.goToPanel': 'Przejdź do swojego panelu',
+  'access.goHome': 'Strona główna',
   'material.africa': 'Granit Africa',
   'material.amadeus': 'Granit Amadeus',
   'material.aurora': 'Granit Aurora',
@@ -1443,6 +1461,12 @@ const ru: Dictionary = {
   'app.loading': 'Загрузка...',
   'app.materialsError': 'Не удалось загрузить материалы: {message}',
   'app.retry': 'Повторить',
+  'access.deniedTitle': 'Нет доступа',
+  'access.deniedAdmin': 'Эта страница доступна только администратору.',
+  'access.deniedInstaller': 'Эта страница доступна только монтажникам и администратору.',
+  'access.deniedClient': 'Эта страница доступна только клиентам.',
+  'access.goToPanel': 'Перейти в свою панель',
+  'access.goHome': 'Главная страница',
   'material.africa': 'Гранит Africa',
   'material.amadeus': 'Гранит Amadeus',
   'material.aurora': 'Гранит Aurora',

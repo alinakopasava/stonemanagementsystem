@@ -189,6 +189,36 @@ export const updatePassword = async ({ userId, password, actorId, ip }) => {
   logSecurityEvent('auth.password_reset', { actorId, ip });
 };
 
+/**
+ * A fresh session for a caller who has just changed their password.
+ *
+ * Supabase retires the sessions a user held once their password changes, the
+ * recovery session included. The browser was still showing the user as signed
+ * in, while every request after that came back "Invalid or expired session".
+ * Signing in again with the password just set gives them a session that the
+ * API accepts, so what the interface shows is true.
+ *
+ * Returns null when that sign-in fails; the caller then clears the cookies
+ * rather than leaving dead ones behind.
+ */
+export const signInAfterPasswordChange = async ({ email, password }) => {
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail || typeof password !== 'string' || !password) {
+    return null;
+  }
+
+  const authClient = createSupabaseAuthClient();
+  const { data, error } = await authClient.auth.signInWithPassword({
+    email: normalizedEmail,
+    password
+  });
+  if (error || !data?.session) {
+    console.error('[auth] Sign-in after password change failed:', error);
+    return null;
+  }
+  return data.session;
+};
+
 export const revokeSession = async ({ accessToken }) => {
   if (accessToken) {
     try {

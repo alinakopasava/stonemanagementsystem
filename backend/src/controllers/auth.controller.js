@@ -5,6 +5,7 @@ import {
   establishSessionFromTokens,
   requestPasswordReset,
   revokeSession,
+  signInAfterPasswordChange,
   signInWithPassword,
   signUpWithPassword,
   updatePassword
@@ -94,7 +95,19 @@ export const resetPasswordController = async (req, res) => {
       actorId: req.user?.id ?? null,
       ip: getClientIp(req)
     });
-    return res.status(200).json({ ok: true });
+
+    // The old session does not survive the change, so the caller gets a new
+    // one here — or none at all, never cookies that only look signed in.
+    const session = await signInAfterPasswordChange({
+      email: req.user?.email,
+      password: req.body?.password
+    });
+    if (session) {
+      setSessionCookies(res, session);
+    } else {
+      clearSessionCookies(res);
+    }
+    return res.status(200).json({ ok: true, signedIn: Boolean(session) });
   } catch (error) {
     return sendError(res, error, 'Could not update password.');
   }

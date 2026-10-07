@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, memo, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from '@application/i18n/i18n-context';
 import { SceneLoader } from '@presentation/components/scene-loader';
 import type { MonumentViewerProps } from '@presentation/three/monument-viewer';
@@ -19,7 +19,7 @@ interface LazyMonumentViewerProps extends MonumentViewerProps {
  * Lazy-loads the Three.js viewer chunk and keeps a studio overlay up until the
  * environment and model have resolved. Catalog cards pass `deferUntilVisible`.
  */
-export const LazyMonumentViewer = ({
+const LazyMonumentViewerComponent = ({
   label,
   variant = 'full',
   deferUntilVisible = false,
@@ -88,3 +88,6 @@ export const LazyMonumentViewer = ({
     </div>
   );
 };
+
+/** Same props, same picture: skip re-rendering when the page around it changes. */
+export const LazyMonumentViewer = memo(LazyMonumentViewerComponent);

@@ -296,6 +296,45 @@ describe('POST /api/auth/reset-password', () => {
     });
   });
 
+  it('signs the caller in again with the new password, so the session keeps working', async () => {
+    signedInAs({ id: 'user-1' });
+    authClientSpies.signInWithPassword.mockResolvedValue({
+      data: { session: makeSession(), user: { id: 'user-1' } },
+      error: null
+    });
+
+    const response = await api(app, { cookies: sessionCookies() })
+      .post('/api/auth/reset-password')
+      .send({ password: 'BrandNew123' });
+
+    // Supabase retires the old session on a password change; without a new one
+    // the interface showed a signed-in user whose every request came back 401.
+    expect(response.status).toBe(200);
+    expect(response.body.signedIn).toBe(true);
+    expect(authClientSpies.signInWithPassword).toHaveBeenCalledWith(
+      expect.objectContaining({ password: 'BrandNew123' })
+    );
+    const jar = parseSetCookie(response);
+    expect(jar[ACCESS_COOKIE].value).toBe('new-access-token');
+  });
+
+  it('clears the cookies when the fresh sign-in fails, rather than keep dead ones', async () => {
+    signedInAs({ id: 'user-1' });
+    authClientSpies.signInWithPassword.mockResolvedValue({
+      data: { session: null, user: null },
+      error: { message: 'nope' }
+    });
+
+    const response = await api(app, { cookies: sessionCookies() })
+      .post('/api/auth/reset-password')
+      .send({ password: 'BrandNew123' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.signedIn).toBe(false);
+    const jar = parseSetCookie(response);
+    expect(jar[ACCESS_COOKIE].value).toBe('');
+  });
+
   it('reports a failure from the auth provider as 400', async () => {
     signedInAs({ id: 'user-1' });
     supabaseAdmin.auth.admin.updateUserById.mockResolvedValue({

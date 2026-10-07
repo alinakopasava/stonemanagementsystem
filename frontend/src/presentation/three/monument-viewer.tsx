@@ -1,6 +1,6 @@
-import { Suspense, useEffect, useLayoutEffect, useMemo } from 'react';
+import { memo, Suspense, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
-import { Canvas, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Environment, OrbitControls } from '@react-three/drei';
 import { ClassicMonumentModel, ROUNDED_MODEL_URL, STELE_MODEL_URL } from './classic-monument-model';
 import { MonumentModel } from './monument-model';
@@ -40,7 +40,7 @@ export interface MonumentViewerProps {
   photoBlend?: number;
   /** Tailwind height class for the canvas container. Defaults to the tall designer view. */
   heightClassName?: string;
-  /** 'demand' renders only on change/interaction — use for catalog grids with many canvases. */
+  /** 'demand' (the default) draws only on change or interaction; 'always' draws every frame. */
   frameloop?: 'always' | 'demand';
   /** Catalog previews trade supersampling and large shadow maps for much lower GPU cost. */
   quality?: 'catalog' | 'full';
@@ -84,9 +84,104 @@ const FrameCamera = ({ position, fov }: { position: [number, number, number]; fo
   return null;
 };
 
-export const MonumentViewer = ({
+/** How long the scene keeps drawing after a change, for work that lands late. */
+const SETTLE_MS = 1500;
+
+/**
+ * Draws for a short while after the configuration changes.
+ *
+ * The viewer renders on demand, so a frame is drawn only when something asks
+ * for one. Most changes do, but some land a little later on their own — the
+ * inscription font, a texture decoded off the main thread — and would sit
+ * unseen until the next drag. A brief burst of frames covers them.
+ */
+const RenderAfterChange = ({ changeKey }: { changeKey: unknown }) => {
+  const invalidate = useThree((state) => state.invalidate);
+
+  useEffect(() => {
+    const until = performance.now() + SETTLE_MS;
+    let id = 0;
+    const tick = () => {
+      invalidate();
+      if (performance.now() < until) id = requestAnimationFrame(tick);
+    };
+    tick();
+    return () => cancelAnimationFrame(id);
+  }, [changeKey, invalidate]);
+
+  return null;
+};
+
+/**
+ * Recomputes the shadow map only when the monument changes, not when the
+ * camera does.
+ *
+ * The key light and the stone stand still while the customer orbits or zooms,
+ * so the shadow they cast is the same picture every frame; redrawing the
+ * 2048² map anyway was most of what made the wheel feel heavy. Any frame the
+ * camera did not cause still updates it, as does a moment after the camera
+ * stops, so nothing mounted mid-drag is left with a stale shadow.
+ */
+const ShadowsOnSceneChange = ({ changeKey }: { changeKey: unknown }) => {
+  const gl = useThree((state) => state.gl);
+  const invalidate = useThree((state) => state.invalidate);
+  const controls = useThree((state) => state.controls) as unknown as THREE.EventDispatcher<{
+    end: object;
+  }> | null;
+  const refreshUntil = useRef(0);
+  const lastPosition = useRef(new THREE.Vector3(Number.NaN, 0, 0));
+  const lastQuaternion = useRef(new THREE.Quaternion());
+
+  useLayoutEffect(() => {
+    gl.shadowMap.autoUpdate = false;
+    gl.shadowMap.needsUpdate = true;
+    return () => {
+      gl.shadowMap.autoUpdate = true;
+    };
+  }, [gl]);
+
+  useLayoutEffect(() => {
+    refreshUntil.current = performance.now() + SETTLE_MS;
+    gl.shadowMap.needsUpdate = true;
+    invalidate();
+  }, [changeKey, gl, invalidate]);
+
+  useEffect(() => {
+    if (!controls) return;
+    let timer = 0;
+    const onEnd = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        gl.shadowMap.needsUpdate = true;
+        invalidate();
+      }, 300);
+    };
+    controls.addEventListener('end', onEnd);
+    return () => {
+      window.clearTimeout(timer);
+      controls.removeEventListener('end', onEnd);
+    };
+  }, [controls, gl, invalidate]);
+
+  // Runs after OrbitControls has moved the camera for this frame.
+  useFrame(({ camera }) => {
+    const cameraMoved =
+      !camera.position.equals(lastPosition.current) ||
+      !camera.quaternion.equals(lastQuaternion.current);
+    lastPosition.current.copy(camera.position);
+    lastQuaternion.current.copy(camera.quaternion);
+
+    if (!cameraMoved || performance.now() < refreshUntil.current) {
+      gl.shadowMap.needsUpdate = true;
+    }
+  });
+
+  return null;
+};
+
+const MonumentViewerComponent = ({
   heightClassName = 'h-[640px]',
-  frameloop = 'always',
+  frameloop = 'demand',
   quality = 'full',
   onSceneReady,
   ...props
@@ -237,6 +332,8 @@ export const MonumentViewer = ({
           )}
 
           <SceneReadyNotifier onReady={onSceneReady} />
+          <RenderAfterChange changeKey={props} />
+          <ShadowsOnSceneChange changeKey={props} />
           <FrameCamera position={framing.position} fov={fov} />
         </Suspense>
 
@@ -253,3 +350,9 @@ export const MonumentViewer = ({
     </div>
   );
 };
+
+/**
+ * Memoised so the configurator's own state — the open tab, a submit in
+ * progress — does not re-render the whole 3D scene when nothing in it changed.
+ */
+export const MonumentViewer = memo(MonumentViewerComponent);

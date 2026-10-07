@@ -34,7 +34,7 @@ export const forgotPasswordRequest = (email: string) =>
   });
 
 export const resetPasswordRequest = (password: string) =>
-  apiFetch<{ ok: true }>('/api/auth/reset-password', {
+  apiFetch<{ ok: true; signedIn?: boolean }>('/api/auth/reset-password', {
     method: 'POST',
     body: { password }
   });

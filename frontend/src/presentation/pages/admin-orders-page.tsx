@@ -207,7 +207,9 @@ export const AdminOrdersPage = () => {
           visibleOrders.map((o) => {
             const details = o.order_cards?.order_details ?? [];
             const status = o.status ?? 'oczekujące';
-            const handedOver = o.installation_cards?.[0] ?? null;
+            // The list endpoint flattens the card into `installation_report`;
+            // `installation_cards` is only filled in locally, right after a hand-over.
+            const handedOver = o.installation_report ?? o.installation_cards?.[0] ?? null;
             return (
               <article key={o.id} className="border border-line bg-surface p-5">
                 <header className="flex flex-wrap items-start justify-between gap-3">

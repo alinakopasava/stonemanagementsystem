@@ -12,6 +12,9 @@ import { ORDER_STATUSES, ORDER_STATUS_LABEL_KEYS } from '@domain/entities/order-
 
 const WORK_STATUSES = ORDER_STATUSES.map((id) => ({ id, labelKey: ORDER_STATUS_LABEL_KEYS[id] }));
 
+/** Only the office cancels an order; the API refuses it from the crew too. */
+const OFFICE_ONLY_STATUSES: readonly string[] = ['anulowane'];
+
 /**
  * What the crew records on site, written to `installation_cards`.
  *
@@ -33,34 +36,62 @@ export const InstallationReportForm = ({
   const report = card.report;
 
   const [status, setStatus] = useState(report?.status ?? card.status);
-  const [comments, setComments] = useState(report?.workerComments ?? '');
+  // Starts empty and empties again after each report: the field is for what
+  // the crew is adding now, and what they sent is already with the office.
+  const [comments, setComments] = useState('');
   const [state, setState] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
-  // A refresh of the worklist brings server values back; keep the fields in
-  // step with them unless the installer is mid-save.
+  // A photograph picked but not yet sent. It goes up with the report, on
+  // "save", like the comment — until then the office has nothing to see.
+  const [pendingPhoto, setPendingPhoto] = useState<File | null>(null);
+  const [pendingPreview, setPendingPreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!pendingPhoto) {
+      setPendingPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(pendingPhoto);
+    setPendingPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [pendingPhoto]);
+
+  // A refresh of the worklist brings the stored status back.
   useEffect(() => {
     setStatus(report?.status ?? card.status);
-    setComments(report?.workerComments ?? '');
-  }, [report?.status, report?.workerComments, card.status]);
+  }, [report?.status, card.status]);
 
-  const pickPhoto = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  /*
+   * The status goes to the server as soon as it is picked, so the office sees
+   * it without the crew having to press save. Only the status: the comment is
+   * sent as last saved, and a half-written one — like a picked photograph —
+   * stays a draft until "save". Nor is this a report, so it does not say
+   * "saved". The order status the customer sees is untouched: only the office
+   * sets that.
+   */
+  const changeStatus = async (next: string) => {
+    const previous = status;
+    setStatus(next);
+    setState('idle');
+    setError(null);
+    try {
+      await onSave({ status: next, workerComments: report?.workerComments ?? '' });
+    } catch (err) {
+      setStatus(previous);
+      setError(err instanceof Error ? err.message : t('installer.saveError'));
+    }
+  };
+
+  const pickPhoto = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     // Clear the input straight away, so choosing the same file twice still fires.
     event.target.value = '';
     if (!file) return;
-
-    setUploading(true);
-    setError(null);
-    try {
-      onReport(await uploadInstallationPhoto(card.orderId, file));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('installer.saveError'));
-    } finally {
-      setUploading(false);
-    }
+    setPendingPhoto(file);
+    setState('idle');
   };
 
   const submit = async (event: React.FormEvent) => {
@@ -68,13 +99,29 @@ export const InstallationReportForm = ({
     setState('saving');
     setError(null);
     try {
-      await onSave({ status, workerComments: comments });
+      // An empty field means "nothing new", not "erase what was sent before".
+      await onSave({ status, workerComments: comments.trim() || report?.workerComments || '' });
+      // After the report, not before: a photograph on a job still "oczekujące"
+      // moves it to "w_realizacji" on the server, and the report saved second
+      // would put it back.
+      if (pendingPhoto) {
+        setUploading(true);
+        onReport(await uploadInstallationPhoto(card.orderId, pendingPhoto));
+        setPendingPhoto(null);
+      }
+      setComments('');
       setState('saved');
     } catch (err) {
       setError(err instanceof Error ? err.message : t('installer.saveError'));
       setState('idle');
+    } finally {
+      setUploading(false);
     }
   };
+
+  // Only the photograph waiting to be sent; the one already saved is the office's.
+  const photoUrl = pendingPreview;
+  const savedStatus = report?.status ?? card.status;
 
   const fieldClass =
     'mt-1 w-full u-field';
@@ -103,8 +150,13 @@ export const InstallationReportForm = ({
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block">
           <span className="text-xs text-ink-3">{t('installer.workStatus')}</span>
-          <select value={status} onChange={(e) => setStatus(e.target.value)} className={fieldClass}>
-            {WORK_STATUSES.map((option) => (
+          <select value={status} onChange={(e) => void changeStatus(e.target.value)} className={fieldClass}>
+            {/* An office-only status stays listed on a card that already has
+                it, so the field shows what is stored rather than lying. */}
+            {WORK_STATUSES.filter(
+              (option) =>
+                !OFFICE_ONLY_STATUSES.includes(option.id) || option.id === savedStatus
+            ).map((option) => (
               <option key={option.id} value={option.id}>
                 {t(option.labelKey)}
               </option>
@@ -131,7 +183,7 @@ export const InstallationReportForm = ({
             <ImagePlus className="h-4 w-4 text-ink-3" />
             {uploading
               ? t('installer.uploading')
-              : report?.photoUrl
+              : photoUrl
                 ? t('installer.replacePhoto')
                 : t('installer.choosePhoto')}
           </button>
@@ -157,15 +209,15 @@ export const InstallationReportForm = ({
       ) : null}
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-        {report?.photoUrl ? (
+        {photoUrl ? (
           <a
-            href={report.photoUrl}
+            href={photoUrl}
             target="_blank"
             rel="noreferrer noopener"
             className="inline-flex items-center gap-2 text-xs text-brand hover:text-brand"
           >
             <img
-              src={report.photoUrl}
+              src={photoUrl}
               alt=""
               className="h-12 w-12 rounded border border-line object-cover"
             />

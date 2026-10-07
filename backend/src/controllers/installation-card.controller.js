@@ -19,7 +19,8 @@ export const saveInstallationReportController = async (req, res) => {
     const report = await saveInstallationReport({
       supabase: req.supabase,
       orderId: req.params.orderId,
-      payload: req.body
+      payload: req.body,
+      role: req.user.role
     });
     return res.status(200).json({ data: report });
   } catch (error) {

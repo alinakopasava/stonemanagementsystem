@@ -191,6 +191,28 @@ describe('GET /api/installation-cards', () => {
     expect(response.body.data.workerComments).toBe('Zamontowane.');
   });
 
+  it('refuses to let the crew cancel an order', async () => {
+    const update = vi.fn(() => ({ data: null, error: null }));
+    setTables({
+      orders: { select: () => ({ data: { id: 'order-handed-over' }, error: null }) },
+      installation_cards: {
+        select: () => ({
+          data: { id: 'inst-1', status: 'w_realizacji', completion_timestamp: null },
+          error: null
+        }),
+        update
+      }
+    });
+
+    const response = await api(app, { cookies: sessionCookies() })
+      .put('/api/installation-cards/3f0d9a1e-4c2b-4f8a-9e7d-1b2c3d4e5f60/report')
+      .send({ status: 'anulowane' });
+
+    // Cancelling closes the order's life cycle, which is the office's decision.
+    expect(response.status).toBe(403);
+    expect(update).not.toHaveBeenCalled();
+  });
+
   it('refuses a photograph against an order not handed over, before uploading it', async () => {
     setTables({
       orders: { select: () => ({ data: { id: 'order-not-handed-over' }, error: null }) },

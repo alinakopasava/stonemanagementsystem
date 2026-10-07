@@ -31,8 +31,10 @@ export const ResetPasswordPage = () => {
     setError(null);
     setIsSubmitting(true);
     try {
-      await resetPassword(password);
-      navigate('/', { replace: true });
+      const signedIn = await resetPassword(password);
+      // Should the fresh sign-in fail, the new password still works: send the
+      // user to the sign-in form instead of a home page that looks signed in.
+      navigate(signedIn ? '/' : '/sign-in', { replace: true });
     } catch (err) {
       setError(isRateLimited(err) ? t('auth.tooManyAttempts') : t('resetPassword.error'));
     } finally {

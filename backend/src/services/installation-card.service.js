@@ -12,6 +12,12 @@ const ALLOWED_WORK_STATUSES = new Set([
   'anulowane'
 ]);
 
+/**
+ * Cancelling a job is the office's call, not the crew's: it closes the order's
+ * life cycle, and only the administrator may do that.
+ */
+const OFFICE_ONLY_WORK_STATUSES = new Set(['anulowane']);
+
 const MAX_COMMENT_LENGTH = 2000;
 const PHOTO_BUCKET = 'installation-photos';
 /**
@@ -146,7 +152,8 @@ export const listInstallationCards = async ({ supabase }) => {
 export const saveInstallationReport = async ({
   supabase,
   orderId,
-  payload
+  payload,
+  role
 }) => {
   assertUuid(orderId, 'Invalid order id.');
 
@@ -174,7 +181,7 @@ export const saveInstallationReport = async ({
 
   const { data: existing, error: existingError } = await supabase
     .from('installation_cards')
-    .select('id, completion_timestamp')
+    .select('id, status, completion_timestamp')
     .eq('order_id', orderId)
     .maybeSingle();
   if (existingError) {
@@ -186,6 +193,16 @@ export const saveInstallationReport = async ({
   // that job on their own list.
   if (!existing) {
     throw new PublicError('This order has not been handed over to the crew yet.', 409);
+  }
+
+  // A card already carrying an office-only status keeps it through a report
+  // that leaves it alone; the crew just cannot move a card into one.
+  if (
+    role !== 'admin' &&
+    OFFICE_ONLY_WORK_STATUSES.has(status) &&
+    existing.status !== status
+  ) {
+    throw new PublicError('Only the office can cancel an order.', 403);
   }
 
   const finished = status === 'zrealizowane';
